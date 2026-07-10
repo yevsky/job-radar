@@ -20,4 +20,4 @@ test:
     uv run pytest
 
 run:
-    uv run fastapi dev app/main.py
+    uv run fastapi dev backend/main.py
