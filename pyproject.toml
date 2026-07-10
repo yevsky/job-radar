@@ -1,0 +1,12 @@
+[project]
+name = "job-radar-ai"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi[standard]>=0.139.0",
+    "mypy>=2.2.0",
+    "pydantic>=2.13.4",
+    "ruff>=0.15.21",
+]
