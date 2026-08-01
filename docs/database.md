@@ -60,7 +60,6 @@ Defines system-level user roles (e.g. `admin`, `user`).
 |---|---|---|
 | `id` | integer | Primary key |
 | `name` | varchar | Unique, not null |
-| `created_at` | timestamp | |
 
 ### `users`
 Application user accounts, including authentication data.
@@ -146,7 +145,6 @@ A flat vocabulary of technologies/skills (e.g. "React", "Python", "Docker") refe
 |---|---|---|
 | `id` | integer | Primary key |
 | `name` | varchar | Unique, not null |
-| `created_at` | timestamp | |
 
 ### `job_offer_technologies`
 Many-to-many mapping between job offers and the technologies they require.
