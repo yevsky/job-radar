@@ -168,7 +168,7 @@ Tracks which job offers a user has bookmarked for later.
 | Column | Type | Notes |
 |---|---|---|
 | `user_id` | integer | FK → `users.id`, part of composite PK |
-| `job_id` | integer | FK → `job_offers.id`, part of composite PK |
+| `job_offer_id` | integer | FK → `job_offers.id`, part of composite PK |
 | `created_at` | timestamp | |
 
 ### `applications`
@@ -178,7 +178,7 @@ Tracks a user's application to a specific job offer, including status and notes.
 |---|---|---|
 | `id` | integer | Primary key |
 | `user_id` | integer | FK → `users.id` |
-| `job_id` | integer | FK → `job_offers.id` |
+| `job_offer_id` | integer | FK → `job_offers.id` |
 | `status` | application_status | |
 | `applied_at` | timestamp | |
 | `notes` | text | |
