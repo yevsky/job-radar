@@ -1,0 +1,43 @@
+# Database Migrations
+
+This directory contains Alembic migration scripts for the project database.
+
+## Creating a new migration
+
+After changing SQLAlchemy models, generate a migration:
+
+    uv run alembic -c backend/alembic.ini revision --autogenerate -m "describe change"
+
+Always review the generated migration file before applying it.
+
+## Applying migrations
+
+Apply all pending migrations:
+
+    uv run alembic -c backend/alembic.ini upgrade head
+
+## Checking migration status
+
+Show the current database revision:
+
+    uv run alembic -c backend/alembic.ini current
+
+Show migration history:
+
+    uv run alembic -c backend/alembic.ini history
+
+## Rolling back migrations
+
+Downgrade the latest migration:
+
+    uv run alembic -c backend/alembic.ini downgrade -1
+
+## Migration files
+
+Migration scripts are stored in:
+
+    alembic/versions/
+
+Each migration contains:
+- upgrade() - applies database changes
+- downgrade() - reverts database changes
