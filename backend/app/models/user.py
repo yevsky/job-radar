@@ -4,10 +4,10 @@ from typing import TYPE_CHECKING
 from sqlalchemy import DateTime, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from backend.app.database.base import Base
+from app.db.base import Base
 
 if TYPE_CHECKING:
-    from backend.app.models.role import Role
+    from app.models.role import Role
 
 
 class User(Base):

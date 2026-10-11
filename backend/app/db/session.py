@@ -1,6 +1,6 @@
 from sqlalchemy.orm import sessionmaker
 
-from backend.app.database.engine import engine
+from app.db.engine import engine
 
 SessionLocal = sessionmaker(
     bind=engine,
