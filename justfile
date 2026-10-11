@@ -1,4 +1,5 @@
-set shell := ["powershell.exe", "-NoLogo", "-NoProfile", "-Command"]
+set windows-shell := ["powershell.exe", "-NoLogo", "-NoProfile", "-Command"]
+set working-directory := "backend"
 
 check:
     uv run ruff format --check .
@@ -20,4 +21,4 @@ test:
     uv run pytest
 
 run:
-    uv run fastapi dev backend/main.py
+    uv run fastapi dev app/main.py
