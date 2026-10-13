@@ -25,8 +25,8 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U job_radar"
           --health-interval 5s
-          --health-tomeout 5s
-          --health-retries 10s
+          --health-timeout 5s
+          --health-retries 10
 
     env:
       DATABASE_URL: postgresql+psycopg://job_radar:job_radar_dev@localhost:5432/job_radar_test
