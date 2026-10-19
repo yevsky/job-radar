@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.db.base import Base
+from app.db.dependencies import get_db
 from app.main import app
 from app.models import Role
 
@@ -41,3 +42,11 @@ def db(engine: Engine) -> Generator[Session]:
     session.close()
     transaction.rollback()
     connection.close()
+
+
+@pytest.fixture
+def api(client: TestClient, db: Session) -> Generator[TestClient]:
+    """A test client whose routes use the test database session instead of the real one."""
+    app.dependency_overrides[get_db] = lambda: db
+    yield client
+    app.dependency_overrides.clear()
