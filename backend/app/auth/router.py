@@ -2,18 +2,15 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy.orm import Session
 
 from app.auth.dependencies import CurrentUser
 from app.auth.schemas import Token, UserRead, UserRegister
 from app.auth.service import EmailAlreadyRegisteredError, authenticate_user, register_user
 from app.auth.token import create_access_token
-from app.db.dependencies import get_db
+from app.db.dependencies import DbSession
 from app.models import User
 
 router = APIRouter(prefix='/auth', tags=['auth'])
-
-DbSession = Annotated[Session, Depends(get_db)]
 
 
 @router.post('/register', response_model=UserRead, status_code=status.HTTP_201_CREATED)
