@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
+from app.auth.dependencies import CurrentUser
 from app.auth.schemas import Token, UserRead, UserRegister
 from app.auth.service import EmailAlreadyRegisteredError, authenticate_user, register_user
 from app.auth.token import create_access_token
@@ -40,3 +41,9 @@ def login(form: Annotated[OAuth2PasswordRequestForm, Depends()], db: DbSession) 
         )
 
     return Token(access_token=create_access_token(str(user.id)))
+
+
+@router.get('/me', response_model=UserRead)
+def read_me(user: CurrentUser) -> User:
+    """Return the logged-in user's profile."""
+    return user
