@@ -5,8 +5,9 @@ from sqlalchemy.orm import Session
 from app.auth.hashing import hash_password, verify_password
 from app.auth.schemas import UserRegister
 from app.models import Role, User
+from app.models.role import RoleName
 
-DEFAULT_ROLE = 'user'
+DEFAULT_ROLE = RoleName.USER
 
 
 class EmailAlreadyRegisteredError(Exception):
