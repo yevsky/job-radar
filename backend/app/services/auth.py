@@ -2,10 +2,10 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.auth.hashing import hash_password, verify_password
-from app.auth.schemas import UserRegister
+from app.core.hashing import hash_password, verify_password
 from app.models import Role, User
 from app.models.role import RoleName
+from app.schemas.user import UserRegister
 
 DEFAULT_ROLE = RoleName.USER
 

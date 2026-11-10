@@ -3,12 +3,12 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 
-from app.auth.dependencies import CurrentUser
-from app.auth.schemas import Token, UserRead, UserRegister
-from app.auth.service import EmailAlreadyRegisteredError, authenticate_user, register_user
-from app.auth.token import create_access_token
+from app.core.token import create_access_token
 from app.db.dependencies import DbSession
+from app.dependencies import CurrentUser
 from app.models import User
+from app.schemas.user import Token, UserRead, UserRegister
+from app.services.auth import EmailAlreadyRegisteredError, authenticate_user, register_user
 
 router = APIRouter(prefix='/auth', tags=['auth'])
 

@@ -3,11 +3,11 @@ from collections.abc import Sequence
 from fastapi import APIRouter, Depends
 from sqlalchemy import select
 
-from app.auth.dependencies import require_role
-from app.auth.schemas import UserRead
 from app.db.dependencies import DbSession
+from app.dependencies import require_role
 from app.models import User
 from app.models.role import RoleName
+from app.schemas.user import UserRead
 
 router = APIRouter(
     prefix='/admin', tags=['admin'], dependencies=[Depends(require_role(RoleName.ADMIN))]
