@@ -3,7 +3,7 @@ from datetime import timedelta
 import jwt
 import pytest
 
-from app.auth.token import create_access_token, decode_access_token
+from app.core.token import create_access_token, decode_access_token
 
 
 def test_decode_returns_subject_of_created_token() -> None:

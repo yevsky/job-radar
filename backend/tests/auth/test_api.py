@@ -4,7 +4,7 @@ import pytest
 from fastapi import status
 from fastapi.testclient import TestClient
 
-from app.auth.token import create_access_token
+from app.core.token import create_access_token
 from tests.helpers import PASSWORD, auth_header
 from tests.helpers import USER_EMAIL as EMAIL
 

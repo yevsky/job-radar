@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 
-from app.auth.schemas import UserRegister
-from app.auth.service import register_user
+from app.schemas.user import UserRegister
+from app.services.auth import register_user
 
 
 def test_register_user_creates_user_with_default_role(db: Session) -> None:
