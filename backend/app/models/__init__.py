@@ -2,6 +2,7 @@
 
 from app.models.role import Role
 from app.models.user import User
+from app.models.user_preferred_location import UserPreferredLocation
 from app.models.user_profile import UserProfile
 
-__all__ = ['Role', 'User', 'UserProfile']
+__all__ = ['Role', 'User', 'UserProfile', 'UserPreferredLocation']

@@ -8,6 +8,7 @@ from app.db.base import Base
 
 if TYPE_CHECKING:
     from app.models.role import Role
+    from app.models.user_preferred_location import UserPreferredLocation
     from app.models.user_profile import UserProfile
 
 
@@ -29,5 +30,8 @@ class User(Base):
 
     role: Mapped['Role'] = relationship(back_populates='users')
     profile: Mapped['UserProfile | None'] = relationship(
+        back_populates='user', cascade='all, delete-orphan'
+    )
+    preferred_locations: Mapped[list['UserPreferredLocation']] = relationship(
         back_populates='user', cascade='all, delete-orphan'
     )
