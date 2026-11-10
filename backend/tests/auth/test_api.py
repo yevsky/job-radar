@@ -5,27 +5,8 @@ from fastapi import status
 from fastapi.testclient import TestClient
 
 from app.auth.token import create_access_token
-
-EMAIL = 'user@example.com'
-PASSWORD = 'user12345'
-
-
-@pytest.fixture
-def registered_user_id(api: TestClient) -> int:
-    response = api.post('/auth/register', json={'email': EMAIL, 'password': PASSWORD})
-    return int(response.json()['id'])
-
-
-@pytest.fixture
-def access_token(api: TestClient, registered_user_id: int) -> str:
-    del registered_user_id  # requested only so the user is registered before logging in
-    response = api.post('/auth/login', data={'username': EMAIL, 'password': PASSWORD})
-    return str(response.json()['access_token'])
-
-
-def auth_header(token: str) -> dict[str, str]:
-    return {'Authorization': f'Bearer {token}'}
-
+from tests.helpers import PASSWORD, auth_header
+from tests.helpers import USER_EMAIL as EMAIL
 
 # /register tests
 
