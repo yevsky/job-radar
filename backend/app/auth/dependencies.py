@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from typing import Annotated
 
 import jwt
@@ -32,3 +33,17 @@ def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: DbSessio
 
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
+
+
+def require_role(*roles: str) -> Callable[[User], User]:
+    """Return a dependency that lets in only users with one of the given roles."""
+
+    def check_role(user: CurrentUser) -> User:
+        if user.role.name not in roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail='Not enough permissions',
+            )
+        return user
+
+    return check_role

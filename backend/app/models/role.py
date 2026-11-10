@@ -1,3 +1,4 @@
+from enum import StrEnum
 from typing import TYPE_CHECKING
 
 from sqlalchemy import String
@@ -7,6 +8,11 @@ from app.db.base import Base
 
 if TYPE_CHECKING:
     from app.models.user import User
+
+
+class RoleName(StrEnum):
+    USER = 'user'
+    ADMIN = 'admin'
 
 
 class Role(Base):
