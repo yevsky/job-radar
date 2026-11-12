@@ -36,9 +36,9 @@ Describes the seniority level of a job offer or a user's declared experience.
 
 | Value | Description |
 |---|---|
-| `internship` | Entry-level / internship |
+| `trainee` | Entry-level / trainee or intern |
 | `junior` | Junior |
-| `mid` | Mid-level |
+| `middle` | Mid-level |
 | `senior` | Senior |
 | `lead` | Lead / management-adjacent |
 
