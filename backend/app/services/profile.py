@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 
-from app.models import User, UserProfile
-from app.schemas.profile import ProfileRead, ProfileUpdate
+from app.models import User, UserPreferredLocation, UserProfile
+from app.schemas.profile import LocationsUpdate, ProfileRead, ProfileUpdate
 
 
 def to_profile_read(user: User) -> ProfileRead:
@@ -32,4 +32,11 @@ def upsert_profile(db: Session, user: User, data: ProfileUpdate) -> ProfileRead:
     db.commit()
     db.refresh(user)
 
+    return to_profile_read(user)
+
+
+def set_locations(db: Session, user: User, data: LocationsUpdate) -> ProfileRead:
+    user.preferred_locations = [UserPreferredLocation(location=loc) for loc in data.locations]
+    db.commit()
+    db.refresh(user)
     return to_profile_read(user)
