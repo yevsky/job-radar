@@ -2,8 +2,20 @@ from fastapi import APIRouter
 
 from app.db.dependencies import DbSession
 from app.dependencies import CurrentUser
-from app.schemas.profile import EmploymentTypesUpdate, LocationsUpdate, ProfileRead, ProfileUpdate
-from app.services.profile import get_profile, set_employment_types, set_locations, upsert_profile
+from app.schemas.profile import (
+    EmploymentTypesUpdate,
+    LocationsUpdate,
+    ProfileRead,
+    ProfileUpdate,
+    SkillsUpdate,
+)
+from app.services.profile import (
+    get_profile,
+    set_employment_types,
+    set_locations,
+    set_skills,
+    upsert_profile,
+)
 
 router = APIRouter(prefix='/profile', tags=['profile'])
 
@@ -28,3 +40,8 @@ def update_my_employment_types(
     data: EmploymentTypesUpdate, user: CurrentUser, db: DbSession
 ) -> ProfileRead:
     return set_employment_types(db, user, data)
+
+
+@router.put('/me/skills', response_model=ProfileRead)
+def update_my_skills(data: SkillsUpdate, user: CurrentUser, db: DbSession) -> ProfileRead:
+    return set_skills(db, user, data)
