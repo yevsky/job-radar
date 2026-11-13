@@ -22,7 +22,7 @@ def get_profile(user: User) -> ProfileRead:
     return to_profile_read(user)
 
 
-def upsert_profile(db: Session, user: User, data: ProfileUpdate) -> User:
+def upsert_profile(db: Session, user: User, data: ProfileUpdate) -> ProfileRead:
     if user.profile is None:
         user.profile = UserProfile()
 
@@ -32,4 +32,4 @@ def upsert_profile(db: Session, user: User, data: ProfileUpdate) -> User:
     db.commit()
     db.refresh(user)
 
-    return user
+    return to_profile_read(user)
