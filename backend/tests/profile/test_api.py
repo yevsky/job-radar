@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.models import Technology, UserProfile
 from tests.conftest import register_and_login
-from tests.helpers import auth_header
+from tests.helpers import PASSWORD, USER_EMAIL, auth_header
 
 FULL_PROFILE = {
     'first_name': 'John',
@@ -18,9 +18,19 @@ FULL_PROFILE = {
 LOCATIONS_URL = '/profile/me/locations'
 EMPLOYMENT_TYPES_URL = '/profile/me/employment-types'
 SKILLS_URL = '/profile/me/skills'
+EMPTY_PROFILE: dict[str, None | list[str]] = {
+    'first_name': None,
+    'last_name': None,
+    'bio': None,
+    'experience_level': None,
+    'desired_position': None,
+    'preferred_locations': [],
+    'preferred_employment_types': [],
+    'skills': [],
+}
 
 
-@pytest.mark.parametrize('method', ['get', 'put'])
+@pytest.mark.parametrize('method', ['get', 'put', 'delete'])
 def test_profile_without_token_returns_401(api: TestClient, method: str) -> None:
     response = api.request(method, '/profile/me', json={})
 
@@ -31,16 +41,7 @@ def test_get_profile_for_new_user_returns_empty_profile(api: TestClient, access_
     response = api.get('/profile/me', headers=auth_header(access_token))
 
     assert response.status_code == status.HTTP_200_OK
-    assert response.json() == {
-        'first_name': None,
-        'last_name': None,
-        'bio': None,
-        'experience_level': None,
-        'desired_position': None,
-        'preferred_locations': [],
-        'preferred_employment_types': [],
-        'skills': [],
-    }
+    assert response.json() == EMPTY_PROFILE
 
 
 def test_put_then_get_returns_saved_profile(api: TestClient, access_token: str) -> None:
@@ -382,3 +383,62 @@ def test_put_invalid_skills_returns_422(
     response = api.put(SKILLS_URL, json={'skills': skills}, headers=auth_header(access_token))
 
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+
+
+def save_full_profile(api: TestClient, token: str) -> None:
+    """Fill in every part of the profile, so a delete has something to remove."""
+    api.put('/profile/me', json=FULL_PROFILE, headers=auth_header(token))
+    api.put(LOCATIONS_URL, json={'locations': ['Remote']}, headers=auth_header(token))
+    api.put(EMPLOYMENT_TYPES_URL, json={'employment_types': ['b2b']}, headers=auth_header(token))
+    api.put(SKILLS_URL, json={'skills': ['Python']}, headers=auth_header(token))
+
+
+def test_delete_profile_clears_everything(api: TestClient, access_token: str) -> None:
+    save_full_profile(api, access_token)
+
+    delete_response = api.delete('/profile/me', headers=auth_header(access_token))
+    get_response = api.get('/profile/me', headers=auth_header(access_token))
+
+    assert delete_response.status_code == status.HTTP_204_NO_CONTENT
+    assert delete_response.content == b''
+    assert get_response.json() == EMPTY_PROFILE
+
+
+def test_delete_profile_keeps_the_account(api: TestClient, access_token: str) -> None:
+    save_full_profile(api, access_token)
+    api.delete('/profile/me', headers=auth_header(access_token))
+
+    login_response = api.post('/auth/login', data={'username': USER_EMAIL, 'password': PASSWORD})
+    get_response = api.get('/profile/me', headers=auth_header(access_token))
+
+    assert login_response.status_code == status.HTTP_200_OK
+    assert get_response.status_code == status.HTTP_200_OK
+
+
+def test_delete_profile_keeps_technologies(api: TestClient, access_token: str, db: Session) -> None:
+    save_full_profile(api, access_token)
+    api.delete('/profile/me', headers=auth_header(access_token))
+
+    assert technology_names(db) == ['Python']
+
+
+def test_delete_profile_is_idempotent(api: TestClient, access_token: str) -> None:
+    first = api.delete('/profile/me', headers=auth_header(access_token))
+    second = api.delete('/profile/me', headers=auth_header(access_token))
+
+    assert first.status_code == status.HTTP_204_NO_CONTENT
+    assert second.status_code == status.HTTP_204_NO_CONTENT
+
+
+def test_delete_profile_only_deletes_own_data(api: TestClient, access_token: str) -> None:
+    _, other_token = register_and_login(api, 'other@example.com')
+    save_full_profile(api, access_token)
+    save_full_profile(api, other_token)
+
+    api.delete('/profile/me', headers=auth_header(access_token))
+    body = api.get('/profile/me', headers=auth_header(other_token)).json()
+
+    assert body['first_name'] == FULL_PROFILE['first_name']
+    assert body['preferred_locations'] == ['Remote']
+    assert body['preferred_employment_types'] == ['b2b']
+    assert body['skills'] == ['Python']
