@@ -23,3 +23,9 @@ class ApplicationStatus(StrEnum):
     INTERVIEW = 'interview'
     REJECTED = 'rejected'
     ACCEPTED = 'accepted'
+
+
+class SourceKind(StrEnum):
+    SEARCH = 'search'
+    BROWSER = 'browser'
+    MANUAL = 'manual'
