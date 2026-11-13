@@ -43,3 +43,12 @@ class LocationsUpdate(BaseModel):
             seen.add(key)
             result.append(location)
         return result
+
+
+class EmploymentTypesUpdate(BaseModel):
+    employment_types: list[EmploymentType]
+
+    @field_validator('employment_types')
+    @classmethod
+    def remove_duplicates(cls, employment_types: list[EmploymentType]) -> list[EmploymentType]:
+        return list(dict.fromkeys(employment_types))
