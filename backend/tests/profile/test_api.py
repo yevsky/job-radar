@@ -15,6 +15,7 @@ FULL_PROFILE = {
     'experience_level': 'junior',
     'desired_position': 'backend developer',
 }
+LOCATIONS_URL = '/profile/me/locations'
 
 
 @pytest.mark.parametrize('method', ['get', 'put'])
@@ -110,3 +111,86 @@ def test_users_only_see_their_own_profile(api: TestClient, access_token: str) ->
     response = api.get('/profile/me', headers=auth_header(other_token))
 
     assert response.json()['first_name'] is None
+
+
+def test_locations_without_token_returns_401(api: TestClient) -> None:
+    response = api.put(LOCATIONS_URL, json={'locations': ['Remote']})
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+def test_put_locations_then_get_returns_them(api: TestClient, access_token: str) -> None:
+    put_response = api.put(
+        LOCATIONS_URL, json={'locations': ['Wroclaw', 'Remote']}, headers=auth_header(access_token)
+    )
+    get_response = api.get('/profile/me', headers=auth_header(access_token))
+
+    assert put_response.status_code == status.HTTP_200_OK
+    for body in (put_response.json(), get_response.json()):
+        assert sorted(body['preferred_locations']) == ['Remote', 'Wroclaw']
+
+
+def test_second_put_locations_replaces_the_list(api: TestClient, access_token: str) -> None:
+    api.put(
+        LOCATIONS_URL, json={'locations': ['Wroclaw', 'Remote']}, headers=auth_header(access_token)
+    )
+    response = api.put(
+        LOCATIONS_URL, json={'locations': ['Krakow']}, headers=auth_header(access_token)
+    )
+
+    assert response.json()['preferred_locations'] == ['Krakow']
+
+
+def test_put_empty_locations_clears_the_list(api: TestClient, access_token: str) -> None:
+    api.put(
+        LOCATIONS_URL, json={'locations': ['Wroclaw', 'Remote']}, headers=auth_header(access_token)
+    )
+    response = api.put(LOCATIONS_URL, json={'locations': []}, headers=auth_header(access_token))
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json()['preferred_locations'] == []
+
+
+def test_put_locations_removes_case_insensitive_duplicates(
+    api: TestClient, access_token: str
+) -> None:
+    response = api.put(
+        LOCATIONS_URL,
+        json={'locations': ['Wroclaw', 'wroclaw', ' WROCLAW ']},
+        headers=auth_header(access_token),
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json()['preferred_locations'] == ['Wroclaw']
+
+
+@pytest.mark.parametrize(
+    'locations',
+    [
+        [''],
+        ['   '],
+        ['a' * 101],
+        [f'City {i}' for i in range(11)],
+    ],
+    ids=['empty', 'whitespace', 'too-long', 'too-many'],
+)
+def test_put_invalid_locations_returns_422(
+    api: TestClient, access_token: str, locations: list[str]
+) -> None:
+    response = api.put(
+        LOCATIONS_URL, json={'locations': locations}, headers=auth_header(access_token)
+    )
+
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+
+
+def test_put_locations_keeps_profile_fields(api: TestClient, access_token: str) -> None:
+    api.put('/profile/me', json=FULL_PROFILE, headers=auth_header(access_token))
+    response = api.put(
+        LOCATIONS_URL, json={'locations': ['Remote']}, headers=auth_header(access_token)
+    )
+
+    body = response.json()
+    assert body['preferred_locations'] == ['Remote']
+    assert body['first_name'] == FULL_PROFILE['first_name']
+    assert body['desired_position'] == FULL_PROFILE['desired_position']
