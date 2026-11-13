@@ -2,8 +2,8 @@ from fastapi import APIRouter
 
 from app.db.dependencies import DbSession
 from app.dependencies import CurrentUser
-from app.schemas.profile import ProfileRead, ProfileUpdate
-from app.services.profile import get_profile, upsert_profile
+from app.schemas.profile import LocationsUpdate, ProfileRead, ProfileUpdate
+from app.services.profile import get_profile, set_locations, upsert_profile
 
 router = APIRouter(prefix='/profile', tags=['profile'])
 
@@ -16,3 +16,8 @@ def read_my_profile(user: CurrentUser) -> ProfileRead:
 @router.put('/me', response_model=ProfileRead)
 def update_my_profile(data: ProfileUpdate, user: CurrentUser, db: DbSession) -> ProfileRead:
     return upsert_profile(db, user, data)
+
+
+@router.put('/me/locations', response_model=ProfileRead)
+def update_my_location(data: LocationsUpdate, user: CurrentUser, db: DbSession) -> ProfileRead:
+    return set_locations(db, user, data)
