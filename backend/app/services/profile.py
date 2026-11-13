@@ -80,3 +80,11 @@ def set_skills(db: Session, user: User, data: SkillsUpdate) -> ProfileRead:
     db.commit()
     db.refresh(user)
     return to_profile_read(user)
+
+
+def delete_profile(db: Session, user: User) -> None:
+    user.profile = None
+    user.preferred_locations = []
+    user.preferred_employment_types = []
+    user.technologies = []
+    db.commit()
