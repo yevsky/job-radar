@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, status
 
 from app.db.dependencies import DbSession
 from app.dependencies import CurrentUser
@@ -10,6 +10,7 @@ from app.schemas.profile import (
     SkillsUpdate,
 )
 from app.services.profile import (
+    delete_profile,
     get_profile,
     set_employment_types,
     set_locations,
@@ -45,3 +46,8 @@ def update_my_employment_types(
 @router.put('/me/skills', response_model=ProfileRead)
 def update_my_skills(data: SkillsUpdate, user: CurrentUser, db: DbSession) -> ProfileRead:
     return set_skills(db, user, data)
+
+
+@router.delete('/me', status_code=status.HTTP_204_NO_CONTENT)
+def delete_my_profile(user: CurrentUser, db: DbSession) -> None:
+    delete_profile(db, user)
