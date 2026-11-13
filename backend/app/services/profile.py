@@ -1,7 +1,20 @@
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.models import User, UserPreferredEmploymentType, UserPreferredLocation, UserProfile
-from app.schemas.profile import EmploymentTypesUpdate, LocationsUpdate, ProfileRead, ProfileUpdate
+from app.models import (
+    Technology,
+    User,
+    UserPreferredEmploymentType,
+    UserPreferredLocation,
+    UserProfile,
+)
+from app.schemas.profile import (
+    EmploymentTypesUpdate,
+    LocationsUpdate,
+    ProfileRead,
+    ProfileUpdate,
+    SkillsUpdate,
+)
 
 
 def to_profile_read(user: User) -> ProfileRead:
@@ -46,6 +59,24 @@ def set_employment_types(db: Session, user: User, data: EmploymentTypesUpdate) -
     user.preferred_employment_types = [
         UserPreferredEmploymentType(employment_type=t) for t in data.employment_types
     ]
+    db.commit()
+    db.refresh(user)
+    return to_profile_read(user)
+
+
+def set_skills(db: Session, user: User, data: SkillsUpdate) -> ProfileRead:
+    lowered = [name.lower() for name in data.skills]
+    existing = db.scalars(select(Technology).where(func.lower(Technology.name).in_(lowered))).all()
+    by_key = {tech.name.lower(): tech for tech in existing}
+
+    technologies = []
+    for name in data.skills:
+        tech = by_key.get(name.lower())
+        if tech is None:
+            tech = Technology(name=name)
+        technologies.append(tech)
+
+    user.technologies = technologies
     db.commit()
     db.refresh(user)
     return to_profile_read(user)
