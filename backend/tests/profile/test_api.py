@@ -16,6 +16,7 @@ FULL_PROFILE = {
     'desired_position': 'backend developer',
 }
 LOCATIONS_URL = '/profile/me/locations'
+EMPLOYMENT_TYPES_URL = '/profile/me/employment-types'
 
 
 @pytest.mark.parametrize('method', ['get', 'put'])
@@ -194,3 +195,88 @@ def test_put_locations_keeps_profile_fields(api: TestClient, access_token: str) 
     assert body['preferred_locations'] == ['Remote']
     assert body['first_name'] == FULL_PROFILE['first_name']
     assert body['desired_position'] == FULL_PROFILE['desired_position']
+
+
+def test_employment_types_without_token_returns_401(api: TestClient) -> None:
+    response = api.put(EMPLOYMENT_TYPES_URL, json={'employment_types': ['b2b']})
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+def test_put_employment_types_then_get_returns_them(api: TestClient, access_token: str) -> None:
+    put_response = api.put(
+        EMPLOYMENT_TYPES_URL,
+        json={'employment_types': ['full_time', 'b2b']},
+        headers=auth_header(access_token),
+    )
+    get_response = api.get('/profile/me', headers=auth_header(access_token))
+
+    assert put_response.status_code == status.HTTP_200_OK
+    for body in (put_response.json(), get_response.json()):
+        assert sorted(body['preferred_employment_types']) == ['b2b', 'full_time']
+
+
+def test_second_put_employment_types_replaces_the_list(api: TestClient, access_token: str) -> None:
+    api.put(
+        EMPLOYMENT_TYPES_URL,
+        json={'employment_types': ['full_time', 'b2b']},
+        headers=auth_header(access_token),
+    )
+    response = api.put(
+        EMPLOYMENT_TYPES_URL,
+        json={'employment_types': ['contract']},
+        headers=auth_header(access_token),
+    )
+
+    assert response.json()['preferred_employment_types'] == ['contract']
+
+
+def test_put_empty_employment_types_clears_the_list(api: TestClient, access_token: str) -> None:
+    api.put(
+        EMPLOYMENT_TYPES_URL,
+        json={'employment_types': ['full_time', 'b2b']},
+        headers=auth_header(access_token),
+    )
+    response = api.put(
+        EMPLOYMENT_TYPES_URL, json={'employment_types': []}, headers=auth_header(access_token)
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json()['preferred_employment_types'] == []
+
+
+def test_put_employment_types_stores_duplicates_once(api: TestClient, access_token: str) -> None:
+    response = api.put(
+        EMPLOYMENT_TYPES_URL,
+        json={'employment_types': ['b2b', 'b2b', 'full_time']},
+        headers=auth_header(access_token),
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert sorted(response.json()['preferred_employment_types']) == ['b2b', 'full_time']
+
+
+@pytest.mark.parametrize(
+    'value',
+    ['freelance', 'B2B', '', 5],
+    ids=['unknown', 'wrong-case', 'empty', 'not-a-string'],
+)
+def test_put_invalid_employment_type_returns_422(
+    api: TestClient, access_token: str, value: str | int
+) -> None:
+    response = api.put(
+        EMPLOYMENT_TYPES_URL, json={'employment_types': [value]}, headers=auth_header(access_token)
+    )
+
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+
+
+def test_put_employment_types_keeps_locations(api: TestClient, access_token: str) -> None:
+    api.put(LOCATIONS_URL, json={'locations': ['Remote']}, headers=auth_header(access_token))
+    response = api.put(
+        EMPLOYMENT_TYPES_URL, json={'employment_types': ['b2b']}, headers=auth_header(access_token)
+    )
+
+    body = response.json()
+    assert body['preferred_employment_types'] == ['b2b']
+    assert body['preferred_locations'] == ['Remote']
