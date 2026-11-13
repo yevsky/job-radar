@@ -4,7 +4,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import UserProfile
+from app.models import Technology, UserProfile
 from tests.conftest import register_and_login
 from tests.helpers import auth_header
 
@@ -17,6 +17,7 @@ FULL_PROFILE = {
 }
 LOCATIONS_URL = '/profile/me/locations'
 EMPLOYMENT_TYPES_URL = '/profile/me/employment-types'
+SKILLS_URL = '/profile/me/skills'
 
 
 @pytest.mark.parametrize('method', ['get', 'put'])
@@ -280,3 +281,104 @@ def test_put_employment_types_keeps_locations(api: TestClient, access_token: str
     body = response.json()
     assert body['preferred_employment_types'] == ['b2b']
     assert body['preferred_locations'] == ['Remote']
+
+
+def technology_names(db: Session) -> list[str]:
+    return sorted(db.scalars(select(Technology.name)).all())
+
+
+def test_skills_without_token_returns_401(api: TestClient) -> None:
+    response = api.put(SKILLS_URL, json={'skills': ['Python']})
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+def test_put_skills_creates_missing_technologies(
+    api: TestClient, access_token: str, db: Session
+) -> None:
+    put_response = api.put(
+        SKILLS_URL, json={'skills': ['Python', 'FastAPI']}, headers=auth_header(access_token)
+    )
+    get_response = api.get('/profile/me', headers=auth_header(access_token))
+
+    assert put_response.status_code == status.HTTP_200_OK
+    for body in (put_response.json(), get_response.json()):
+        assert sorted(body['skills']) == ['FastAPI', 'Python']
+    assert technology_names(db) == ['FastAPI', 'Python']
+
+
+def test_put_skills_reuses_existing_technology_ignoring_case(
+    api: TestClient, access_token: str, db: Session
+) -> None:
+    api.put(SKILLS_URL, json={'skills': ['Python']}, headers=auth_header(access_token))
+    response = api.put(SKILLS_URL, json={'skills': ['python']}, headers=auth_header(access_token))
+
+    assert response.json()['skills'] == ['Python']
+    assert technology_names(db) == ['Python']
+
+
+def test_users_share_the_same_technology(api: TestClient, access_token: str, db: Session) -> None:
+    _, other_token = register_and_login(api, 'other@example.com')
+
+    api.put(SKILLS_URL, json={'skills': ['Python']}, headers=auth_header(access_token))
+    response = api.put(SKILLS_URL, json={'skills': ['python']}, headers=auth_header(other_token))
+
+    assert response.json()['skills'] == ['Python']
+    assert technology_names(db) == ['Python']
+
+
+def test_second_put_skills_replaces_the_list(api: TestClient, access_token: str) -> None:
+    api.put(SKILLS_URL, json={'skills': ['Python', 'FastAPI']}, headers=auth_header(access_token))
+    response = api.put(SKILLS_URL, json={'skills': ['Docker']}, headers=auth_header(access_token))
+
+    assert response.json()['skills'] == ['Docker']
+
+
+def test_put_empty_skills_clears_the_list(api: TestClient, access_token: str) -> None:
+    api.put(SKILLS_URL, json={'skills': ['Python', 'FastAPI']}, headers=auth_header(access_token))
+    response = api.put(SKILLS_URL, json={'skills': []}, headers=auth_header(access_token))
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json()['skills'] == []
+
+
+def test_removing_a_skill_keeps_the_technology(
+    api: TestClient, access_token: str, db: Session
+) -> None:
+    api.put(SKILLS_URL, json={'skills': ['Python']}, headers=auth_header(access_token))
+    response = api.put(SKILLS_URL, json={'skills': []}, headers=auth_header(access_token))
+
+    assert response.json()['skills'] == []
+    assert technology_names(db) == ['Python']
+
+
+def test_put_skills_removes_case_insensitive_duplicates(
+    api: TestClient, access_token: str, db: Session
+) -> None:
+    response = api.put(
+        SKILLS_URL,
+        json={'skills': ['Python', 'python', ' PYTHON ']},
+        headers=auth_header(access_token),
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json()['skills'] == ['Python']
+    assert technology_names(db) == ['Python']
+
+
+@pytest.mark.parametrize(
+    'skills',
+    [
+        [''],
+        ['   '],
+        ['a' * 51],
+        [f'Tech {i}' for i in range(51)],
+    ],
+    ids=['empty', 'whitespace', 'too-long', 'too-many'],
+)
+def test_put_invalid_skills_returns_422(
+    api: TestClient, access_token: str, skills: list[str]
+) -> None:
+    response = api.put(SKILLS_URL, json={'skills': skills}, headers=auth_header(access_token))
+
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
