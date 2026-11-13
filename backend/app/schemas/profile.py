@@ -1,6 +1,10 @@
-from pydantic import BaseModel, ConfigDict, Field
+from typing import Annotated
+
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
 
 from app.models.enums import EmploymentType, ExperienceLevel
+
+Location = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)]
 
 
 class ProfileUpdate(BaseModel):
@@ -22,3 +26,20 @@ class ProfileRead(BaseModel):
     preferred_locations: list[str]
     preferred_employment_types: list[EmploymentType]
     skills: list[str]
+
+
+class LocationsUpdate(BaseModel):
+    locations: list[Location] = Field(max_length=10)
+
+    @field_validator('locations')
+    @classmethod
+    def remove_duplicates(cls, locations: list[str]) -> list[str]:
+        seen: set[str] = set()
+        result: list[str] = []
+        for location in locations:
+            key = location.casefold()
+            if key in seen:
+                continue
+            seen.add(key)
+            result.append(location)
+        return result
