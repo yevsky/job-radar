@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.models import JobOffer, Technology
-from app.models.enums import EmploymentType, ExperienceLevel
+from app.models.enums import EmploymentType, ExperienceLevel, SourceKind
 from tests.helpers import auth_header, make_offer
 
 URL = '/job-offers'
@@ -182,3 +182,104 @@ def test_limit_100_is_allowed(api: TestClient, access_token: str) -> None:
     response = api.get(URL, params={'limit': 100}, headers=auth_header(access_token))
 
     assert response.status_code == status.HTTP_200_OK
+
+
+def test_details_without_token_returns_401(api: TestClient, db: Session) -> None:
+    offer = make_offer()
+    db.add(offer)
+    db.flush()
+
+    response = api.get(f'{URL}/{offer.id}')
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+def test_details_returns_all_fields(api: TestClient, access_token: str, db: Session) -> None:
+    offer = make_offer(
+        url='https://example.com/jobs/python',
+        title='Python Developer',
+        location='Remote',
+        employment_type=EmploymentType.FULL_TIME,
+        experience_level=ExperienceLevel.MIDDLE,
+        source=SourceKind.SEARCH,
+        deadline=datetime(2026, 12, 31, tzinfo=UTC),
+        last_seen_at=NOW,
+        created_at=NOW - timedelta(days=1),
+        technologies=[Technology(name='FastAPI'), Technology(name='Docker')],
+    )
+    db.add(offer)
+    db.flush()
+
+    response = api.get(f'{URL}/{offer.id}', headers=auth_header(access_token))
+
+    assert response.status_code == status.HTTP_200_OK
+    body = response.json()
+    assert set(body) == {
+        'id',
+        'title',
+        'company_name',
+        'location',
+        'employment_type',
+        'experience_level',
+        'deadline',
+        'technologies',
+        'source',
+        'url',
+        'is_active',
+        'last_seen_at',
+        'created_at',
+    }
+    assert body['id'] == offer.id
+    assert body['title'] == 'Python Developer'
+    assert body['location'] == 'Remote'
+    assert body['employment_type'] == 'full_time'
+    assert body['experience_level'] == 'middle'
+    assert body['source'] == 'search'
+    assert body['url'] == 'https://example.com/jobs/python'
+    assert body['is_active'] is True
+    assert body['deadline'].startswith('2026-12-31')
+    assert body['last_seen_at'].startswith('2026-11-01')
+    assert body['created_at'].startswith('2026-10-31')
+    assert body['technologies'] == ['Docker', 'FastAPI']
+
+
+def test_details_of_offer_with_only_required_fields_has_nulls(
+    api: TestClient, access_token: str, db: Session
+) -> None:
+    offer = make_offer()
+    db.add(offer)
+    db.flush()
+
+    response = api.get(f'{URL}/{offer.id}', headers=auth_header(access_token))
+
+    body = response.json()
+    assert response.status_code == status.HTTP_200_OK
+    for field in ('location', 'employment_type', 'experience_level', 'deadline', 'last_seen_at'):
+        assert body[field] is None
+    assert body['technologies'] == []
+
+
+def test_details_of_inactive_offer_still_works(
+    api: TestClient, access_token: str, db: Session
+) -> None:
+    offer = make_offer(is_active=False)
+    db.add(offer)
+    db.flush()
+
+    response = api.get(f'{URL}/{offer.id}', headers=auth_header(access_token))
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json()['is_active'] is False
+
+
+def test_details_of_unknown_offer_returns_404(api: TestClient, access_token: str) -> None:
+    response = api.get(f'{URL}/999999', headers=auth_header(access_token))
+
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert response.json() == {'detail': 'Job offer not found'}
+
+
+def test_details_with_non_integer_id_returns_422(api: TestClient, access_token: str) -> None:
+    response = api.get(f'{URL}/abc', headers=auth_header(access_token))
+
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
