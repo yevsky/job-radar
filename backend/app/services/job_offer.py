@@ -2,7 +2,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.models.job_offer import JobOffer
-from app.schemas.job_offer import JobOfferListItem, JobOfferPage
+from app.schemas.job_offer import JobOfferListItem, JobOfferPage, JobOfferRead
 
 
 def to_list_item(offer: JobOffer) -> JobOfferListItem:
@@ -36,3 +36,28 @@ def list_job_offers(db: Session, limit: int, offset: int) -> JobOfferPage:
         limit=limit,
         offset=offset,
     )
+
+
+def to_read(offer: JobOffer) -> JobOfferRead:
+    return JobOfferRead(
+        id=offer.id,
+        title=offer.title,
+        company_name=offer.company_name,
+        location=offer.location,
+        employment_type=offer.employment_type,
+        experience_level=offer.experience_level,
+        deadline=offer.deadline,
+        technologies=sorted(t.name for t in offer.technologies),
+        source=offer.source,
+        url=offer.url,
+        is_active=offer.is_active,
+        last_seen_at=offer.last_seen_at,
+        created_at=offer.created_at,
+    )
+
+
+def get_job_offer(db: Session, offer_id: int) -> JobOfferRead | None:
+    offer = db.get(JobOffer, offer_id)
+    if offer is None:
+        return None
+    return to_read(offer)
