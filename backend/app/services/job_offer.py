@@ -1,8 +1,8 @@
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
-from app.models.job_offer import JobOffer
-from app.schemas.job_offer import JobOfferListItem, JobOfferPage, JobOfferRead
+from app.models import JobOffer, Technology
+from app.schemas.job_offer import JobOfferFilters, JobOfferListItem, JobOfferPage, JobOfferRead
 
 
 def to_list_item(offer: JobOffer) -> JobOfferListItem:
@@ -18,8 +18,17 @@ def to_list_item(offer: JobOffer) -> JobOfferListItem:
     )
 
 
-def list_job_offers(db: Session, limit: int, offset: int) -> JobOfferPage:
+def list_job_offers(db: Session, limit: int, offset: int, filters: JobOfferFilters) -> JobOfferPage:
     query = select(JobOffer).where(JobOffer.is_active)
+
+    for name in filters.technologies:
+        query = query.where(JobOffer.technologies.any(func.lower(Technology.name) == name.lower()))
+    if filters.location:
+        query = query.where(JobOffer.location.icontains(filters.location, autoescape=True))
+    if filters.experience_levels:
+        query = query.where(JobOffer.experience_level.in_(filters.experience_levels))
+    if filters.employment_types:
+        query = query.where(JobOffer.employment_type.in_(filters.employment_types))
 
     total = db.scalar(select(func.count()).select_from(query.subquery())) or 0
 

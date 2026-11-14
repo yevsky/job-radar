@@ -29,3 +29,10 @@ class JobOfferRead(JobOfferListItem):
     is_active: bool
     last_seen_at: datetime | None
     created_at: datetime
+
+
+class JobOfferFilters(BaseModel):
+    technologies: list[str] = []
+    location: str | None = None
+    experience_levels: list[ExperienceLevel] = []
+    employment_types: list[EmploymentType] = []
