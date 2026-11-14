@@ -1,8 +1,6 @@
-from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models import (
-    Technology,
     User,
     UserPreferredEmploymentType,
     UserPreferredLocation,
@@ -15,6 +13,7 @@ from app.schemas.profile import (
     ProfileUpdate,
     SkillsUpdate,
 )
+from app.services.technology import get_or_create_technologies
 
 
 def to_profile_read(user: User) -> ProfileRead:
@@ -65,18 +64,7 @@ def set_employment_types(db: Session, user: User, data: EmploymentTypesUpdate) -
 
 
 def set_skills(db: Session, user: User, data: SkillsUpdate) -> ProfileRead:
-    lowered = [name.lower() for name in data.skills]
-    existing = db.scalars(select(Technology).where(func.lower(Technology.name).in_(lowered))).all()
-    by_key = {tech.name.lower(): tech for tech in existing}
-
-    technologies = []
-    for name in data.skills:
-        tech = by_key.get(name.lower())
-        if tech is None:
-            tech = Technology(name=name)
-        technologies.append(tech)
-
-    user.technologies = technologies
+    user.technologies = get_or_create_technologies(db, data.skills)
     db.commit()
     db.refresh(user)
     return to_profile_read(user)
