@@ -3,21 +3,9 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.models import JobOffer, Technology
-from app.models.enums import SourceKind
+from app.models import Technology
 from app.models.job_offer import job_offer_technologies
-
-
-def make_offer(url: str = 'https://example.com/jobs/1', **overrides: object) -> JobOffer:
-    """A valid job offer with only the required fields filled in."""
-    fields: dict[str, object] = {
-        'title': 'Backend Developer',
-        'company_name': 'Acme',
-        'source': SourceKind.MANUAL,
-        'url': url,
-    }
-    fields.update(overrides)
-    return JobOffer(**fields)
+from tests.helpers import make_offer
 
 
 def count_links(db: Session) -> int:
