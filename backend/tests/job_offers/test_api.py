@@ -1,3 +1,4 @@
+from collections.abc import Mapping
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -11,6 +12,58 @@ from tests.helpers import auth_header, make_offer
 
 URL = '/job-offers'
 NOW = datetime(2026, 11, 1, 12, 0, tzinfo=UTC)
+
+
+@pytest.fixture
+def filter_offers(db: Session) -> None:
+    """Four active offers with different technologies, locations, levels and types."""
+    python = Technology(name='Python')
+    docker = Technology(name='Docker')
+    java = Technology(name='Java')
+    db.add_all(
+        [
+            make_offer(
+                url='https://example.com/python-wroclaw',
+                title='Python Wroclaw',
+                location='Wrocław, PL',
+                experience_level=ExperienceLevel.JUNIOR,
+                employment_type=EmploymentType.B2B,
+                technologies=[python, docker],
+            ),
+            make_offer(
+                url='https://example.com/python-remote',
+                title='Python Remote',
+                location='Remote',
+                experience_level=ExperienceLevel.SENIOR,
+                employment_type=EmploymentType.FULL_TIME,
+                technologies=[python],
+            ),
+            make_offer(
+                url='https://example.com/java-krakow',
+                title='Java Krakow',
+                location='Kraków, PL',
+                experience_level=ExperienceLevel.MIDDLE,
+                employment_type=EmploymentType.B2B,
+                technologies=[java, docker],
+            ),
+            make_offer(
+                url='https://example.com/no-details',
+                title='No Details',
+            ),
+        ]
+    )
+    db.flush()
+
+
+def filtered_titles(
+    api: TestClient, token: str, params: Mapping[str, str | list[str]]
+) -> list[str]:
+    """Call the list with filters and return the matching titles, sorted."""
+    response = api.get(URL, params=params, headers=auth_header(token))
+    assert response.status_code == status.HTTP_200_OK
+    body = response.json()
+    assert body['total'] == len(body['items'])
+    return sorted(titles(body))
 
 
 def add_offers(db: Session, count: int) -> list[JobOffer]:
@@ -281,5 +334,167 @@ def test_details_of_unknown_offer_returns_404(api: TestClient, access_token: str
 
 def test_details_with_non_integer_id_returns_422(api: TestClient, access_token: str) -> None:
     response = api.get(f'{URL}/abc', headers=auth_header(access_token))
+
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+
+
+@pytest.mark.usefixtures('filter_offers')
+def test_no_filters_returns_all_offers(api: TestClient, access_token: str) -> None:
+    assert filtered_titles(api, access_token, {}) == [
+        'Java Krakow',
+        'No Details',
+        'Python Remote',
+        'Python Wroclaw',
+    ]
+
+
+@pytest.mark.usefixtures('filter_offers')
+@pytest.mark.parametrize('name', ['python', 'PYTHON', 'Python'])
+def test_filter_by_technology_ignores_case(api: TestClient, access_token: str, name: str) -> None:
+    assert filtered_titles(api, access_token, {'technology': name}) == [
+        'Python Remote',
+        'Python Wroclaw',
+    ]
+
+
+@pytest.mark.usefixtures('filter_offers')
+def test_filter_by_several_technologies_requires_all(api: TestClient, access_token: str) -> None:
+    params = {'technology': ['python', 'docker']}
+
+    assert filtered_titles(api, access_token, params) == ['Python Wroclaw']
+
+
+@pytest.mark.usefixtures('filter_offers')
+def test_filter_by_unknown_technology_returns_empty_page(
+    api: TestClient, access_token: str
+) -> None:
+    response = api.get(URL, params={'technology': 'cobol'}, headers=auth_header(access_token))
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json() == {'items': [], 'total': 0, 'limit': 20, 'offset': 0}
+
+
+@pytest.mark.usefixtures('filter_offers')
+@pytest.mark.parametrize(
+    ('location', 'expected'),
+    [
+        ('WROC', ['Python Wroclaw']),
+        ('remote', ['Python Remote']),
+        (', pl', ['Java Krakow', 'Python Wroclaw']),
+        ('berlin', []),
+    ],
+)
+def test_filter_by_location_matches_part_of_it_ignoring_case(
+    api: TestClient, access_token: str, location: str, expected: list[str]
+) -> None:
+    assert filtered_titles(api, access_token, {'location': location}) == expected
+
+
+@pytest.mark.usefixtures('filter_offers')
+@pytest.mark.parametrize('location', ['%', '_'])
+def test_location_wildcard_characters_are_matched_literally(
+    api: TestClient, access_token: str, location: str
+) -> None:
+    assert filtered_titles(api, access_token, {'location': location}) == []
+
+
+@pytest.mark.usefixtures('filter_offers')
+def test_filter_by_experience_level(api: TestClient, access_token: str) -> None:
+    assert filtered_titles(api, access_token, {'experience_level': 'junior'}) == ['Python Wroclaw']
+
+
+@pytest.mark.usefixtures('filter_offers')
+def test_several_experience_levels_match_any_of_them(api: TestClient, access_token: str) -> None:
+    params = {'experience_level': ['junior', 'senior']}
+
+    assert filtered_titles(api, access_token, params) == ['Python Remote', 'Python Wroclaw']
+
+
+@pytest.mark.usefixtures('filter_offers')
+def test_filter_by_employment_type(api: TestClient, access_token: str) -> None:
+    assert filtered_titles(api, access_token, {'employment_type': 'b2b'}) == [
+        'Java Krakow',
+        'Python Wroclaw',
+    ]
+
+
+@pytest.mark.usefixtures('filter_offers')
+def test_several_employment_types_match_any_of_them(api: TestClient, access_token: str) -> None:
+    params = {'employment_type': ['b2b', 'full_time']}
+
+    assert filtered_titles(api, access_token, params) == [
+        'Java Krakow',
+        'Python Remote',
+        'Python Wroclaw',
+    ]
+
+
+@pytest.mark.usefixtures('filter_offers')
+@pytest.mark.parametrize(
+    ('params', 'expected'),
+    [
+        ({'technology': 'docker', 'employment_type': 'b2b'}, ['Java Krakow', 'Python Wroclaw']),
+        ({'technology': 'docker', 'location': 'krak'}, ['Java Krakow']),
+        ({'technology': 'python', 'experience_level': 'middle'}, []),
+        (
+            {
+                'technology': 'python',
+                'location': 'wroc',
+                'experience_level': 'junior',
+                'employment_type': 'b2b',
+            },
+            ['Python Wroclaw'],
+        ),
+    ],
+)
+def test_filters_combine_with_and(
+    api: TestClient,
+    access_token: str,
+    params: dict[str, str | list[str]],
+    expected: list[str],
+) -> None:
+    assert filtered_titles(api, access_token, params) == expected
+
+
+@pytest.mark.usefixtures('filter_offers')
+def test_inactive_offers_are_hidden_even_when_they_match(
+    api: TestClient, access_token: str, db: Session
+) -> None:
+    db.add(
+        make_offer(
+            url='https://example.com/closed-rust',
+            title='Closed Rust',
+            is_active=False,
+            technologies=[Technology(name='Rust')],
+        )
+    )
+    db.flush()
+
+    assert filtered_titles(api, access_token, {'technology': 'rust'}) == []
+
+
+@pytest.mark.usefixtures('filter_offers')
+def test_total_counts_filtered_offers_across_pages(api: TestClient, access_token: str) -> None:
+    params = {'employment_type': 'b2b', 'limit': '1'}
+
+    response = api.get(URL, params=params, headers=auth_header(access_token))
+
+    body = response.json()
+    assert len(body['items']) == 1
+    assert body['total'] == 2
+
+
+@pytest.mark.parametrize(
+    'params',
+    [
+        {'experience_level': 'mid'},
+        {'employment_type': 'freelance'},
+        {'location': 'x' * 101},
+    ],
+)
+def test_invalid_filter_values_return_422(
+    api: TestClient, access_token: str, params: dict[str, str]
+) -> None:
+    response = api.get(URL, params=params, headers=auth_header(access_token))
 
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
