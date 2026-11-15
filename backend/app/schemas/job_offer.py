@@ -42,6 +42,7 @@ class JobOfferRead(JobOfferListItem):
     url: str
     is_active: bool
     is_private: bool
+    description: str | None
     last_seen_at: datetime | None
     created_at: datetime
 
@@ -66,6 +67,7 @@ class JobOfferImport(BaseModel):
     employment_type: EmploymentType | None = None
     deadline: datetime | None = None
     technologies: list[TechnologyName] = []
+    description: str | None = Field(default=None, max_length=20_000)
 
     @field_validator('technologies', mode='before')
     @classmethod

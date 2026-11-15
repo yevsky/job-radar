@@ -4,7 +4,7 @@
 
 This document describes the relational database schema for the job offer discovery and analysis application. It covers the core functionality: user management, user profiles and preferences, job offer storage, technology tagging, saved jobs and application tracking.
 
-Job offers are **not bulk-scraped** from job boards. They reach the application in three ways: a Tavily web search built from the user's profile, the "Send to JobRadar" browser button, or a manual import of a link. Only the offer's basic facts (link, title, company, location, deadline and source) are stored. The full offer text is not stored; it is fetched only when an offer is analysed.
+Job offers are **not bulk-scraped** from job boards. They reach the application in three ways: a Tavily web search built from the user's profile, the "Send to JobRadar" browser button, or a manual import of a link. For those offers only the basic facts (link, title, company, location, deadline and source) are stored. The full text is stored only for offers posted on JobRadar itself (`source = posted`, for now the demo offers loaded by `just seed`).
 
 > **Note:** Tables related to the AI assistant module (e.g. query history, match results) and to search logging are **not included yet**. They will be added together with the features that use them, and this document will be updated at that point.
 
@@ -50,6 +50,7 @@ Describes how a job offer reached the application.
 | `search` | Found by a Tavily web search built from the user's profile |
 | `browser` | Sent from the "Send to JobRadar" browser button |
 | `manual` | Added by hand: a pasted link or an admin file import |
+| `posted` | Published on JobRadar itself (for now the demo offers loaded by `just seed`); the only offers with a stored `description` |
 
 ### `application_status`
 Tracks the state of a user's application to a given job offer.
@@ -142,7 +143,9 @@ Core table storing the basic facts of individual job postings. The full offer te
 | `location` | varchar | Free-text |
 | `employment_type` | employment_type | |
 | `experience_level` | experience_level | |
-| `url` | varchar | Not null, unique — the link to the original offer, used as the dedup key |
+| `owner_id` | integer | FK → `users.id`, nullable, ON DELETE CASCADE — `NULL` for public offers; set for a private offer that a user saved by hand, which only that user sees |
+| `url` | varchar | Not null — the link to the original offer, used as the dedup key; unique together with `owner_id` (NULLS NOT DISTINCT): one public offer per URL plus one private copy per user |
+| `description` | text | Full offer text; stored only for `posted` offers |
 | `is_active` | boolean | Not null, default `true` — marks whether the offer is still live |
 | `deadline` | timestamp | Application deadline, if known |
 | `last_seen_at` | timestamp | When a search or import last found this offer |

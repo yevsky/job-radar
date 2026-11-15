@@ -74,6 +74,7 @@ def to_read(offer: JobOffer) -> JobOfferRead:
         technologies=sorted(t.name for t in offer.technologies),
         source=offer.source,
         url=offer.url,
+        description=offer.description,
         is_active=offer.is_active,
         is_private=offer.owner_id is not None,
         last_seen_at=offer.last_seen_at,

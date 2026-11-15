@@ -1,0 +1,579 @@
+[
+  {
+    "title": "Junior Python Developer",
+    "company_name": "Brightfold",
+    "url": "https://jobradar.local/offers/brightfold-junior-python-developer",
+    "location": "Wrocław, PL",
+    "employment_type": "full_time",
+    "experience_level": "junior",
+    "technologies": [
+      "Python",
+      "FastAPI",
+      "PostgreSQL",
+      "Docker"
+    ],
+    "description": "Brightfold is a Wrocław software house building booking and payment systems for hotels. This offer is for the role of Junior Python Developer in one of our product teams.\n\nIn this role you will:\n- design and build REST APIs used by our web and mobile apps\n- write database migrations and keep queries fast\n- cover new code with automated tests\n- take part in code reviews and help improve our CI pipeline\n\nWhat we expect:\n- You have up to 2 years of commercial experience, or strong personal projects.\n- You know Python well and have used FastAPI at least in a project of your own.\n- You understand how HTTP and relational databases work.\n- You have worked with PostgreSQL and Docker, or are keen to learn them quickly.\n\nNice to have: basic knowledge of cloud services and interest in the hospitality domain.\n\nWe offer an employment contract (umowa o pracę) with paid holidays, English lessons, a Multisport card and a budget for your home office. You will work from our office near the Wrocław old town, with 2 days a week from home.\n\nRecruitment has three steps: a short call with our recruiter, a technical conversation with the team (no live-coding puzzles), and a final meeting with the team lead."
+  },
+  {
+    "title": "Python Backend Developer",
+    "company_name": "Kestrel Data",
+    "url": "https://jobradar.local/offers/kestrel-data-python-backend-developer",
+    "location": "Remote",
+    "employment_type": "b2b",
+    "experience_level": "middle",
+    "technologies": [
+      "Python",
+      "Django",
+      "PostgreSQL",
+      "Redis"
+    ],
+    "description": "Kestrel Data is an analytics company that helps retailers forecast demand. This offer is for the role of Python Backend Developer in one of our product teams.\n\nIn this role you will:\n- design and build REST APIs used by our web and mobile apps\n- write database migrations and keep queries fast\n- cover new code with automated tests\n- take part in code reviews and help improve our CI pipeline\n\nWhat we expect:\n- You have 2-4 years of commercial experience with Python.\n- You have shipped features to production with Django and know how to debug them there.\n- You write tests as part of your normal work, not as an extra.\n- You have worked with PostgreSQL and Redis, or are keen to learn them quickly.\n\nNice to have: experience with Kubernetes and interest in the retail analytics domain.\n\nWe offer a B2B contract with 20 paid days off per year, a new laptop of your choice, flexible working hours and private medical care. The position is fully remote within Poland. We meet in person once a quarter, and we cover the travel.\n\nRecruitment has three steps: a short call with our recruiter, a technical conversation with the team (no live-coding puzzles), and a final meeting with the team lead."
+  },
+  {
+    "title": "Senior Python Engineer",
+    "company_name": "Odra Systems",
+    "url": "https://jobradar.local/offers/odra-systems-senior-python-engineer",
+    "location": "Warszawa, PL",
+    "employment_type": "b2b",
+    "experience_level": "senior",
+    "technologies": [
+      "Python",
+      "FastAPI",
+      "Kafka",
+      "Kubernetes"
+    ],
+    "description": "Odra Systems is a product company making fleet management software for logistics firms. This offer is for the role of Senior Python Engineer in one of our product teams.\n\nIn this role you will:\n- design and build REST APIs used by our web and mobile apps\n- write database migrations and keep queries fast\n- cover new code with automated tests\n- take part in code reviews and help improve our CI pipeline\n\nWhat we expect:\n- You have 5+ years of commercial experience, mostly with Python.\n- You have designed systems with FastAPI that run under real load.\n- You like mentoring others and leaving code better than you found it.\n- You have worked with Kafka and Kubernetes, or are keen to learn them quickly.\n\nNice to have: basic knowledge of cloud services and experience with Terraform.\n\nWe offer a B2B contract with 20 paid days off per year, private medical care, a new laptop of your choice and a Multisport card. We work in a hybrid model from our Warszawa office (Mokotów), usually 2 days a week on site.\n\nRecruitment has three steps: a short call with our recruiter, a technical conversation with the team (no live-coding puzzles), and a final meeting with the team lead."
+  },
+  {
+    "title": "Python Developer Intern",
+    "company_name": "Pixelgrove",
+    "url": "https://jobradar.local/offers/pixelgrove-python-developer-intern",
+    "location": "Wrocław, PL",
+    "employment_type": "internship",
+    "experience_level": "trainee",
+    "technologies": [
+      "Python",
+      "SQL",
+      "Git"
+    ],
+    "description": "Pixelgrove is a small studio that designs and builds web apps for startups. This offer is for the role of Python Developer Intern in one of our product teams.\n\nIn this role you will:\n- design and build REST APIs used by our web and mobile apps\n- write database migrations and keep queries fast\n- cover new code with automated tests\n- take part in code reviews and help improve our CI pipeline\n\nWhat we expect:\n- You are a student or recent graduate in computer science or a related field.\n- You have written small projects in Python (university or your own) and can show them on GitHub.\n- You know the basics of Git and are not afraid to ask questions.\n- You have worked with Git, or are keen to learn it quickly.\n\nNice to have: basic knowledge of cloud services and open-source contributions.\n\nWe offer a paid 3-month internship, with a junior position for those who do well, conference tickets, private medical care and flexible working hours. You will work from our office near the Wrocław old town, with 2 days a week from home.\n\nRecruitment has three steps: a short call with our recruiter, a technical conversation with the team (no live-coding puzzles), and a final meeting with the team lead."
+  },
+  {
+    "title": "Junior Backend Developer (Python)",
+    "company_name": "Lumenkraft",
+    "url": "https://jobradar.local/offers/lumenkraft-junior-backend-developer-python",
+    "location": "Remote",
+    "employment_type": "full_time",
+    "experience_level": "junior",
+    "technologies": [
+      "Python",
+      "Flask",
+      "MySQL"
+    ],
+    "description": "Lumenkraft is an energy-tech startup monitoring solar farms in real time. This offer is for the role of Junior Backend Developer (Python) in one of our product teams.\n\nIn this role you will:\n- design and build REST APIs used by our web and mobile apps\n- write database migrations and keep queries fast\n- cover new code with automated tests\n- take part in code reviews and help improve our CI pipeline\n\nWhat we expect:\n- You have up to 2 years of commercial experience, or strong personal projects.\n- You know Python well and have used Flask at least in a project of your own.\n- You understand how HTTP and relational databases work.\n- You have worked with MySQL, or are keen to learn it quickly.\n\nNice to have: good written English and interest in the energy domain.\n\nWe offer an employment contract (umowa o pracę) with paid holidays, flexible working hours, a yearly training budget and private medical care. The position is fully remote within Poland. We meet in person once a quarter, and we cover the travel.\n\nRecruitment has three steps: a short call with our recruiter, a technical conversation with the team (no live-coding puzzles), and a final meeting with the team lead."
+  },
+  {
+    "title": "Data Engineer",
+    "company_name": "Vistula Cloud",
+    "url": "https://jobradar.local/offers/vistula-cloud-data-engineer",
+    "location": "Kraków, PL",
+    "employment_type": "full_time",
+    "experience_level": "middle",
+    "technologies": [
+      "Python",
+      "Airflow",
+      "Spark",
+      "SQL"
+    ],
+    "description": "Vistula Cloud is a cloud hosting provider with data centres in Poland. This offer is for the role of Data Engineer in one of our product teams.\n\nIn this role you will:\n- build and maintain data pipelines that load data from our partners\n- model data in the warehouse so analysts can trust it\n- monitor pipeline runs and fix failing jobs\n- work with analysts to turn questions into dashboards and datasets\n\nWhat we expect:\n- You have 2-4 years of commercial experience with Python.\n- You have shipped features to production with Airflow and know how to debug them there.\n- You write tests as part of your normal work, not as an extra.\n- You have worked with Spark and SQL, or are keen to learn them quickly.\n\nNice to have: experience with Celery and interest in the cloud domain.\n\nWe offer an employment contract (umowa o pracę) with paid holidays, flexible working hours, a yearly training budget and conference tickets. Our office is in Kraków (Zabłocie). We meet there 2-3 days a week and work remotely the rest of the time.\n\nRecruitment has three steps: a short call with our recruiter, a technical conversation with the team (no live-coding puzzles), and a final meeting with the team lead."
+  },
+  {
+    "title": "Junior Data Analyst",
+    "company_name": "Nordbyte",
+    "url": "https://jobradar.local/offers/nordbyte-junior-data-analyst",
+    "location": "Warszawa, PL",
+    "employment_type": "full_time",
+    "experience_level": "junior",
+    "technologies": [
+      "SQL",
+      "Python",
+      "Power BI"
+    ],
+    "description": "Nordbyte is a Scandinavian-Polish team building internal tools for banks. This offer is for the role of Junior Data Analyst in one of our product teams.\n\nIn this role you will:\n- build and maintain data pipelines that load data from our partners\n- model data in the warehouse so analysts can trust it\n- monitor pipeline runs and fix failing jobs\n- work with analysts to turn questions into dashboards and datasets\n\nWhat we expect:\n- You have up to 2 years of commercial experience, or strong personal projects.\n- You know SQL well and have used Python at least in a project of your own.\n- You understand how HTTP and relational databases work.\n- You have worked with Power BI, or are keen to learn it quickly.\n\nNice to have: open-source contributions and experience with Redis.\n\nWe offer an employment contract (umowa o pracę) with paid holidays, English lessons, flexible working hours and a new laptop of your choice. We work in a hybrid model from our Warszawa office (Mokotów), usually 2 days a week on site.\n\nRecruitment has three steps: a short call with our recruiter, a technical conversation with the team (no live-coding puzzles), and a final meeting with the team lead."
+  },
+  {
+    "title": "Senior Data Engineer",
+    "company_name": "Copperleaf Health",
+    "url": "https://jobradar.local/offers/copperleaf-health-senior-data-engineer",
+    "location": "Remote",
+    "employment_type": "b2b",
+    "experience_level": "senior",
+    "technologies": [
+      "Python",
+      "Spark",
+      "AWS",
+      "Terraform"
+    ],
+    "description": "Copperleaf Health is a healthtech company that schedules visits for private clinics. This offer is for the role of Senior Data Engineer in one of our product teams.\n\nIn this role you will:\n- build and maintain data pipelines that load data from our partners\n- model data in the warehouse so analysts can trust it\n- monitor pipeline runs and fix failing jobs\n- work with analysts to turn questions into dashboards and datasets\n\nWhat we expect:\n- You have 5+ years of commercial experience, mostly with Python.\n- You have designed systems with Spark that run under real load.\n- You like mentoring others and leaving code better than you found it.\n- You have worked with AWS and Terraform, or are keen to learn them quickly.\n\nNice to have: interest in the healthtech domain and basic knowledge of cloud services.\n\nWe offer a B2B contract with 20 paid days off per year, a new laptop of your choice, a yearly training budget and conference tickets. The position is fully remote within Poland. We meet in person once a quarter, and we cover the travel.\n\nRecruitment has three steps: a short call with our recruiter, a technical conversation with the team (no live-coding puzzles), and a final meeting with the team lead."
+  },
+  {
+    "title": "Machine Learning Engineer",
+    "company_name": "Tatra Analytics",
+    "url": "https://jobradar.local/offers/tatra-analytics-machine-learning-engineer",
+    "location": "Kraków, PL",
+    "employment_type": "b2b",
+    "experience_level": "middle",
+    "technologies": [
+      "Python",
+      "PyTorch",
+      "MLflow",
+      "Docker"
+    ],
+    "description": "Tatra Analytics is a data consultancy working with manufacturing companies. This offer is for the role of Machine Learning Engineer in one of our product teams.\n\nIn this role you will:\n- train and evaluate models on real customer data\n- move models from notebooks into production services\n- track experiments and keep results reproducible\n- work with backend developers on the APIs that serve predictions\n\nWhat we expect:\n- You have 2-4 years of commercial experience with Python.\n- You have shipped features to production with PyTorch and know how to debug them there.\n- You write tests as part of your normal work, not as an extra.\n- You have worked with MLflow and Docker, or are keen to learn them quickly.\n\nNice to have: open-source contributions and interest in the data domain.\n\nWe offer a B2B contract with 20 paid days off per year, a Multisport card, a new laptop of your choice and English lessons. Our office is in Kraków (Zabłocie). We meet there 2-3 days a week and work remotely the rest of the time.\n\nRecruitment has three steps: a short call with our recruiter, a technical conversation with the team (no live-coding puzzles), and a final meeting with the team lead."
+  },
+  {
+    "title": "Junior ML Engineer",
+    "company_name": "Amberline Logistics",
+    "url": "https://jobradar.local/offers/amberline-logistics-junior-ml-engineer",
+    "location": "Remote",
+    "employment_type": "full_time",
+    "experience_level": "junior",
+    "technologies": [
+      "Python",
+      "scikit-learn",
+      "pandas"
+    ],
+    "description": "Amberline Logistics is a logistics operator with its own in-house IT team. This offer is for the role of Junior ML Engineer in one of our product teams.\n\nIn this role you will:\n- train and evaluate models on real customer data\n- move models from notebooks into production services\n- track experiments and keep results reproducible\n- work with backend developers on the APIs that serve predictions\n\nWhat we expect:\n- You have up to 2 years of commercial experience, or strong personal projects.\n- You know Python well and have used scikit-learn at least in a project of your own.\n- You understand how HTTP and relational databases work.\n- You have worked with pandas, or are keen to learn it quickly.\n\nNice to have: interest in the logistics domain and open-source contributions.\n\nWe offer an employment contract (umowa o pracę) with paid holidays, conference tickets, a Multisport card and flexible working hours. The position is fully remote within Poland. We meet in person once a quarter, and we cover the travel.\n\nRecruitment has three steps: a short call with our recruiter, a technical conversation with the team (no live-coding puzzles), and a final meeting with the team lead."
+  },
+  {
+    "title": "Frontend Developer (React)",
+    "company_name": "Quillstone",
+    "url": "https://jobradar.local/offers/quillstone-frontend-developer-react",
+    "location": "Wrocław, PL",
+    "employment_type": "b2b",
+    "experience_level": "middle",
+    "technologies": [
+      "TypeScript",
+      "React",
+      "Tailwind CSS"
+    ],
+    "description": "Quillstone is an edtech startup building a platform for online language courses. This offer is for the role of Frontend Developer (React) in one of our product teams.\n\nIn this role you will:\n- build new screens from Figma designs together with our designer\n- keep the UI fast, accessible and consistent\n- write component and end-to-end tests\n- work with backend developers on the API contracts\n\nWhat we expect:\n- You have 2-4 years of commercial experience with TypeScript.\n- You have shipped features to production with React and know how to debug them there.\n- You write tests as part of your normal work, not as an extra.\n- You have worked with Tailwind CSS, or are keen to learn it quickly.\n\nNice to have: basic knowledge of cloud services and open-source contributions.\n\nWe offer a B2B contract with 20 paid days off per year, English lessons, a new laptop of your choice and a Multisport card. You will work from our office near the Wrocław old town, with 2 days a week from home.\n\nRecruitment has three steps: a short call with our recruiter, a technical conversation with the team (no live-coding puzzles), and a final meeting with the team lead."
+  },
+  {
+    "title": "Junior Frontend Developer",
+    "company_name": "Ferroway",
+    "url": "https://jobradar.local/offers/ferroway-junior-frontend-developer",
+    "location": "Kraków, PL",
+    "employment_type": "full_time",
+    "experience_level": "junior",
+    "technologies": [
+      "JavaScript",
+      "React",
+      "CSS"
+    ],
+    "description": "Ferroway is a rail-ticketing software vendor serving regional carriers. This offer is for the role of Junior Frontend Developer in one of our product teams.\n\nIn this role you will:\n- build new screens from Figma designs together with our designer\n- keep the UI fast, accessible and consistent\n- write component and end-to-end tests\n- work with backend developers on the API contracts\n\nWhat we expect:\n- You have up to 2 years of commercial experience, or strong personal projects.\n- You know JavaScript well and have used React at least in a project of your own.\n- You understand how HTTP and relational databases work.\n- You have worked with CSS, or are keen to learn it quickly.\n\nNice to have: interest in the transport domain and open-source contributions.\n\nWe offer an employment contract (umowa o pracę) with paid holidays, flexible working hours, conference tickets and a new laptop of your choice. Our office is in Kraków (Zabłocie). We meet there 2-3 days a week and work remotely the rest of the time.\n\nRecruitment has three steps: a short call with our recruiter, a technical conversation with the team (no live-coding puzzles), and a final meeting with the team lead."
+  },
+  {
+    "title": "Senior Frontend Engineer",
+    "company_name": "Brightfold",
+    "url": "https://jobradar.local/offers/brightfold-senior-frontend-engineer",
+    "location": "Remote",
+    "employment_type": "b2b",
+    "experience_level": "senior",
+    "technologies": [
+      "TypeScript",
+      "React",
+      "Next.js",
+      "GraphQL"
+    ],
+    "description": "Brightfold is a Wrocław software house building booking and payment systems for hotels. This offer is for the role of Senior Frontend Engineer in one of our product teams.\n\nIn this role you will:\n- build new screens from Figma designs together with our designer\n- keep the UI fast, accessible and consistent\n- write component and end-to-end tests\n- work with backend developers on the API contracts\n\nWhat we expect:\n- You have 5+ years of commercial experience, mostly with TypeScript.\n- You have designed systems with React that run under real load.\n- You like mentoring others and leaving code better than you found it.\n- You have worked with Next.js and GraphQL, or are keen to learn them quickly.\n\nNice to have: interest in the hospitality domain and basic knowledge of cloud services.\n\nWe offer a B2B contract with 20 paid days off per year, English lessons, a budget for your home office and a yearly training budget. The position is fully remote within Poland. We meet in person once a quarter, and we cover the travel.\n\nRecruitment has three steps: a short call with our recruiter, a technical conversation with the team (no live-coding puzzles), and a final meeting with the team lead."
+  },
+  {
+    "title": "Frontend Intern",
+    "company_name": "Kestrel Data",
+    "url": "https://jobradar.local/offers/kestrel-data-frontend-intern",
+    "location": "Warszawa, PL",
+    "employment_type": "internship",
+    "experience_level": "trainee",
+    "technologies": [
+      "HTML",
+      "CSS",
+      "JavaScript"
+    ],
+    "description": "Kestrel Data is an analytics company that helps retailers forecast demand. This offer is for the role of Frontend Intern in one of our product teams.\n\nIn this role you will:\n- build new screens from Figma designs together with our designer\n- keep the UI fast, accessible and consistent\n- write component and end-to-end tests\n- work with backend developers on the API contracts\n\nWhat we expect:\n- You are a student or recent graduate in computer science or a related field.\n- You have written small projects in HTML (university or your own) and can show them on GitHub.\n- You know the basics of Git and are not afraid to ask questions.\n- You have worked with JavaScript, or are keen to learn it quickly.\n\nNice to have: experience with RabbitMQ and basic knowledge of cloud services.\n\nWe offer a paid 3-month internship, with a junior position for those who do well, flexible working hours, a budget for your home office and a yearly training budget. We work in a hybrid model from our Warszawa office (Mokotów), usually 2 days a week on site.\n\nRecruitment has three steps: a short call with our recruiter, a technical conversation with the team (no live-coding puzzles), and a final meeting with the team lead."
+  },
+  {
+    "title": "Vue.js Developer",
+    "company_name": "Odra Systems",
+    "url": "https://jobradar.local/offers/odra-systems-vue-js-developer",
+    "location": "Remote",
+    "employment_type": "contract",
+    "experience_level": "middle",
+    "technologies": [
+      "TypeScript",
+      "Vue.js",
+      "Vite"
+    ],
+    "description": "Odra Systems is a product company making fleet management software for logistics firms. This offer is for the role of Vue.js Developer in one of our product teams.\n\nIn this role you will:\n- build new screens from Figma designs together with our designer\n- keep the UI fast, accessible and consistent\n- write component and end-to-end tests\n- work with backend developers on the API contracts\n\nWhat we expect:\n- You have 2-4 years of commercial experience with TypeScript.\n- You have shipped features to production with Vue.js and know how to debug them there.\n- You write tests as part of your normal work, not as an extra.\n- You have worked with Vite, or are keen to learn it quickly.\n\nNice to have: interest in the logistics domain and basic knowledge of cloud services.\n\nWe offer a 6-month contract with a good chance of extension, flexible working hours, a budget for your home office and a Multisport card. The position is fully remote within Poland. We meet in person once a quarter, and we cover the travel.\n\nRecruitment has three steps: a short call with our recruiter, a technical conversation with the team (no live-coding puzzles), and a final meeting with the team lead."
+  },
+  {
+    "title": "Fullstack Developer (Python + React)",
+    "company_name": "Pixelgrove",
+    "url": "https://jobradar.local/offers/pixelgrove-fullstack-developer-python-react",
+    "location": "Wrocław, PL",
+    "employment_type": "b2b",
+    "experience_level": "middle",
+    "technologies": [
+      "Python",
+      "FastAPI",
+      "React",
+      "TypeScript"
+    ],
+    "description": "Pixelgrove is a small studio that designs and builds web apps for startups. This offer is for the role of Fullstack Developer (Python + React) in one of our product teams.\n\nIn this role you will:\n- ship features end to end, from the database to the UI\n- design APIs and the screens that use them\n- write tests on both the backend and the frontend\n- talk directly with customers to understand what they need\n\nWhat we expect:\n- You have 2-4 years of commercial experience with Python.\n- You have shipped features to production with FastAPI and know how to debug them there.\n- You write tests as part of your normal work, not as an extra.\n- You have worked with React and TypeScript, or are keen to learn them quickly.\n\nNice to have: experience with Celery and good written English.\n\nWe offer a B2B contract with 20 paid days off per year, conference tickets, flexible working hours and a yearly training budget. You will work from our office near the Wrocław old town, with 2 days a week from home.\n\nRecruitment has three steps: a short call with our recruiter, a technical conversation with the team (no live-coding puzzles), and a final meeting with the team lead."
+  },
+  {
+    "title": "Junior Fullstack Developer",
+    "company_name": "Lumenkraft",
+    "url": "https://jobradar.local/offers/lumenkraft-junior-fullstack-developer",
+    "location": "Remote",
+    "employment_type": "full_time",
+    "experience_level": "junior",
+    "technologies": [
+      "JavaScript",
+      "Node.js",
+      "React",
+      "MongoDB"
+    ],
+    "description": "Lumenkraft is an energy-tech startup monitoring solar farms in real time. This offer is for the role of Junior Fullstack Developer in one of our product teams.\n\nIn this role you will:\n- ship features end to end, from the database to the UI\n- design APIs and the screens that use them\n- write tests on both the backend and the frontend\n- talk directly with customers to understand what they need\n\nWhat we expect:\n- You have up to 2 years of commercial experience, or strong personal projects.\n- You know JavaScript well and have used Node.js at least in a project of your own.\n- You understand how HTTP and relational databases work.\n- You have worked with React and MongoDB, or are keen to learn them quickly.\n\nNice to have: basic knowledge of cloud services and experience with Grafana.\n\nWe offer an employment contract (umowa o pracę) with paid holidays, private medical care, conference tickets and a yearly training budget. The position is fully remote within Poland. We meet in person once a quarter, and we cover the travel.\n\nRecruitment has three steps: a short call with our recruiter, a technical conversation with the team (no live-coding puzzles), and a final meeting with the team lead."
+  },
+  {
+    "title": "Senior Fullstack Engineer",
+    "company_name": "Vistula Cloud",
+    "url": "https://jobradar.local/offers/vistula-cloud-senior-fullstack-engineer",
+    "location": "Warszawa, PL",
+    "employment_type": "b2b",
+    "experience_level": "senior",
+    "technologies": [
+      "TypeScript",
+      "Node.js",
+      "React",
+      "PostgreSQL"
+    ],
+    "description": "Vistula Cloud is a cloud hosting provider with data centres in Poland. This offer is for the role of Senior Fullstack Engineer in one of our product teams.\n\nIn this role you will:\n- ship features end to end, from the database to the UI\n- design APIs and the screens that use them\n- write tests on both the backend and the frontend\n- talk directly with customers to understand what they need\n\nWhat we expect:\n- You have 5+ years of commercial experience, mostly with TypeScript.\n- You have designed systems with Node.js that run under real load.\n- You like mentoring others and leaving code better than you found it.\n- You have worked with React and PostgreSQL, or are keen to learn them quickly.\n\nNice to have: basic knowledge of cloud services and good written English.\n\nWe offer a B2B contract with 20 paid days off per year, a budget for your home office, conference tickets and English lessons. We work in a hybrid model from our Warszawa office (Mokotów), usually 2 days a week on site.\n\nRecruitment has three steps: a short call with our recruiter, a technical conversation with the team (no live-coding puzzles), and a final meeting with the team lead."
+  },
+  {
+    "title": "Java Developer",
+    "company_name": "Nordbyte",
+    "url": "https://jobradar.local/offers/nordbyte-java-developer",
+    "location": "Kraków, PL",
+    "employment_type": "full_time",
+    "experience_level": "middle",
+    "technologies": [
+      "Java",
+      "Spring Boot",
+      "PostgreSQL",
+      "Docker"
+    ],
+    "description": "Nordbyte is a Scandinavian-Polish team building internal tools for banks. This offer is for the role of Java Developer in one of our product teams.\n\nIn this role you will:\n- design and build REST APIs used by our web and mobile apps\n- write database migrations and keep queries fast\n- cover new code with automated tests\n- take part in code reviews and help improve our CI pipeline\n\nWhat we expect:\n- You have 2-4 years of commercial experience with Java.\n- You have shipped features to production with Spring Boot and know how to debug them there.\n- You write tests as part of your normal work, not as an extra.\n- You have worked with PostgreSQL and Docker, or are keen to learn them quickly.\n\nNice to have: interest in the fintech domain and open-source contributions.\n\nWe offer an employment contract (umowa o pracę) with paid holidays, a new laptop of your choice, a yearly training budget and a budget for your home office. Our office is in Kraków (Zabłocie). We meet there 2-3 days a week and work remotely the rest of the time.\n\nRecruitment has three steps: a short call with our recruiter, a technical conversation with the team (no live-coding puzzles), and a final meeting with the team lead."
+  },
+  {
+    "title": "Junior Java Developer",
+    "company_name": "Copperleaf Health",
+    "url": "https://jobradar.local/offers/copperleaf-health-junior-java-developer",
+    "location": "Wrocław, PL",
+    "employment_type": "full_time",
+    "experience_level": "junior",
+    "technologies": [
+      "Java",
+      "Spring Boot",
+      "SQL"
+    ],
+    "description": "Copperleaf Health is a healthtech company that schedules visits for private clinics. This offer is for the role of Junior Java Developer in one of our product teams.\n\nIn this role you will:\n- design and build REST APIs used by our web and mobile apps\n- write database migrations and keep queries fast\n- cover new code with automated tests\n- take part in code reviews and help improve our CI pipeline\n\nWhat we expect:\n- You have up to 2 years of commercial experience, or strong personal projects.\n- You know Java well and have used Spring Boot at least in a project of your own.\n- You understand how HTTP and relational databases work.\n- You have worked with SQL, or are keen to learn it quickly.\n\nNice to have: open-source contributions and experience with Kubernetes.\n\nWe offer an employment contract (umowa o pracę) with paid holidays, private medical care, a yearly training budget and a new laptop of your choice. You will work from our office near the Wrocław old town, with 2 days a week from home.\n\nRecruitment has three steps: a short call with our recruiter, a technical conversation with the team (no live-coding puzzles), and a final meeting with the team lead."
+  },
+  {
+    "title": "Senior Java Engineer",
+    "company_name": "Tatra Analytics",
+    "url": "https://jobradar.local/offers/tatra-analytics-senior-java-engineer",
+    "location": "Remote",
+    "employment_type": "b2b",
+    "experience_level": "senior",
+    "technologies": [
+      "Java",
+      "Kotlin",
+      "Kafka",
+      "Kubernetes"
+    ],
+    "description": "Tatra Analytics is a data consultancy working with manufacturing companies. This offer is for the role of Senior Java Engineer in one of our product teams.\n\nIn this role you will:\n- design and build REST APIs used by our web and mobile apps\n- write database migrations and keep queries fast\n- cover new code with automated tests\n- take part in code reviews and help improve our CI pipeline\n\nWhat we expect:\n- You have 5+ years of commercial experience, mostly with Java.\n- You have designed systems with Kotlin that run under real load.\n- You like mentoring others and leaving code better than you found it.\n- You have worked with Kafka and Kubernetes, or are keen to learn them quickly.\n\nNice to have: basic knowledge of cloud services and good written English.\n\nWe offer a B2B contract with 20 paid days off per year, a budget for your home office, a yearly training budget and conference tickets. The position is fully remote within Poland. We meet in person once a quarter, and we cover the travel.\n\nRecruitment has three steps: a short call with our recruiter, a technical conversation with the team (no live-coding puzzles), and a final meeting with the team lead."
+  },
+  {
+    "title": "Kotlin Backend Developer",
+    "company_name": "Amberline Logistics",
+    "url": "https://jobradar.local/offers/amberline-logistics-kotlin-backend-developer",
+    "location": "Warszawa, PL",
+    "employment_type": "b2b",
+    "experience_level": "middle",
+    "technologies": [
+      "Kotlin",
+      "Spring Boot",
+      "PostgreSQL"
+    ],
+    "description": "Amberline Logistics is a logistics operator with its own in-house IT team. This offer is for the role of Kotlin Backend Developer in one of our product teams.\n\nIn this role you will:\n- design and build REST APIs used by our web and mobile apps\n- write database migrations and keep queries fast\n- cover new code with automated tests\n- take part in code reviews and help improve our CI pipeline\n\nWhat we expect:\n- You have 2-4 years of commercial experience with Kotlin.\n- You have shipped features to production with Spring Boot and know how to debug them there.\n- You write tests as part of your normal work, not as an extra.\n- You have worked with PostgreSQL, or are keen to learn it quickly.\n\nNice to have: basic knowledge of cloud services and open-source contributions.\n\nWe offer a B2B contract with 20 paid days off per year, flexible working hours, a budget for your home office and conference tickets. We work in a hybrid model from our Warszawa office (Mokotów), usually 2 days a week on site.\n\nRecruitment has three steps: a short call with our recruiter, a technical conversation with the team (no live-coding puzzles), and a final meeting with the team lead."
+  },
+  {
+    "title": ".NET Developer",
+    "company_name": "Quillstone",
+    "url": "https://jobradar.local/offers/quillstone-net-developer",
+    "location": "Wrocław, PL",
+    "employment_type": "full_time",
+    "experience_level": "middle",
+    "technologies": [
+      "C#",
+      ".NET",
+      "SQL Server",
+      "Azure"
+    ],
+    "description": "Quillstone is an edtech startup building a platform for online language courses. This offer is for the role of .NET Developer in one of our product teams.\n\nIn this role you will:\n- design and build REST APIs used by our web and mobile apps\n- write database migrations and keep queries fast\n- cover new code with automated tests\n- take part in code reviews and help improve our CI pipeline\n\nWhat we expect:\n- You have 2-4 years of commercial experience with C#.\n- You have shipped features to production with .NET and know how to debug them there.\n- You write tests as part of your normal work, not as an extra.\n- You have worked with SQL Server and Azure, or are keen to learn them quickly.\n\nNice to have: basic knowledge of cloud services and experience with Docker.\n\nWe offer an employment contract (umowa o pracę) with paid holidays, conference tickets, English lessons and private medical care. You will work from our office near the Wrocław old town, with 2 days a week from home.\n\nRecruitment has three steps: a short call with our recruiter, a technical conversation with the team (no live-coding puzzles), and a final meeting with the team lead."
+  },
+  {
+    "title": "Junior .NET Developer",
+    "company_name": "Ferroway",
+    "url": "https://jobradar.local/offers/ferroway-junior-net-developer",
+    "location": "Kraków, PL",
+    "employment_type": "full_time",
+    "experience_level": "junior",
+    "technologies": [
+      "C#",
+      ".NET",
+      "SQL"
+    ],
+    "description": "Ferroway is a rail-ticketing software vendor serving regional carriers. This offer is for the role of Junior .NET Developer in one of our product teams.\n\nIn this role you will:\n- design and build REST APIs used by our web and mobile apps\n- write database migrations and keep queries fast\n- cover new code with automated tests\n- take part in code reviews and help improve our CI pipeline\n\nWhat we expect:\n- You have up to 2 years of commercial experience, or strong personal projects.\n- You know C# well and have used .NET at least in a project of your own.\n- You understand how HTTP and relational databases work.\n- You have worked with SQL, or are keen to learn it quickly.\n\nNice to have: interest in the transport domain and good written English.\n\nWe offer an employment contract (umowa o pracę) with paid holidays, English lessons, conference tickets and a Multisport card. Our office is in Kraków (Zabłocie). We meet there 2-3 days a week and work remotely the rest of the time.\n\nRecruitment has three steps: a short call with our recruiter, a technical conversation with the team (no live-coding puzzles), and a final meeting with the team lead."
+  },
+  {
+    "title": "Go Developer",
+    "company_name": "Brightfold",
+    "url": "https://jobradar.local/offers/brightfold-go-developer",
+    "location": "Remote",
+    "employment_type": "b2b",
+    "experience_level": "middle",
+    "technologies": [
+      "Go",
+      "gRPC",
+      "PostgreSQL",
+      "Kubernetes"
+    ],
+    "description": "Brightfold is a Wrocław software house building booking and payment systems for hotels. This offer is for the role of Go Developer in one of our product teams.\n\nIn this role you will:\n- design and build REST APIs used by our web and mobile apps\n- write database migrations and keep queries fast\n- cover new code with automated tests\n- take part in code reviews and help improve our CI pipeline\n\nWhat we expect:\n- You have 2-4 years of commercial experience with Go.\n- You have shipped features to production with gRPC and know how to debug them there.\n- You write tests as part of your normal work, not as an extra.\n- You have worked with PostgreSQL and Kubernetes, or are keen to learn them quickly.\n\nNice to have: experience with Redis and good written English.\n\nWe offer a B2B contract with 20 paid days off per year, a Multisport card, private medical care and conference tickets. The position is fully remote within Poland. We meet in person once a quarter, and we cover the travel.\n\nRecruitment has three steps: a short call with our recruiter, a technical conversation with the team (no live-coding puzzles), and a final meeting with the team lead."
+  },
+  {
+    "title": "DevOps Engineer",
+    "company_name": "Kestrel Data",
+    "url": "https://jobradar.local/offers/kestrel-data-devops-engineer",
+    "location": "Remote",
+    "employment_type": "b2b",
+    "experience_level": "middle",
+    "technologies": [
+      "Docker",
+      "Kubernetes",
+      "Terraform",
+      "AWS"
+    ],
+    "description": "Kestrel Data is an analytics company that helps retailers forecast demand. This offer is for the role of DevOps Engineer in one of our product teams.\n\nIn this role you will:\n- run and improve our cloud infrastructure as code\n- keep deployments boring: automated, repeatable and fast\n- set up monitoring and alerting, and take part in a light on-call rotation\n- help developers ship safely by improving the CI/CD pipeline\n\nWhat we expect:\n- You have 2-4 years of commercial experience with Docker.\n- You have shipped features to production with Kubernetes and know how to debug them there.\n- You write tests as part of your normal work, not as an extra.\n- You have worked with Terraform and AWS, or are keen to learn them quickly.\n\nNice to have: good written English and basic knowledge of cloud services.\n\nWe offer a B2B contract with 20 paid days off per year, private medical care, a Multisport card and a yearly training budget. The position is fully remote within Poland. We meet in person once a quarter, and we cover the travel.\n\nRecruitment has three steps: a short call with our recruiter, a technical conversation with the team (no live-coding puzzles), and a final meeting with the team lead."
+  },
+  {
+    "title": "Junior DevOps Engineer",
+    "company_name": "Odra Systems",
+    "url": "https://jobradar.local/offers/odra-systems-junior-devops-engineer",
+    "location": "Wrocław, PL",
+    "employment_type": "full_time",
+    "experience_level": "junior",
+    "technologies": [
+      "Linux",
+      "Docker",
+      "GitHub Actions"
+    ],
+    "description": "Odra Systems is a product company making fleet management software for logistics firms. This offer is for the role of Junior DevOps Engineer in one of our product teams.\n\nIn this role you will:\n- run and improve our cloud infrastructure as code\n- keep deployments boring: automated, repeatable and fast\n- set up monitoring and alerting, and take part in a light on-call rotation\n- help developers ship safely by improving the CI/CD pipeline\n\nWhat we expect:\n- You have up to 2 years of commercial experience, or strong personal projects.\n- You know Linux well and have used Docker at least in a project of your own.\n- You understand how HTTP and relational databases work.\n- You have worked with GitHub Actions, or are keen to learn it quickly.\n\nNice to have: open-source contributions and experience with Grafana.\n\nWe offer an employment contract (umowa o pracę) with paid holidays, a yearly training budget, private medical care and a Multisport card. You will work from our office near the Wrocław old town, with 2 days a week from home.\n\nRecruitment has three steps: a short call with our recruiter, a technical conversation with the team (no live-coding puzzles), and a final meeting with the team lead."
+  },
+  {
+    "title": "Senior Cloud Engineer",
+    "company_name": "Pixelgrove",
+    "url": "https://jobradar.local/offers/pixelgrove-senior-cloud-engineer",
+    "location": "Warszawa, PL",
+    "employment_type": "contract",
+    "experience_level": "senior",
+    "technologies": [
+      "AWS",
+      "Terraform",
+      "Python",
+      "Kubernetes"
+    ],
+    "description": "Pixelgrove is a small studio that designs and builds web apps for startups. This offer is for the role of Senior Cloud Engineer in one of our product teams.\n\nIn this role you will:\n- run and improve our cloud infrastructure as code\n- keep deployments boring: automated, repeatable and fast\n- set up monitoring and alerting, and take part in a light on-call rotation\n- help developers ship safely by improving the CI/CD pipeline\n\nWhat we expect:\n- You have 5+ years of commercial experience, mostly with AWS.\n- You have designed systems with Terraform that run under real load.\n- You like mentoring others and leaving code better than you found it.\n- You have worked with Python and Kubernetes, or are keen to learn them quickly.\n\nNice to have: experience with RabbitMQ and basic knowledge of cloud services.\n\nWe offer a 6-month contract with a good chance of extension, a new laptop of your choice, a yearly training budget and flexible working hours. We work in a hybrid model from our Warszawa office (Mokotów), usually 2 days a week on site.\n\nRecruitment has three steps: a short call with our recruiter, a technical conversation with the team (no live-coding puzzles), and a final meeting with the team lead."
+  },
+  {
+    "title": "QA Automation Engineer",
+    "company_name": "Lumenkraft",
+    "url": "https://jobradar.local/offers/lumenkraft-qa-automation-engineer",
+    "location": "Kraków, PL",
+    "employment_type": "full_time",
+    "experience_level": "middle",
+    "technologies": [
+      "Python",
+      "pytest",
+      "Playwright"
+    ],
+    "description": "Lumenkraft is an energy-tech startup monitoring solar farms in real time. This offer is for the role of QA Automation Engineer in one of our product teams.\n\nIn this role you will:\n- test new features before they reach customers\n- write and maintain automated test suites\n- report bugs clearly and help developers reproduce them\n- take part in planning so quality is thought about early\n\nWhat we expect:\n- You have 2-4 years of commercial experience with Python.\n- You have shipped features to production with pytest and know how to debug them there.\n- You write tests as part of your normal work, not as an extra.\n- You have worked with Playwright, or are keen to learn it quickly.\n\nNice to have: basic knowledge of cloud services and good written English.\n\nWe offer an employment contract (umowa o pracę) with paid holidays, a budget for your home office, flexible working hours and conference tickets. Our office is in Kraków (Zabłocie). We meet there 2-3 days a week and work remotely the rest of the time.\n\nRecruitment has three steps: a short call with our recruiter, a technical conversation with the team (no live-coding puzzles), and a final meeting with the team lead."
+  },
+  {
+    "title": "Junior QA Engineer",
+    "company_name": "Vistula Cloud",
+    "url": "https://jobradar.local/offers/vistula-cloud-junior-qa-engineer",
+    "location": "Wrocław, PL",
+    "employment_type": "full_time",
+    "experience_level": "junior",
+    "technologies": [
+      "Selenium",
+      "Python",
+      "SQL"
+    ],
+    "description": "Vistula Cloud is a cloud hosting provider with data centres in Poland. This offer is for the role of Junior QA Engineer in one of our product teams.\n\nIn this role you will:\n- test new features before they reach customers\n- write and maintain automated test suites\n- report bugs clearly and help developers reproduce them\n- take part in planning so quality is thought about early\n\nWhat we expect:\n- You have up to 2 years of commercial experience, or strong personal projects.\n- You know Selenium well and have used Python at least in a project of your own.\n- You understand how HTTP and relational databases work.\n- You have worked with SQL, or are keen to learn it quickly.\n\nNice to have: open-source contributions and experience with Kubernetes.\n\nWe offer an employment contract (umowa o pracę) with paid holidays, English lessons, a new laptop of your choice and a Multisport card. You will work from our office near the Wrocław old town, with 2 days a week from home.\n\nRecruitment has three steps: a short call with our recruiter, a technical conversation with the team (no live-coding puzzles), and a final meeting with the team lead."
+  },
+  {
+    "title": "Manual Tester (part-time)",
+    "company_name": "Nordbyte",
+    "url": "https://jobradar.local/offers/nordbyte-manual-tester-part-time",
+    "location": "Remote",
+    "employment_type": "part_time",
+    "experience_level": "junior",
+    "technologies": [
+      "Jira",
+      "Postman"
+    ],
+    "description": "Nordbyte is a Scandinavian-Polish team building internal tools for banks. This offer is for the role of Manual Tester (part-time) in one of our product teams.\n\nIn this role you will:\n- test new features before they reach customers\n- write and maintain automated test suites\n- report bugs clearly and help developers reproduce them\n- take part in planning so quality is thought about early\n\nWhat we expect:\n- You have up to 2 years of commercial experience, or strong personal projects.\n- You know Jira well and have used Postman at least in a project of your own.\n- You understand how HTTP and relational databases work.\n\nNice to have: interest in the fintech domain and basic knowledge of cloud services.\n\nWe offer a part-time contract (20-25 hours a week) with flexible hours, flexible working hours, a yearly training budget and a Multisport card. The position is fully remote within Poland. We meet in person once a quarter, and we cover the travel.\n\nRecruitment has three steps: a short call with our recruiter, a technical conversation with the team (no live-coding puzzles), and a final meeting with the team lead."
+  },
+  {
+    "title": "Mobile Developer (Flutter)",
+    "company_name": "Copperleaf Health",
+    "url": "https://jobradar.local/offers/copperleaf-health-mobile-developer-flutter",
+    "location": "Remote",
+    "employment_type": "b2b",
+    "experience_level": "middle",
+    "technologies": [
+      "Dart",
+      "Flutter",
+      "Firebase"
+    ],
+    "description": "Copperleaf Health is a healthtech company that schedules visits for private clinics. This offer is for the role of Mobile Developer (Flutter) in one of our product teams.\n\nIn this role you will:\n- build new features for our app on phones and tablets\n- keep the app fast and stable, and watch crash reports\n- work with designers on a consistent mobile experience\n- publish releases to the app stores\n\nWhat we expect:\n- You have 2-4 years of commercial experience with Dart.\n- You have shipped features to production with Flutter and know how to debug them there.\n- You write tests as part of your normal work, not as an extra.\n- You have worked with Firebase, or are keen to learn it quickly.\n\nNice to have: interest in the healthtech domain and experience with Kubernetes.\n\nWe offer a B2B contract with 20 paid days off per year, a new laptop of your choice, flexible working hours and a budget for your home office. The position is fully remote within Poland. We meet in person once a quarter, and we cover the travel.\n\nRecruitment has three steps: a short call with our recruiter, a technical conversation with the team (no live-coding puzzles), and a final meeting with the team lead."
+  },
+  {
+    "title": "Junior Android Developer",
+    "company_name": "Tatra Analytics",
+    "url": "https://jobradar.local/offers/tatra-analytics-junior-android-developer",
+    "location": "Kraków, PL",
+    "employment_type": "full_time",
+    "experience_level": "junior",
+    "technologies": [
+      "Kotlin",
+      "Android",
+      "Git"
+    ],
+    "description": "Tatra Analytics is a data consultancy working with manufacturing companies. This offer is for the role of Junior Android Developer in one of our product teams.\n\nIn this role you will:\n- build new features for our app on phones and tablets\n- keep the app fast and stable, and watch crash reports\n- work with designers on a consistent mobile experience\n- publish releases to the app stores\n\nWhat we expect:\n- You have up to 2 years of commercial experience, or strong personal projects.\n- You know Kotlin well and have used Android at least in a project of your own.\n- You understand how HTTP and relational databases work.\n- You have worked with Git, or are keen to learn it quickly.\n\nNice to have: open-source contributions and basic knowledge of cloud services.\n\nWe offer an employment contract (umowa o pracę) with paid holidays, a Multisport card, conference tickets and a budget for your home office. Our office is in Kraków (Zabłocie). We meet there 2-3 days a week and work remotely the rest of the time.\n\nRecruitment has three steps: a short call with our recruiter, a technical conversation with the team (no live-coding puzzles), and a final meeting with the team lead."
+  },
+  {
+    "title": "iOS Developer",
+    "company_name": "Amberline Logistics",
+    "url": "https://jobradar.local/offers/amberline-logistics-ios-developer",
+    "location": "Warszawa, PL",
+    "employment_type": "b2b",
+    "experience_level": "senior",
+    "technologies": [
+      "Swift",
+      "SwiftUI",
+      "Xcode"
+    ],
+    "description": "Amberline Logistics is a logistics operator with its own in-house IT team. This offer is for the role of iOS Developer in one of our product teams.\n\nIn this role you will:\n- build new features for our app on phones and tablets\n- keep the app fast and stable, and watch crash reports\n- work with designers on a consistent mobile experience\n- publish releases to the app stores\n\nWhat we expect:\n- You have 5+ years of commercial experience, mostly with Swift.\n- You have designed systems with SwiftUI that run under real load.\n- You like mentoring others and leaving code better than you found it.\n- You have worked with Xcode, or are keen to learn it quickly.\n\nNice to have: good written English and basic knowledge of cloud services.\n\nWe offer a B2B contract with 20 paid days off per year, flexible working hours, a budget for your home office and English lessons. We work in a hybrid model from our Warszawa office (Mokotów), usually 2 days a week on site.\n\nRecruitment has three steps: a short call with our recruiter, a technical conversation with the team (no live-coding puzzles), and a final meeting with the team lead."
+  },
+  {
+    "title": "Tech Lead (Python)",
+    "company_name": "Quillstone",
+    "url": "https://jobradar.local/offers/quillstone-tech-lead-python",
+    "location": "Wrocław, PL",
+    "employment_type": "b2b",
+    "experience_level": "lead",
+    "technologies": [
+      "Python",
+      "FastAPI",
+      "AWS",
+      "PostgreSQL"
+    ],
+    "description": "Quillstone is an edtech startup building a platform for online language courses. This offer is for the role of Tech Lead (Python) in one of our product teams.\n\nIn this role you will:\n- lead a team of 4-6 engineers and run its planning\n- make and document technical decisions together with the team\n- mentor junior and mid developers\n- still write code for about half of your time\n\nWhat we expect:\n- You have 6+ years of experience and at least 1 year leading people.\n- You are fluent in Python and have run FastAPI in production.\n- You can explain technical trade-offs to non-technical people.\n- You have worked with AWS and PostgreSQL, or are keen to learn them quickly.\n\nNice to have: experience with Kubernetes and interest in the edtech domain.\n\nWe offer a B2B contract with 20 paid days off per year, a yearly training budget, a budget for your home office and a Multisport card. You will work from our office near the Wrocław old town, with 2 days a week from home.\n\nRecruitment has three steps: a short call with our recruiter, a technical conversation with the team (no live-coding puzzles), and a final meeting with the team lead."
+  },
+  {
+    "title": "Engineering Lead, Data Platform",
+    "company_name": "Ferroway",
+    "url": "https://jobradar.local/offers/ferroway-engineering-lead-data-platform",
+    "location": "Remote",
+    "employment_type": "full_time",
+    "experience_level": "lead",
+    "technologies": [
+      "Python",
+      "Spark",
+      "Kubernetes"
+    ],
+    "description": "Ferroway is a rail-ticketing software vendor serving regional carriers. This offer is for the role of Engineering Lead, Data Platform in one of our product teams.\n\nIn this role you will:\n- lead a team of 4-6 engineers and run its planning\n- make and document technical decisions together with the team\n- mentor junior and mid developers\n- still write code for about half of your time\n\nWhat we expect:\n- You have 6+ years of experience and at least 1 year leading people.\n- You are fluent in Python and have run Spark in production.\n- You can explain technical trade-offs to non-technical people.\n- You have worked with Kubernetes, or are keen to learn it quickly.\n\nNice to have: interest in the transport domain and experience with RabbitMQ.\n\nWe offer an employment contract (umowa o pracę) with paid holidays, English lessons, a yearly training budget and a budget for your home office. The position is fully remote within Poland. We meet in person once a quarter, and we cover the travel.\n\nRecruitment has three steps: a short call with our recruiter, a technical conversation with the team (no live-coding puzzles), and a final meeting with the team lead."
+  },
+  {
+    "title": "Database Administrator (PostgreSQL)",
+    "company_name": "Brightfold",
+    "url": "https://jobradar.local/offers/brightfold-database-administrator-postgresql",
+    "location": "Warszawa, PL",
+    "employment_type": "full_time",
+    "experience_level": "senior",
+    "technologies": [
+      "PostgreSQL",
+      "Linux",
+      "Ansible"
+    ],
+    "description": "Brightfold is a Wrocław software house building booking and payment systems for hotels. This offer is for the role of Database Administrator (PostgreSQL) in one of our product teams.\n\nIn this role you will:\n- run and improve our cloud infrastructure as code\n- keep deployments boring: automated, repeatable and fast\n- set up monitoring and alerting, and take part in a light on-call rotation\n- help developers ship safely by improving the CI/CD pipeline\n\nWhat we expect:\n- You have 5+ years of commercial experience, mostly with PostgreSQL.\n- You have designed systems with Linux that run under real load.\n- You like mentoring others and leaving code better than you found it.\n- You have worked with Ansible, or are keen to learn it quickly.\n\nNice to have: good written English and interest in the hospitality domain.\n\nWe offer an employment contract (umowa o pracę) with paid holidays, flexible working hours, a yearly training budget and a Multisport card. We work in a hybrid model from our Warszawa office (Mokotów), usually 2 days a week on site.\n\nRecruitment has three steps: a short call with our recruiter, a technical conversation with the team (no live-coding puzzles), and a final meeting with the team lead."
+  },
+  {
+    "title": "Security Engineer",
+    "company_name": "Kestrel Data",
+    "url": "https://jobradar.local/offers/kestrel-data-security-engineer",
+    "location": "Remote",
+    "employment_type": "b2b",
+    "experience_level": "middle",
+    "technologies": [
+      "Python",
+      "AWS",
+      "OWASP"
+    ],
+    "description": "Kestrel Data is an analytics company that helps retailers forecast demand. This offer is for the role of Security Engineer in one of our product teams.\n\nIn this role you will:\n- run and improve our cloud infrastructure as code\n- keep deployments boring: automated, repeatable and fast\n- set up monitoring and alerting, and take part in a light on-call rotation\n- help developers ship safely by improving the CI/CD pipeline\n\nWhat we expect:\n- You have 2-4 years of commercial experience with Python.\n- You have shipped features to production with AWS and know how to debug them there.\n- You write tests as part of your normal work, not as an extra.\n- You have worked with OWASP, or are keen to learn it quickly.\n\nNice to have: basic knowledge of cloud services and open-source contributions.\n\nWe offer a B2B contract with 20 paid days off per year, private medical care, a Multisport card and a yearly training budget. The position is fully remote within Poland. We meet in person once a quarter, and we cover the travel.\n\nRecruitment has three steps: a short call with our recruiter, a technical conversation with the team (no live-coding puzzles), and a final meeting with the team lead."
+  },
+  {
+    "title": "Python Developer (part-time, students welcome)",
+    "company_name": "Odra Systems",
+    "url": "https://jobradar.local/offers/odra-systems-python-developer-part-time-students-welcome",
+    "location": "Wrocław, PL",
+    "employment_type": "part_time",
+    "experience_level": "trainee",
+    "technologies": [
+      "Python",
+      "Django",
+      "Git"
+    ],
+    "description": "Odra Systems is a product company making fleet management software for logistics firms. This offer is for the role of Python Developer (part-time, students welcome) in one of our product teams.\n\nIn this role you will:\n- design and build REST APIs used by our web and mobile apps\n- write database migrations and keep queries fast\n- cover new code with automated tests\n- take part in code reviews and help improve our CI pipeline\n\nWhat we expect:\n- You are a student or recent graduate in computer science or a related field.\n- You have written small projects in Python (university or your own) and can show them on GitHub.\n- You know the basics of Git and are not afraid to ask questions.\n- You have worked with Git, or are keen to learn it quickly.\n\nNice to have: interest in the logistics domain and open-source contributions.\n\nWe offer a part-time contract (20-25 hours a week) with flexible hours, English lessons, a budget for your home office and a new laptop of your choice. You will work from our office near the Wrocław old town, with 2 days a week from home.\n\nRecruitment has three steps: a short call with our recruiter, a technical conversation with the team (no live-coding puzzles), and a final meeting with the team lead."
+  },
+  {
+    "title": "AI Engineer (LLM applications)",
+    "company_name": "Pixelgrove",
+    "url": "https://jobradar.local/offers/pixelgrove-ai-engineer-llm-applications",
+    "location": "Remote",
+    "employment_type": "b2b",
+    "experience_level": "middle",
+    "technologies": [
+      "Python",
+      "FastAPI",
+      "LangChain",
+      "PostgreSQL"
+    ],
+    "description": "Pixelgrove is a small studio that designs and builds web apps for startups. This offer is for the role of AI Engineer (LLM applications) in one of our product teams.\n\nIn this role you will:\n- train and evaluate models on real customer data\n- move models from notebooks into production services\n- track experiments and keep results reproducible\n- work with backend developers on the APIs that serve predictions\n\nWhat we expect:\n- You have 2-4 years of commercial experience with Python.\n- You have shipped features to production with FastAPI and know how to debug them there.\n- You write tests as part of your normal work, not as an extra.\n- You have worked with LangChain and PostgreSQL, or are keen to learn them quickly.\n\nNice to have: open-source contributions and experience with RabbitMQ.\n\nWe offer a B2B contract with 20 paid days off per year, a Multisport card, a yearly training budget and English lessons. The position is fully remote within Poland. We meet in person once a quarter, and we cover the travel.\n\nRecruitment has three steps: a short call with our recruiter, a technical conversation with the team (no live-coding puzzles), and a final meeting with the team lead."
+  }
+]

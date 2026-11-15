@@ -67,6 +67,7 @@ def fill_offer(db: Session, offer: JobOffer, data: JobOfferImport, now: datetime
     offer.experience_level = data.experience_level
     offer.deadline = data.deadline
     offer.technologies = get_or_create_technologies(db, data.technologies)
+    offer.description = data.description
     offer.is_active = True
     offer.last_seen_at = now
 
