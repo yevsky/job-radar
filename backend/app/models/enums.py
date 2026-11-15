@@ -29,3 +29,4 @@ class SourceKind(StrEnum):
     SEARCH = 'search'
     BROWSER = 'browser'
     MANUAL = 'manual'
+    POSTED = 'posted'

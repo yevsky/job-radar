@@ -22,3 +22,6 @@ test:
 
 run:
     uv run fastapi dev app/main.py
+
+seed:
+    uv run python -m app.scripts.seed
