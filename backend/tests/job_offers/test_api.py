@@ -279,6 +279,7 @@ def test_details_returns_all_fields(api: TestClient, access_token: str, db: Sess
         'source',
         'url',
         'is_active',
+        'is_private',
         'last_seen_at',
         'created_at',
     }
@@ -290,6 +291,7 @@ def test_details_returns_all_fields(api: TestClient, access_token: str, db: Sess
     assert body['source'] == 'search'
     assert body['url'] == 'https://example.com/jobs/python'
     assert body['is_active'] is True
+    assert body['is_private'] is False
     assert body['deadline'].startswith('2026-12-31')
     assert body['last_seen_at'].startswith('2026-11-01')
     assert body['created_at'].startswith('2026-10-31')

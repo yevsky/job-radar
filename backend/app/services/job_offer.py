@@ -1,8 +1,21 @@
-from sqlalchemy import func, select
+from sqlalchemy import ColumnElement, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.models import JobOffer, Technology
 from app.schemas.job_offer import JobOfferFilters, JobOfferListItem, JobOfferPage, JobOfferRead
+
+
+class OfferNotFoundError(Exception):
+    """The offer doesn't exist, or it is someone else's private offer."""
+
+
+class NotOfferOwnerError(Exception):
+    """The offer is public, or added by someone else, so this user can't delete it."""
+
+
+def visible_to(user_id: int) -> ColumnElement[bool]:
+    """SQL condition: public offers, plus the private ones this user added."""
+    return or_(JobOffer.owner_id.is_(None), JobOffer.owner_id == user_id)
 
 
 def to_list_item(offer: JobOffer) -> JobOfferListItem:
@@ -18,8 +31,10 @@ def to_list_item(offer: JobOffer) -> JobOfferListItem:
     )
 
 
-def list_job_offers(db: Session, limit: int, offset: int, filters: JobOfferFilters) -> JobOfferPage:
-    query = select(JobOffer).where(JobOffer.is_active)
+def list_job_offers(
+    db: Session, user_id: int, limit: int, offset: int, filters: JobOfferFilters
+) -> JobOfferPage:
+    query = select(JobOffer).where(JobOffer.is_active, visible_to(user_id))
 
     for name in filters.technologies:
         query = query.where(JobOffer.technologies.any(func.lower(Technology.name) == name.lower()))
@@ -60,13 +75,25 @@ def to_read(offer: JobOffer) -> JobOfferRead:
         source=offer.source,
         url=offer.url,
         is_active=offer.is_active,
+        is_private=offer.owner_id is not None,
         last_seen_at=offer.last_seen_at,
         created_at=offer.created_at,
     )
 
 
-def get_job_offer(db: Session, offer_id: int) -> JobOfferRead | None:
-    offer = db.get(JobOffer, offer_id)
+def get_job_offer(db: Session, offer_id: int, user_id: int) -> JobOfferRead | None:
+    offer = db.scalar(select(JobOffer).where(JobOffer.id == offer_id, visible_to(user_id)))
     if offer is None:
         return None
     return to_read(offer)
+
+
+def delete_own_offer(db: Session, offer_id: int, user_id: int) -> None:
+    """Delete a private offer the user added; raise if it isn't theirs."""
+    offer = db.scalar(select(JobOffer).where(JobOffer.id == offer_id, visible_to(user_id)))
+    if offer is None:
+        raise OfferNotFoundError
+    if offer.owner_id != user_id:
+        raise NotOfferOwnerError
+    db.delete(offer)
+    db.commit()

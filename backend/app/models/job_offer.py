@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Column, DateTime, Enum, ForeignKey, String, Table, true
+from sqlalchemy import Column, DateTime, Enum, ForeignKey, String, Table, UniqueConstraint, true
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -21,8 +21,17 @@ job_offer_technologies = Table(
 
 class JobOffer(Base):
     __tablename__ = 'job_offers'
+    __table_args__ = (
+        # One public offer per URL (owner_id NULL), and one private copy per user.
+        UniqueConstraint(
+            'owner_id', 'url', name='uq_job_offers_owner_id_url', postgresql_nulls_not_distinct=True
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    owner_id: Mapped[int | None] = mapped_column(
+        ForeignKey('users.id', ondelete='CASCADE'), index=True
+    )
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     company_name: Mapped[str] = mapped_column(String(200), nullable=False)
     source: Mapped[SourceKind] = mapped_column(
@@ -41,7 +50,7 @@ class JobOffer(Base):
         ),
         index=True,
     )
-    url: Mapped[str] = mapped_column(String(2048), nullable=False, unique=True)
+    url: Mapped[str] = mapped_column(String(2048), nullable=False)
     is_active: Mapped[bool] = mapped_column(default=True, server_default=true(), index=True)
     deadline: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
