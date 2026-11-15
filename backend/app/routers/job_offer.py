@@ -1,12 +1,13 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 
 from app.db.dependencies import DbSession
 from app.dependencies import CurrentUser, get_current_user
 from app.models.enums import EmploymentType, ExperienceLevel
-from app.schemas.job_offer import JobOfferFilters, JobOfferPage, JobOfferRead
-from app.services.job_offer import get_job_offer, list_job_offers
+from app.schemas.job_offer import JobOfferFilters, JobOfferImport, JobOfferPage, JobOfferRead
+from app.services.job_offer import get_job_offer, list_job_offers, to_read
+from app.services.job_offer_import import add_private_offer
 
 router = APIRouter(
     prefix='/job-offers', tags=['job-offers'], dependencies=[Depends(get_current_user)]
@@ -39,3 +40,14 @@ def read_job_offer(offer_id: int, db: DbSession, user: CurrentUser) -> JobOfferR
     if offer is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Job offer not found')
     return offer
+
+
+@router.post('', response_model=JobOfferRead, status_code=status.HTTP_201_CREATED)
+def create_job_offer(
+    data: JobOfferImport, db: DbSession, user: CurrentUser, response: Response
+) -> JobOfferRead:
+    """Add an offer only you can see; a link that is already known returns that offer."""
+    offer, created = add_private_offer(db, data, user.id)
+    if not created:
+        response.status_code = status.HTTP_200_OK
+    return to_read(offer)

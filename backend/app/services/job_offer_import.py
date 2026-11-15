@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.models import JobOffer
 from app.models.enums import SourceKind
 from app.schemas.job_offer import ImportReport, ImportRowError, JobOfferImport
+from app.services.job_offer import visible_to
 from app.services.technology import get_or_create_technologies
 
 TRACKING_PARAMS = {
@@ -57,6 +58,19 @@ def format_errors(error: ValidationError) -> str:
     )
 
 
+def fill_offer(db: Session, offer: JobOffer, data: JobOfferImport, now: datetime) -> None:
+    """Copy the imported fields onto an offer (new or existing) and mark it as seen now."""
+    offer.title = data.title
+    offer.company_name = data.company_name
+    offer.location = data.location
+    offer.employment_type = data.employment_type
+    offer.experience_level = data.experience_level
+    offer.deadline = data.deadline
+    offer.technologies = get_or_create_technologies(db, data.technologies)
+    offer.is_active = True
+    offer.last_seen_at = now
+
+
 def import_offers(db: Session, rows: list[dict[str, Any]], source: SourceKind) -> ImportReport:
     """Save a batch of offers, or update the ones whose normalized URL already exists.
 
@@ -66,7 +80,6 @@ def import_offers(db: Session, rows: list[dict[str, Any]], source: SourceKind) -
     and get a new last_seen_at. Everything is committed once, at the end.
     """
     report = ImportReport()
-    now = datetime.now(UTC)
     seen_urls: set[str] = set()
 
     for row_number, row in enumerate(rows, start=1):
@@ -82,7 +95,7 @@ def import_offers(db: Session, rows: list[dict[str, Any]], source: SourceKind) -
             continue
         seen_urls.add(url)
 
-        offer = db.scalar(select(JobOffer).where(JobOffer.url == url))
+        offer = db.scalar(select(JobOffer).where(JobOffer.url == url, JobOffer.owner_id.is_(None)))
         if offer is None:
             offer = JobOffer(url=url, source=source)
             db.add(offer)
@@ -90,18 +103,33 @@ def import_offers(db: Session, rows: list[dict[str, Any]], source: SourceKind) -
         else:
             report.updated += 1
 
-        offer.title = data.title
-        offer.company_name = data.company_name
-        offer.location = data.location
-        offer.employment_type = data.employment_type
-        offer.experience_level = data.experience_level
-        offer.deadline = data.deadline
-        offer.technologies = get_or_create_technologies(db, data.technologies)
-        offer.is_active = True
-        offer.last_seen_at = now
+        fill_offer(db, offer, data, datetime.now(UTC))
 
     db.commit()
     return report
+
+
+def add_private_offer(db: Session, data: JobOfferImport, user_id: int) -> tuple[JobOffer, bool]:
+    """Save an offer only this user can see; return it and whether it was created.
+
+    If the link is already a public offer, or already in this user's private offers,
+    that offer is returned unchanged instead of making a copy.
+    """
+    url = normalize_url(str(data.url))
+    existing = db.scalar(
+        select(JobOffer)
+        .where(JobOffer.url == url, visible_to(user_id))
+        .order_by(JobOffer.owner_id.nulls_first())
+        .limit(1)
+    )
+    if existing is not None:
+        return existing, False
+
+    offer = JobOffer(url=url, source=SourceKind.MANUAL, owner_id=user_id)
+    db.add(offer)
+    fill_offer(db, offer, data, datetime.now(UTC))
+    db.commit()
+    return offer, True
 
 
 class ImportFileError(Exception):
