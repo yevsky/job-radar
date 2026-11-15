@@ -49,7 +49,7 @@ Describes how a job offer reached the application.
 |---|---|
 | `search` | Found by a Tavily web search built from the user's profile |
 | `browser` | Sent from the "Send to JobRadar" browser button |
-| `manual` | Imported by the user from a pasted link |
+| `manual` | Added by hand: a pasted link or an admin file import |
 
 ### `application_status`
 Tracks the state of a user's application to a given job offer.
