@@ -1,9 +1,7 @@
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.models import (
-    Technology,
-)
+from app.models import Technology
 
 
 def get_or_create_technologies(db: Session, names: list[str]) -> list[Technology]:
