@@ -1,3 +1,4 @@
+import json
 from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
@@ -101,3 +102,19 @@ def import_offers(db: Session, rows: list[dict[str, Any]], source: SourceKind) -
 
     db.commit()
     return report
+
+
+class ImportFileError(Exception):
+    """The uploaded file can't be read as a list of offers."""
+
+
+def parse_json_rows(content: bytes) -> list[dict[str, Any]]:
+    """Read a JSON file that must contain a list of objects, one per offer."""
+    try:
+        data = json.loads(content)
+    except ValueError as err:  # broken JSON, or bytes that aren't UTF-8 text
+        raise ImportFileError('The file is not valid JSON.') from err
+
+    if not isinstance(data, list) or not all(isinstance(row, dict) for row in data):
+        raise ImportFileError('The file must contain a JSON list of objects.')
+    return data
