@@ -6,7 +6,14 @@ from app.db.dependencies import DbSession
 from app.dependencies import CurrentUser, get_current_user
 from app.models.enums import EmploymentType, ExperienceLevel
 from app.schemas.job_offer import JobOfferFilters, JobOfferImport, JobOfferPage, JobOfferRead
-from app.services.job_offer import get_job_offer, list_job_offers, to_read
+from app.services.job_offer import (
+    NotOfferOwnerError,
+    OfferNotFoundError,
+    delete_own_offer,
+    get_job_offer,
+    list_job_offers,
+    to_read,
+)
 from app.services.job_offer_import import add_private_offer
 
 router = APIRouter(
@@ -51,3 +58,19 @@ def create_job_offer(
     if not created:
         response.status_code = status.HTTP_200_OK
     return to_read(offer)
+
+
+@router.delete('/{offer_id}', status_code=status.HTTP_204_NO_CONTENT)
+def delete_my_job_offer(offer_id: int, db: DbSession, user: CurrentUser) -> None:
+    """Delete an offer you added yourself."""
+    try:
+        delete_own_offer(db, offer_id, user.id)
+    except OfferNotFoundError as err:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail='Job offer not found'
+        ) from err
+    except NotOfferOwnerError as err:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail='You can only delete offers you added yourself',
+        ) from err

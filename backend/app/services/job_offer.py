@@ -5,6 +5,14 @@ from app.models import JobOffer, Technology
 from app.schemas.job_offer import JobOfferFilters, JobOfferListItem, JobOfferPage, JobOfferRead
 
 
+class OfferNotFoundError(Exception):
+    """The offer doesn't exist, or it is someone else's private offer."""
+
+
+class NotOfferOwnerError(Exception):
+    """The offer is public, or added by someone else, so this user can't delete it."""
+
+
 def visible_to(user_id: int) -> ColumnElement[bool]:
     """SQL condition: public offers, plus the private ones this user added."""
     return or_(JobOffer.owner_id.is_(None), JobOffer.owner_id == user_id)
@@ -78,3 +86,14 @@ def get_job_offer(db: Session, offer_id: int, user_id: int) -> JobOfferRead | No
     if offer is None:
         return None
     return to_read(offer)
+
+
+def delete_own_offer(db: Session, offer_id: int, user_id: int) -> None:
+    """Delete a private offer the user added; raise if it isn't theirs."""
+    offer = db.scalar(select(JobOffer).where(JobOffer.id == offer_id, visible_to(user_id)))
+    if offer is None:
+        raise OfferNotFoundError
+    if offer.owner_id != user_id:
+        raise NotOfferOwnerError
+    db.delete(offer)
+    db.commit()
