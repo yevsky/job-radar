@@ -39,7 +39,7 @@ def engine() -> Generator[Engine]:
 def db(engine: Engine) -> Generator[Session]:
     connection = engine.connect()
     transaction = connection.begin()
-    session = Session(bind=connection, join_transaction_mode='create_savepoint')
+    session = Session(bind=connection, join_transaction_mode='create_savepoint', autoflush=False)
     yield session
     session.close()
     transaction.rollback()
