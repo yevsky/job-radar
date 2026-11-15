@@ -41,6 +41,7 @@ class JobOfferRead(JobOfferListItem):
     source: SourceKind
     url: str
     is_active: bool
+    is_private: bool
     last_seen_at: datetime | None
     created_at: datetime
 
