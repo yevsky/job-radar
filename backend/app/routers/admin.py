@@ -8,8 +8,9 @@ from app.dependencies import require_role
 from app.models import User
 from app.models.enums import SourceKind
 from app.models.role import RoleName
-from app.schemas.job_offer import ImportReport
+from app.schemas.job_offer import ImportReport, JobOfferRead, JobOfferStatusUpdate
 from app.schemas.user import UserRead
+from app.services.job_offer import delete_job_offer, set_job_offer_active
 from app.services.job_offer_import import ImportFileError, import_offers, parse_json_rows
 
 MAX_IMPORT_BYTES = 1_000_000
@@ -47,3 +48,21 @@ def import_job_offers(file: UploadFile, db: DbSession) -> ImportReport:
         )
 
     return import_offers(db, rows, SourceKind.MANUAL)
+
+
+@router.patch('/job-offers/{offer_id}', response_model=JobOfferRead)
+def update_job_offer_status(
+    offer_id: int, data: JobOfferStatusUpdate, db: DbSession
+) -> JobOfferRead:
+    """Hide an offer from the list (is_active=false) or show it again."""
+    offer = set_job_offer_active(db, offer_id, data.is_active)
+    if offer is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Job offer not found')
+    return offer
+
+
+@router.delete('/job-offers/{offer_id}', status_code=status.HTTP_204_NO_CONTENT)
+def remove_job_offer(offer_id: int, db: DbSession) -> None:
+    """Delete an offer for good."""
+    if not delete_job_offer(db, offer_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Job offer not found')

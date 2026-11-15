@@ -47,6 +47,10 @@ class JobOfferRead(JobOfferListItem):
     created_at: datetime
 
 
+class JobOfferStatusUpdate(BaseModel):
+    is_active: bool
+
+
 class JobOfferFilters(BaseModel):
     technologies: list[str] = []
     location: str | None = None

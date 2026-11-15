@@ -98,3 +98,28 @@ def delete_own_offer(db: Session, offer_id: int, user_id: int) -> None:
         raise NotOfferOwnerError
     db.delete(offer)
     db.commit()
+
+
+def get_public_offer(db: Session, offer_id: int) -> JobOffer | None:
+    """An offer everyone can see; private offers are left out, even for admins."""
+    return db.scalar(select(JobOffer).where(JobOffer.id == offer_id, JobOffer.owner_id.is_(None)))
+
+
+def set_job_offer_active(db: Session, offer_id: int, is_active: bool) -> JobOfferRead | None:
+    """Show or hide a public offer in the list; return None if there is no such offer."""
+    offer = get_public_offer(db, offer_id)
+    if offer is None:
+        return None
+    offer.is_active = is_active
+    db.commit()
+    return to_read(offer)
+
+
+def delete_job_offer(db: Session, offer_id: int) -> bool:
+    """Delete a public offer and its technology links; return False if there is no such offer."""
+    offer = get_public_offer(db, offer_id)
+    if offer is None:
+        return False
+    db.delete(offer)
+    db.commit()
+    return True
