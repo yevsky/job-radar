@@ -23,7 +23,7 @@ class SearchQuery(BaseModel):
     position: str | None = Field(default=None, max_length=120)
     experience_level: ExperienceLevel | None = None
     skills: list[SearchTerm] = Field(default=[], max_length=10)
-    location: list[SearchTerm] = Field(default=[], max_length=5)
+    locations: list[SearchTerm] = Field(default=[], max_length=5)
     employment_types: list[EmploymentType] = []
     remote_only: bool = False
     posted_within: PostedWithin | None = None
@@ -41,7 +41,7 @@ class SearchQuery(BaseModel):
         words = [self.experience_level or '', self.position or '', *self.skills]
         parts = [word.strip() for word in words if word.strip()]
 
-        locations = [location.strip() for location in self.location if location.strip()]
+        locations = [location.strip() for location in self.locations if location.strip()]
         if self.remote_only and not any(loc.lower() == 'remote' for loc in locations):
             locations.append('Remote')
         if locations:
