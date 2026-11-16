@@ -4,11 +4,12 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from sqlalchemy import select
 
 from app.db.dependencies import DbSession
-from app.dependencies import require_role
+from app.dependencies import SearchSources, require_role
 from app.models import User
 from app.models.enums import SourceKind
 from app.models.role import RoleName
 from app.schemas.job_offer import ImportReport, JobOfferRead, JobOfferStatusUpdate
+from app.schemas.search import SourceStatus
 from app.schemas.user import UserRead
 from app.services.job_offer import delete_job_offer, set_job_offer_active
 from app.services.job_offer_import import ImportFileError, import_offers, parse_json_rows
@@ -66,3 +67,9 @@ def remove_job_offer(offer_id: int, db: DbSession) -> None:
     """Delete an offer for good."""
     if not delete_job_offer(db, offer_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Job offer not found')
+
+
+@router.get('/search-sources', response_model=list[SourceStatus])
+def check_search_sources(sources: SearchSources) -> list[SourceStatus]:
+    """Show each enabled search source and whether it works (API key valid, API reachable)."""
+    return [SourceStatus(name=source.name, ok=source.test()) for source in sources]
