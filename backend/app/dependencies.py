@@ -5,9 +5,12 @@ import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 
+from app.core.config import settings
 from app.core.token import decode_access_token
 from app.db.dependencies import DbSession
 from app.models import User
+from app.search_sources.base import SearchSource
+from app.search_sources.registry import build_sources
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl='/auth/login')
 
@@ -47,3 +50,14 @@ def require_role(*roles: str) -> Callable[[User], User]:
         return user
 
     return check_role
+
+
+search_sources = build_sources(settings.search_sources)
+
+
+def get_search_sources() -> list[SearchSource]:
+    """The enabled search sources; tests replace this with fake ones."""
+    return search_sources
+
+
+SearchSources = Annotated[list[SearchSource], Depends(get_search_sources)]

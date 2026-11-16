@@ -1,0 +1,82 @@
+[
+  {
+    "title": "Junior Python Developer",
+    "company_name": "Brightfold",
+    "url": "https://jobradar.local/demo/brightfold-junior-python-developer",
+    "location": "Wrocław",
+    "experience_level": "junior",
+    "employment_type": "full_time",
+    "technologies": ["Python", "FastAPI", "PostgreSQL"],
+    "description": "Demo search result. Build REST APIs with FastAPI in a small backend team."
+  },
+  {
+    "title": "Backend Developer (Remote)",
+    "company_name": "Kestrel Data",
+    "url": "https://jobradar.local/demo/kestrel-data-backend-developer",
+    "location": "Remote",
+    "experience_level": "middle",
+    "employment_type": "b2b",
+    "technologies": ["Python", "Django", "PostgreSQL", "Docker"],
+    "description": "Demo search result. Maintain data APIs for analytics customers, fully remote."
+  },
+  {
+    "title": "Python Developer Intern",
+    "company_name": "Odra Systems",
+    "url": "https://jobradar.local/demo/odra-systems-python-intern",
+    "location": "Wrocław",
+    "experience_level": "trainee",
+    "employment_type": "internship",
+    "technologies": ["Python", "SQL", "Git"],
+    "description": "Demo search result. Three-month paid internship with a mentor."
+  },
+  {
+    "title": "Full Stack Developer",
+    "company_name": "Pixelgrove",
+    "url": "https://jobradar.local/demo/pixelgrove-full-stack-developer",
+    "location": "Kraków",
+    "experience_level": "middle",
+    "employment_type": "full_time",
+    "technologies": ["TypeScript", "React", "Python", "FastAPI"],
+    "description": "Demo search result. React frontend and Python backend for an e-commerce platform."
+  },
+  {
+    "title": "Senior Backend Engineer",
+    "company_name": "Vistula Cloud",
+    "url": "https://jobradar.local/demo/vistula-cloud-senior-backend-engineer",
+    "location": "Warszawa",
+    "experience_level": "senior",
+    "employment_type": "b2b",
+    "technologies": ["Python", "Kubernetes", "AWS", "PostgreSQL"],
+    "description": "Demo search result. Design services for a cloud hosting platform."
+  },
+  {
+    "title": "Data Engineer",
+    "company_name": "Tatra Analytics",
+    "url": "https://jobradar.local/demo/tatra-analytics-data-engineer",
+    "location": "Remote",
+    "experience_level": "junior",
+    "employment_type": "contract",
+    "technologies": ["Python", "Airflow", "SQL"],
+    "description": "Demo search result. Build data pipelines, part-time remote work possible."
+  },
+  {
+    "title": "Java Developer",
+    "company_name": "Nordbyte",
+    "url": "https://jobradar.local/demo/nordbyte-java-developer",
+    "location": "Wrocław",
+    "experience_level": "middle",
+    "employment_type": "full_time",
+    "technologies": ["Java", "Spring Boot", "PostgreSQL"],
+    "description": "Demo search result. Backend services for a logistics company."
+  },
+  {
+    "title": "QA Automation Engineer",
+    "company_name": "Copperleaf Health",
+    "url": "https://jobradar.local/demo/copperleaf-health-qa-automation",
+    "location": "Kraków",
+    "experience_level": "junior",
+    "employment_type": "part_time",
+    "technologies": ["Python", "Pytest", "Selenium"],
+    "description": "Demo search result. Write automated tests for a healthcare web app."
+  }
+]

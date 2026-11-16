@@ -1,6 +1,18 @@
+import json
+from pathlib import Path
+
+from app.core.config import BASE_DIR
 from app.schemas.job_offer import JobOfferImport
 from app.schemas.search import SearchQuery
 from app.search_sources.base import SearchSource, SearchSourceError
+
+DEMO_RESULTS_FILE = BASE_DIR / 'seed' / 'demo_search_results.json'
+
+
+def load_demo_results(path: Path = DEMO_RESULTS_FILE) -> list[JobOfferImport]:
+    """Read the results the 'fake' source returns, so the frontend works without API keys."""
+    rows = json.loads(path.read_text(encoding='utf-8'))
+    return [JobOfferImport.model_validate(row) for row in rows]
 
 
 class FakeSearchSource(SearchSource):
