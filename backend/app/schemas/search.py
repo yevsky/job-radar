@@ -5,7 +5,11 @@ from pydantic import BaseModel, Field, StringConstraints
 
 from app.models.enums import EmploymentType, ExperienceLevel
 
+MAX_SKILLS = 10
+MAX_LOCATIONS = 5
+
 SearchTerm = Annotated[str, StringConstraints(strip_whitespace=True, max_length=50)]
+SearchLocation = Annotated[str, StringConstraints(strip_whitespace=True, max_length=100)]
 
 
 class PostedWithin(StrEnum):
@@ -22,8 +26,8 @@ class SearchQuery(BaseModel):
 
     position: str | None = Field(default=None, max_length=120)
     experience_level: ExperienceLevel | None = None
-    skills: list[SearchTerm] = Field(default=[], max_length=10)
-    locations: list[SearchTerm] = Field(default=[], max_length=5)
+    skills: list[SearchTerm] = Field(default=[], max_length=MAX_SKILLS)
+    locations: list[SearchLocation] = Field(default=[], max_length=MAX_LOCATIONS)
     employment_types: list[EmploymentType] = []
     remote_only: bool = False
     posted_within: PostedWithin | None = None
