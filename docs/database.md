@@ -6,7 +6,7 @@ This document describes the relational database schema for the job offer discove
 
 Job offers are **not bulk-scraped** from job boards. They reach the application in three ways: a Tavily web search built from the user's profile, the "Send to JobRadar" browser button, or a manual import of a link. For those offers only the basic facts (link, title, company, location, deadline and source) are stored. The full text is stored only for offers posted on JobRadar itself (`source = posted`, for now the demo offers loaded by `just seed`).
 
-> **Note:** Tables related to the AI assistant module (e.g. query history, match results) and to search logging are **not included yet**. They will be added together with the features that use them, and this document will be updated at that point.
+> **Note:** Tables related to the AI assistant module (e.g. query history, match results) are **not included yet**. They will be added together with the features that use them, and this document will be updated at that point.
 
 ## Overview
 
@@ -15,8 +15,8 @@ The schema is organized around five functional areas:
 1. **Access control** — users, roles, and user profiles
 2. **User preferences** — skills and standing filter preferences used for search and matching
 3. **Job offer data** — job offers and technologies
-4. **User activity** — saved jobs and applications
-5. *(Planned)* **AI assistant module and search logging** — to be added later
+4. **User activity** — saved jobs, applications and search runs
+5. *(Planned)* **AI assistant module** — to be added later
 
 ## Enums
 
@@ -81,6 +81,7 @@ Application user accounts, including authentication data.
 | `email` | varchar | Unique, not null |
 | `hashed_password` | varchar | Not null |
 | `role_id` | integer | FK → `roles.id`, not null |
+| `search_daily_limit` | integer | Nullable. This user's own daily search limit, set by an admin; `NULL` means the default from `SEARCH_DAILY_LIMIT` |
 | `created_at` | timestamp | |
 | `updated_at` | timestamp | |
 
@@ -148,7 +149,7 @@ Core table storing the basic facts of individual job postings. The full offer te
 | `description` | text | Full offer text; stored only for `posted` offers |
 | `is_active` | boolean | Not null, default `true` — marks whether the offer is still live |
 | `deadline` | timestamp | Application deadline, if known |
-| `last_seen_at` | timestamp | When a search or import last found this offer |
+| `last_seen_at` | timestamp | When an import last found this offer |
 | `created_at` | timestamp | |
 | `updated_at` | timestamp | |
 
@@ -187,6 +188,18 @@ Tracks a user's application to a specific job offer, including status and notes.
 
 Unique on (`user_id`, `job_offer_id`): a user has at most one application per offer.
 
+### `search_runs`
+One row per search a user ran, used to enforce the daily search limit. The search results themselves are **not** stored.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | integer | Primary key |
+| `user_id` | integer | FK → `users.id`, not null, ON DELETE CASCADE |
+| `created_at` | timestamp | When the search ran (UTC) |
+| `result_count` | integer | How many results the search returned |
+
+Indexed on (`user_id`, `created_at`) for counting a user's searches today.
+
 ## Relationships Summary
 
 - `users.role_id` → `roles.id`
@@ -197,16 +210,18 @@ Unique on (`user_id`, `job_offer_id`): a user has at most one application per of
 - `job_offer_technologies` links `job_offers` ↔ `technologies` (M:N)
 - `saved_jobs` links `users` ↔ `job_offers` (M:N)
 - `applications` links `users` ↔ `job_offers` (1 application row per user–offer pair, extended with status/notes)
+- `search_runs.user_id` → `users.id` (1:N)
 
-Deleting a user deletes their profile, preferences, skills links, saved jobs and applications. Deleting a user never deletes rows in `technologies`.
+Deleting a user deletes their profile, preferences, skills links, saved jobs, applications and search runs. Deleting a user never deletes rows in `technologies`.
 
 ## Design Notes
 
 - **No bulk scraping.** Offers are found through Tavily search or sent by the user (browser button, manual import), and only their basic facts are stored. This avoids copying job boards' content, which could conflict with their terms of use and database rights. The offer page is fetched only when the offer is analysed.
 - **No `job_sources` table.** There are only three fixed ways an offer can arrive, so the `source_kind` enum on `job_offers` replaces a lookup table. The job board an offer comes from can be read from its `url` domain.
-- **Deduplication of offers** relies on the `url` uniqueness constraint on `job_offers`. When a search or import finds an existing URL again, the row is updated (`last_seen_at`, `is_active`) rather than duplicated.
+- **Deduplication of offers** relies on the `url` uniqueness constraint on `job_offers`. When an import finds an existing URL again, the row is updated (`last_seen_at`, `is_active`) rather than duplicated.
 - **Saved jobs and applications are separate.** Saving is a bookmark with no status; an application has a life cycle. Keeping them in two tables means each fact is stored in one place, and `application_status` has no `saved` value.
 - **Location and preference matching** use free-text fields rather than a normalized `locations` table. Location strings vary significantly between job boards (e.g. "Warszawa" vs "Warsaw, PL" vs "Remote/Warsaw"), so normalization/geocoding is left as a possible future improvement.
+- **Search results are not stored.** A search returns its results to the user and keeps only a `search_runs` row (who, when, how many results). A result is saved only when the user keeps it, as their private offer. The daily limit counts `search_runs` rows since midnight UTC; an admin can give a user their own limit (`users.search_daily_limit`).
 - **`technologies` and `roles`** are treated as lookup tables. `created_at` was intentionally omitted from `technologies` since no current feature depends on knowing when a technology entry was created.
 
 ## Planned Additions (Future Work)
@@ -214,5 +229,4 @@ Deleting a user deletes their profile, preferences, skills links, saved jobs and
 The following will be added together with the features that need them:
 
 - **AI assistant module:** a table storing AI query history (per user, per job offer: query type, prompt version, the anonymised context sent to the model and the validated response), and a table storing match results per user and offer (match label, score, "why it fits" and "watch out").
-- **Search logging:** a table of Tavily search runs, if needed for per-user search limits, caching and usage statistics.
 - Possible extensions to `job_offer_technologies` (e.g. required vs. nice-to-have flags) if AI-driven matching requires finer-grained weighting.
