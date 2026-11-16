@@ -1,3 +1,4 @@
+from app.core.config import settings
 from app.models import User
 from app.schemas.search import (
     MAX_LOCATIONS,
@@ -57,3 +58,10 @@ def run_search(query: SearchQuery, sources: list[SearchSource], limit: int) -> S
             results.append(SearchResult(**offer.model_dump(), found_via=source.name))
 
     return SearchResponse(query=query.text(), results=results, errors=errors)
+
+
+def daily_limit(user: User) -> int:
+    """The user's own limit if an admin set one, otherwise the default from settings."""
+    if user.search_daily_limit is not None:
+        return user.search_daily_limit
+    return settings.search_daily_limit
