@@ -14,6 +14,12 @@ class Settings(BaseSettings):
     # TODO: Delete None defaults for api keys
     gemini_api_key: SecretStr | None = None
     tavily_api_key: SecretStr | None = None
+    jsearch_api_key: SecretStr | None = None
+
+    # Which search sources POST /search asks, in this order. In .env as JSON:
+    # SEARCH_SOURCES='["tavily","jsearch"]'. 'fake' returns demo results and needs no key.
+    search_sources: list[str] = ['fake']
+    search_results_per_source: int = 10
 
     model_config = SettingsConfigDict(
         env_file=[
