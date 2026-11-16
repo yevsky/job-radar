@@ -4,6 +4,7 @@ from typing import Annotated
 from pydantic import BaseModel, Field, StringConstraints
 
 from app.models.enums import EmploymentType, ExperienceLevel
+from app.schemas.job_offer import JobOfferImport
 
 MAX_SKILLS = 10
 MAX_LOCATIONS = 5
@@ -52,3 +53,27 @@ class SearchQuery(BaseModel):
             parts.append(' OR '.join(locations))
 
         return ' '.join(parts)
+
+
+class SearchResult(JobOfferImport):
+    """One offer found by a search, with the name of the source that found it."""
+
+    found_via: str
+
+
+class SourceError(BaseModel):
+    """A source that failed during a search; the other sources' results are still returned."""
+
+    source: str
+    message: str
+
+
+class SearchResponse(BaseModel):
+    query: str  # the phrase that was sent, so the user sees exactly what left the server
+    results: list[SearchResult]
+    errors: list[SourceError]
+
+
+class SourceStatus(BaseModel):
+    name: str
+    ok: bool
