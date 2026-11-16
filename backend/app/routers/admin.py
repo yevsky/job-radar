@@ -9,10 +9,11 @@ from app.models import User
 from app.models.enums import SourceKind
 from app.models.role import RoleName
 from app.schemas.job_offer import ImportReport, JobOfferRead, JobOfferStatusUpdate
-from app.schemas.search import SourceStatus
+from app.schemas.search import SearchLimitRead, SearchLimitUpdate, SourceStatus
 from app.schemas.user import UserRead
 from app.services.job_offer import delete_job_offer, set_job_offer_active
 from app.services.job_offer_import import ImportFileError, import_offers, parse_json_rows
+from app.services.search import UserNotFoundError, set_search_limit
 
 MAX_IMPORT_BYTES = 1_000_000
 MAX_IMPORT_ROWS = 500
@@ -73,3 +74,12 @@ def remove_job_offer(offer_id: int, db: DbSession) -> None:
 def check_search_sources(sources: SearchSources) -> list[SourceStatus]:
     """Show each enabled search source and whether it works (API key valid, API reachable)."""
     return [SourceStatus(name=source.name, ok=source.test()) for source in sources]
+
+
+@router.put('/users/{user_id}/search-limit', response_model=SearchLimitRead)
+def update_search_limit(user_id: int, data: SearchLimitUpdate, db: DbSession) -> SearchLimitRead:
+    """Give a user their own daily search limit, or null to use the default again."""
+    try:
+        return set_search_limit(db, user_id, data.search_daily_limit)
+    except UserNotFoundError as err:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='User not found') from err
