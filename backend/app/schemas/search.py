@@ -72,8 +72,29 @@ class SearchResponse(BaseModel):
     query: str  # the phrase that was sent, so the user sees exactly what left the server
     results: list[SearchResult]
     errors: list[SourceError]
+    searches_left_today: int
 
 
 class SourceStatus(BaseModel):
     name: str
     ok: bool
+
+
+class SearchUsage(BaseModel):
+    """How many searches the user may run today, and how many are left."""
+
+    daily_limit: int
+    used_today: int
+    left_today: int
+
+
+class SearchLimitUpdate(BaseModel):
+    """Body of the admin endpoint; None goes back to the default from settings."""
+
+    search_daily_limit: int | None = Field(ge=0, le=1000)
+
+
+class SearchLimitRead(BaseModel):
+    user_id: int
+    search_daily_limit: int | None  # the user's own limit, or None
+    effective_limit: int  # what actually applies: the user's limit or the default

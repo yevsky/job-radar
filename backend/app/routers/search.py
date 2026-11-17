@@ -1,9 +1,16 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, HTTPException, status
 
 from app.core.config import settings
-from app.dependencies import CurrentUser, SearchSources, get_current_user
-from app.schemas.search import SearchQuery, SearchResponse
-from app.services.search import EmptyQueryError, default_search_query, run_search
+from app.db.dependencies import DbSession
+from app.dependencies import CurrentUser, SearchSources
+from app.schemas.search import SearchQuery, SearchResponse, SearchUsage
+from app.services.search import (
+    EmptyQueryError,
+    SearchLimitError,
+    default_search_query,
+    get_usage,
+    run_search,
+)
 
 router = APIRouter(prefix='/search', tags=['search'])
 
@@ -14,13 +21,26 @@ def read_search_defaults(user: CurrentUser) -> SearchQuery:
     return default_search_query(user)
 
 
-@router.post('', response_model=SearchResponse, dependencies=[Depends(get_current_user)])
-def search_jobs(query: SearchQuery, sources: SearchSources) -> SearchResponse:
+@router.get('/usage', response_model=SearchUsage)
+def read_search_usage(user: CurrentUser, db: DbSession) -> SearchUsage:
+    """Your daily search limit and how many searches you have left today."""
+    return get_usage(db, user)
+
+
+@router.post('', response_model=SearchResponse)
+def search_jobs(
+    query: SearchQuery, user: CurrentUser, db: DbSession, sources: SearchSources
+) -> SearchResponse:
     """Search every enabled source with the form. The results are returned, not saved."""
     try:
-        return run_search(query, sources, settings.search_results_per_source)
+        return run_search(db, user, query, sources, settings.search_results_per_source)
     except EmptyQueryError as err:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail='Add a position or at least one skill',
+        ) from err
+    except SearchLimitError as err:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail='Daily search limit reached, try again tomorrow',
         ) from err
