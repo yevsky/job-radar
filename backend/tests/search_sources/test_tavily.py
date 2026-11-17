@@ -11,7 +11,14 @@ from app.models.enums import EmploymentType
 from app.schemas.search import PostedWithin, SearchQuery
 from app.search_sources.base import SearchSourceError
 from app.search_sources.registry import build_sources
-from app.search_sources.tavily import TAVILY_URL, TavilySource, split_title, to_offer
+from app.search_sources.tavily import (
+    TAVILY_URL,
+    TavilySource,
+    company_from_url,
+    is_offer_page,
+    split_title,
+    to_offer,
+)
 
 SAMPLE = json.loads((Path(__file__).parent / 'data' / 'tavily.json').read_text(encoding='utf-8'))
 QUERY = SearchQuery(position='Python developer', skills=['FastAPI'])
@@ -62,12 +69,12 @@ def test_sample_maps_to_offers() -> None:
         (
             'Python Developer (FastAPI)',
             'Northwind Data',
-            'https://justjoin.it/job-offer/northwind-data-python-developer-fastapi-wroclaw',
+            'https://justjoin.it/job-offer/northwind-data-python-developer-fastapi-wroclaw-python',
         ),
         (
             'Python Backend Developer',
-            'nofluffjobs.com',
-            'https://nofluffjobs.com/pl/job/python-backend-developer-wroclaw-abc123',
+            'Blue Fjord',
+            'https://nofluffjobs.com/pl/job/python-backend-developer-blue-fjord-wroclaw-2',
         ),
     ]
     assert offers[0].description is not None
@@ -77,8 +84,65 @@ def test_sample_maps_to_offers() -> None:
 def test_broken_result_is_skipped_and_the_rest_returned() -> None:
     offers = make_source(answer()).search(QUERY, 10)
 
-    assert len(offers) == 3  # 4 in the sample, the one with 'not a link' is left out
+    assert len(offers) == 3  # 5 in the sample: a list page and one with 'not a link' are left out
     assert all(o.title != 'Broken result without a link' for o in offers)
+
+
+def test_list_pages_are_skipped() -> None:
+    offers = make_source(answer()).search(QUERY, 10)
+
+    assert all('/wroclaw/python' not in str(o.url) for o in offers)
+
+
+@pytest.mark.parametrize(
+    ('url', 'expected'),
+    [
+        ('https://justjoin.it/job-offer/codesky-python-developer-wroclaw-python', True),
+        ('https://justjoin.it/job-offers/warszawa/python', False),
+        ('https://nofluffjobs.com/job/python-developer-codesky-warszawa', True),
+        ('https://nofluffjobs.com/pl/job/python-developer-codesky-warszawa', True),
+        ('https://nofluffjobs.com/warsaw/django', False),
+        ('https://nofluffjobs.com/django', False),
+        ('https://www.pracuj.pl/praca/python-developer-warszawa,oferta,1004412345', True),
+        ('https://www.pracuj.pl/praca/python%20developer;kw/warszawa;wp', False),
+        ('https://pl.linkedin.com/jobs/view/python-developer-at-codesky-4306190000', True),
+        ('https://www.linkedin.com/jobs/search?keywords=python', False),
+        ('https://careers.codesky.local/jobs/42', True),  # not a known board: kept
+    ],
+)
+def test_is_offer_page(url: str, expected: bool) -> None:
+    assert is_offer_page(url) is expected
+
+
+@pytest.mark.parametrize(
+    ('title', 'url', 'company'),
+    [
+        (
+            'Python Developer with Azure',
+            'https://justjoin.it/job-offer/dcg-python-developer-with-azure-warszawa-python-5d69f599',
+            'Dcg',
+        ),
+        (
+            'Python Django Developer',
+            'https://nofluffjobs.com/job/python-django-developer-britenet-warszawa-1',
+            'Britenet',
+        ),
+        (
+            'Python+Django Senior Developer',
+            'https://nofluffjobs.com/job/python-django-senior-developer-van-cargo-warszawa',
+            'Van Cargo',
+        ),
+        (
+            'Senior Python Developer',
+            'https://pl.linkedin.com/jobs/view/senior-python-developer-at-jobgether-4306190000',
+            'Jobgether',
+        ),
+        ('Python Developer', 'https://nofluffjobs.com/job/python-developer', None),
+        ('Python Developer', 'https://careers.codesky.local/jobs/42', None),
+    ],
+)
+def test_company_from_url(title: str, url: str, company: str | None) -> None:
+    assert company_from_url(url, title) == company
 
 
 def test_results_are_cut_to_the_limit() -> None:
@@ -92,6 +156,9 @@ def test_results_are_cut_to_the_limit() -> None:
         ('Python Developer - Codesky - Just Join IT', ('Python Developer', 'Codesky')),
         ('Python Developer – Codesky', ('Python Developer', 'Codesky')),
         ('Python Developer', ('Python Developer', None)),
+        ('Python Developer - Just Join IT', ('Python Developer', None)),  # a site, not a company
+        ('Python Django Developer Job', ('Python Django Developer', None)),
+        ('Senior Python Developer (remote ...', ('Senior Python Developer (remote', None)),
         (
             'Back-end developer',
             ('Back-end developer', None),
@@ -246,3 +313,18 @@ def test_registry_without_key_fails_with_a_clear_message(
 
     with pytest.raises(ValueError, match='TAVILY_API_KEY is empty'):
         build_sources(['tavily'])
+
+
+def test_level_is_read_from_the_title_or_years() -> None:
+    junior = to_offer({'title': 'Junior Python Developer', 'url': 'https://example.com/1'})
+    by_years = to_offer(
+        {'title': 'Python Developer', 'url': 'https://example.com/2', 'content': '6+ years'}
+    )
+    unknown = to_offer({'title': 'Python Developer', 'url': 'https://example.com/3'})
+
+    assert junior is not None
+    assert junior.experience_level == 'junior'
+    assert by_years is not None
+    assert by_years.experience_level == 'senior'
+    assert unknown is not None
+    assert unknown.experience_level is None

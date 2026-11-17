@@ -143,3 +143,24 @@ def test_fake_is_a_search_source() -> None:
 def test_interface_cannot_be_used_directly() -> None:
     with pytest.raises(TypeError):
         SearchSource()  # type: ignore[abstract]
+
+
+# SearchQuery.wanted_level() and levels in the phrase
+
+
+def test_level_word_in_position_is_the_wanted_level() -> None:
+    query = SearchQuery(position='Junior Python developer', locations=['Kraków'])
+
+    assert query.wanted_level() == ExperienceLevel.JUNIOR
+    assert query.text() == 'junior Python developer Kraków'
+
+
+def test_level_field_wins_over_a_level_word_in_position() -> None:
+    query = SearchQuery(position='Senior Python developer', experience_level=ExperienceLevel.JUNIOR)
+
+    assert query.wanted_level() == ExperienceLevel.JUNIOR
+    assert query.text() == 'junior Python developer'  # 'Senior' is not sent
+
+
+def test_no_level_anywhere_means_no_wanted_level() -> None:
+    assert SearchQuery(position='Python developer').wanted_level() is None
