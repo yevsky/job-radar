@@ -5,6 +5,7 @@ from urllib.parse import urlsplit
 import httpx
 from pydantic import ValidationError
 
+from app.core.levels import guess_level
 from app.models.enums import EmploymentType
 from app.schemas.job_offer import JobOfferImport
 from app.schemas.search import SearchQuery
@@ -26,21 +27,27 @@ EMPLOYMENT_WORDS = {
 # "Python Developer - Codesky" or "Python Developer – Codesky"
 DASH = re.compile(r'\s[-–—]\s')
 
+# The path of ONE offer on each job board. Other pages there (search results, categories
+# like nofluffjobs.com/django) list many offers, so they are skipped. Other sites are kept.
+OFFER_PATHS = {
+    'justjoin.it': re.compile(r'^/job-offer/'),
+    'nofluffjobs.com': re.compile(r'^/(?:[a-z]{2}/)?job/'),
+    'pracuj.pl': re.compile(r'^/praca/.+,oferta,\d+'),
+    'linkedin.com': re.compile(r'^/jobs/view/'),
+}
 
-def split_title(page_title: str) -> tuple[str, str | None]:
-    """Guess (job title, company) from a page title; company is None if there is no pattern.
+# Site names that page titles end with; never a company.
+SITE_NAMES = {
+    'just join it',
+    'justjoin.it',
+    'no fluff jobs',
+    'nofluffjobs',
+    'pracuj.pl',
+    'linkedin',
+}
 
-    'Python Developer at Codesky | LinkedIn' -> ('Python Developer', 'Codesky')
-    'Python Developer - Codesky - Just Join IT' -> ('Python Developer', 'Codesky')
-    """
-    text = page_title.split(' | ')[0].strip()
-    if ' at ' in text:
-        title, company = text.rsplit(' at ', 1)
-        return title.strip(), company.strip() or None
-    parts = DASH.split(text)
-    if len(parts) > 1:
-        return parts[0].strip(), parts[1].strip() or None
-    return text, None
+# Words some boards add to the title: 'Python Developer Job' -> 'Python Developer'
+TITLE_SUFFIX = re.compile(r'\s+(?:job|job offer)$', re.IGNORECASE)
 
 
 def host_of(url: object) -> str | None:
@@ -51,18 +58,87 @@ def host_of(url: object) -> str | None:
     return host.removeprefix('www.') if host else None
 
 
-def to_offer(row: object) -> JobOfferImport | None:
-    """Turn one Tavily result into an offer, best effort; None if it isn't a valid offer."""
-    if not isinstance(row, dict):
+def board_of(host: str) -> str | None:
+    """The job board a host belongs to ('pl.linkedin.com' -> 'linkedin.com'), if any."""
+    return next((b for b in OFFER_PATHS if host == b or host.endswith(f'.{b}')), None)
+
+
+def is_offer_page(url: object) -> bool:
+    """False for a job board page that lists many offers instead of showing one."""
+    host = host_of(url)
+    board = board_of(host) if host else None
+    if board is None:
+        return True
+    return bool(OFFER_PATHS[board].match(urlsplit(str(url)).path))
+
+
+def split_title(page_title: str) -> tuple[str, str | None]:
+    """Guess (job title, company) from a page title; company is None if there is no pattern.
+
+    'Python Developer at Codesky | LinkedIn' -> ('Python Developer', 'Codesky')
+    'Python Developer - Codesky - Just Join IT' -> ('Python Developer', 'Codesky')
+    'Python Developer - Just Join IT' -> ('Python Developer', None)
+    """
+    text = page_title.split(' | ')[0].strip().removesuffix('...').removesuffix('…').strip()
+    title, company = text, None
+    if ' at ' in text:
+        title, company = text.rsplit(' at ', 1)
+    else:
+        parts = DASH.split(text)
+        if len(parts) > 1:
+            title, company = parts[0], parts[1]
+    company = (company or '').strip()
+    if company.lower() in SITE_NAMES:
+        company = ''
+    return TITLE_SUFFIX.sub('', title.strip()), company or None
+
+
+def slugify(text: str) -> str:
+    """'Python Developer (Azure)' -> 'python-developer-azure', the way job boards write links."""
+    return '-'.join(re.findall(r'[a-z0-9]+', text.lower()))
+
+
+def company_from_url(url: object, title: str) -> str | None:
+    """Guess the company from the last part of an offer link; None if there is no pattern.
+
+    LinkedIn:      .../senior-python-developer-at-codesky-4306190000  -> 'Codesky'
+    Just Join IT:  .../codesky-python-developer-warszawa-python        -> company, then title
+    No Fluff Jobs: .../python-developer-codesky-warszawa-1             -> title, company, city
+    """
+    if not isinstance(url, str):
         return None
+    slug = urlsplit(url).path.rstrip('/').rsplit('/', 1)[-1].lower()
+    slug = re.sub(r'-\d+$', '', slug)  # drop a trailing id or number
+    title_slug = slugify(title)
+    position = slug.find(title_slug) if title_slug else -1
+
+    if '-at-' in slug:
+        company = slug.rsplit('-at-', 1)[1]
+    elif position > 0:
+        company = slug[:position]
+    elif position == 0 and board_of(host_of(url) or '') == 'nofluffjobs.com':
+        words = slug[len(title_slug) :].strip('-').split('-')
+        company = '-'.join(words[:-1])  # the last word is the city
+    else:
+        company = ''
+    return company.strip('-').replace('-', ' ').title() or None
+
+
+def to_offer(row: object) -> JobOfferImport | None:
+    """Turn one Tavily result into an offer, best effort; None if it isn't a single offer."""
+    if not isinstance(row, dict) or not is_offer_page(row.get('url')):
+        return None
+    url = row.get('url')
     title, company = split_title(str(row.get('title') or ''))
+    description = row.get('content') or None
     try:
         return JobOfferImport.model_validate(
             {
                 'title': title[:200],
-                'company_name': company or host_of(row.get('url')),
-                'url': row.get('url'),
-                'description': row.get('content') or None,
+                'company_name': company or company_from_url(url, title) or host_of(url),
+                'url': url,
+                'experience_level': guess_level(title, str(description or '')),
+                'description': description,
             }
         )
     except ValidationError:
