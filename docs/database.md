@@ -82,6 +82,7 @@ Application user accounts, including authentication data.
 | `hashed_password` | varchar | Not null |
 | `role_id` | integer | FK → `roles.id`, not null |
 | `search_daily_limit` | integer | Nullable. This user's own daily search limit, set by an admin; `NULL` means the default from `SEARCH_DAILY_LIMIT` |
+| `search_sources` | varchar(50)[] | Nullable. The search sources this user chose (`tavily`, `jsearch`); `NULL` means every enabled source |
 | `created_at` | timestamp | |
 | `updated_at` | timestamp | |
 
@@ -222,7 +223,7 @@ Deleting a user deletes their profile, preferences, skills links, saved jobs, ap
 - **Deduplication of offers** relies on the `url` uniqueness constraint on `job_offers`. When an import finds an existing URL again, the row is updated (`last_seen_at`, `is_active`) rather than duplicated.
 - **Saved jobs and applications are separate.** Saving is a bookmark with no status; an application has a life cycle. Keeping them in two tables means each fact is stored in one place, and `application_status` has no `saved` value.
 - **Location and preference matching** use free-text fields rather than a normalized `locations` table. Location strings vary significantly between job boards (e.g. "Warszawa" vs "Warsaw, PL" vs "Remote/Warsaw"), so normalization/geocoding is left as a possible future improvement.
-- **Search results are not stored.** A search returns its results to the user and keeps only a `search_runs` row (who, when, how many results). A result is saved only when the user keeps it, as their private offer (`source = search`, `found_via` set). The daily limit counts `search_runs` rows since midnight UTC; an admin can give a user their own limit (`users.search_daily_limit`).
+- **Search results are not stored.** A search returns its results to the user and keeps only a `search_runs` row (who, when, how many results). A result is saved only when the user keeps it, as their private offer (`source = search`, `found_via` set). The daily limit counts `search_runs` rows since midnight UTC; an admin can give a user their own limit (`users.search_daily_limit`). Each user can choose which enabled sources their searches ask (`users.search_sources`); a choice that no longer matches any enabled source falls back to all of them.
 - **`technologies` and `roles`** are treated as lookup tables. `created_at` was intentionally omitted from `technologies` since no current feature depends on knowing when a technology entry was created.
 
 ## Planned Additions (Future Work)
