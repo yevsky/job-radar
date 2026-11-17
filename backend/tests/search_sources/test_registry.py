@@ -18,7 +18,7 @@ def test_no_names_gives_no_sources() -> None:
 
 
 def test_unknown_name_raises_with_a_clear_message() -> None:
-    with pytest.raises(ValueError, match='Unknown search source.*tavilyy.*Known: fake'):
+    with pytest.raises(ValueError, match='Unknown search source.*tavilyy.*Known: fake, tavily'):
         build_sources(['fake', 'tavilyy'])
 
 
