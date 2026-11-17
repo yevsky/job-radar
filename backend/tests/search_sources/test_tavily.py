@@ -157,6 +157,14 @@ def test_results_are_cut_to_the_limit() -> None:
         ('Python Developer – Codesky', ('Python Developer', 'Codesky')),
         ('Python Developer', ('Python Developer', None)),
         ('Python Developer - Just Join IT', ('Python Developer', None)),  # a site, not a company
+        (
+            'Python Developer at Netrolynx AI — United States - Jobs - LinkedIn',
+            ('Python Developer', 'Netrolynx AI'),
+        ),  # LinkedIn's place and site name after the company
+        (
+            'Python Developer at O2 Technologies,Inc - LinkedIn',
+            ('Python Developer', 'O2 Technologies,Inc'),
+        ),
         ('Python Django Developer Job', ('Python Django Developer', None)),
         ('Senior Python Developer (remote ...', ('Senior Python Developer (remote', None)),
         (
