@@ -3,6 +3,7 @@ from typing import Annotated
 
 from pydantic import BaseModel, Field, StringConstraints
 
+from app.core.levels import levels_in, remove_levels
 from app.models.enums import EmploymentType, ExperienceLevel
 from app.schemas.job_offer import JobOfferImport
 
@@ -37,13 +38,25 @@ class SearchQuery(BaseModel):
         """True if there is nothing to search for: no position and no skills."""
         return not (self.position or '').strip() and not any(s.strip() for s in self.skills)
 
+    def wanted_level(self) -> ExperienceLevel | None:
+        """The level to search for: the form's field, else a level word in the position.
+
+        The field wins: experience_level=junior with position 'Senior dev' searches junior.
+        """
+        if self.experience_level:
+            return self.experience_level
+        found = levels_in(self.position or '')
+        return found[0] if found else None
+
     def text(self) -> str:
         """The keywords as one phrase, e.g. 'Senior Python dev FastAPI Warsaw OR Remote'.
 
         Employment types and posted_within are left out: each source sends them as its own
         filters (or adds them to the phrase if it has no such filter).
         """
-        words = [self.experience_level or '', self.position or '', *self.skills]
+        level = self.wanted_level()
+        position = remove_levels(self.position or '')  # the level is added once, below
+        words = [level or '', position, *self.skills]
         parts = [word.strip() for word in words if word.strip()]
 
         locations = [location.strip() for location in self.locations if location.strip()]

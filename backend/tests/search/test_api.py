@@ -249,3 +249,40 @@ def test_fake_source_from_settings_returns_demo_results(api: TestClient, access_
     body = search(api, access_token)
 
     assert len(result_urls(body)) == 8
+
+
+def test_offers_far_from_the_wanted_level_are_left_out(
+    api: TestClient, access_token: str, use_sources: UseSources
+) -> None:
+    titles = [
+        'Junior Python Developer',
+        'Python Intern',
+        'Mid Python Developer',
+        'Senior Python Developer',
+        'Lead Python Engineer',
+        'Python Developer',
+    ]
+    use_sources(
+        FakeSearchSource(results=[make_result(f'jobs/{i}', t) for i, t in enumerate(titles)])
+    )
+
+    body = search(api, access_token, {'position': 'Python developer', 'experience_level': 'junior'})
+
+    results = body['results']
+    assert isinstance(results, list)
+    assert [r['title'] for r in results] == [
+        'Junior Python Developer',
+        'Python Intern',
+        'Mid Python Developer',
+        'Python Developer',  # level unknown: kept
+    ]
+
+
+def test_without_a_level_nothing_is_left_out(
+    api: TestClient, access_token: str, use_sources: UseSources
+) -> None:
+    use_sources(FakeSearchSource(results=[make_result('jobs/1', 'Senior Python Developer')]))
+
+    body = search(api, access_token, {'position': 'Python developer'})
+
+    assert len(result_urls(body)) == 1

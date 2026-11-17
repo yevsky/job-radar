@@ -4,6 +4,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.levels import fits_level
 from app.models import SearchRun, User
 from app.schemas.search import (
     MAX_LOCATIONS,
@@ -75,8 +76,10 @@ def collect_results(
     """Ask every source and merge the answers.
 
     A source that fails is listed in errors and the others still count. A link found by
-    two sources (same normalized URL) is returned once, from the first source.
+    two sources (same normalized URL) is returned once, from the first source. When the
+    form asks for a level, offers more than one level away are left out.
     """
+    wanted = query.wanted_level()
     results: list[SearchResult] = []
     errors: list[SourceError] = []
     seen_urls: set[str] = set()
@@ -89,6 +92,8 @@ def collect_results(
             continue
 
         for offer in offers:
+            if wanted and not fits_level(offer.title, offer.experience_level, wanted):
+                continue
             url = normalize_url(str(offer.url))
             if url in seen_urls:
                 continue

@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     # SEARCH_SOURCES='["tavily","jsearch"]'. 'fake' returns demo results and needs no key.
     search_sources: list[str] = ['fake']
     search_results_per_source: int = 10
+    # Job boards Tavily searches on. In .env as JSON: TAVILY_DOMAINS='["justjoin.it"]'
+    tavily_domains: list[str] = ['justjoin.it', 'nofluffjobs.com', 'pracuj.pl', 'linkedin.com']
     # searches per user per day, unless an admin sets another
     search_daily_limit: int = 10
 
