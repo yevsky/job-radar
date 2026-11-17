@@ -58,7 +58,7 @@ class SearchQuery(BaseModel):
 class SearchResult(JobOfferImport):
     """One offer found by a search, with the name of the source that found it."""
 
-    found_via: str
+    found_via: str = Field(min_length=1, max_length=50)
 
 
 class SourceError(BaseModel):

@@ -110,7 +110,13 @@ def import_offers(db: Session, rows: list[dict[str, Any]], source: SourceKind) -
     return report
 
 
-def add_private_offer(db: Session, data: JobOfferImport, user_id: int) -> tuple[JobOffer, bool]:
+def add_private_offer(
+    db: Session,
+    data: JobOfferImport,
+    user_id: int,
+    source: SourceKind = SourceKind.MANUAL,
+    found_via: str | None = None,
+) -> tuple[JobOffer, bool]:
     """Save an offer only this user can see; return it and whether it was created.
 
     If the link is already a public offer, or already in this user's private offers,
@@ -126,7 +132,7 @@ def add_private_offer(db: Session, data: JobOfferImport, user_id: int) -> tuple[
     if existing is not None:
         return existing, False
 
-    offer = JobOffer(url=url, source=SourceKind.MANUAL, owner_id=user_id)
+    offer = JobOffer(url=url, source=source, found_via=found_via, owner_id=user_id)
     db.add(offer)
     fill_offer(db, offer, data, datetime.now(UTC))
     db.commit()
