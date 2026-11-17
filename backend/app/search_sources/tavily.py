@@ -78,6 +78,7 @@ def split_title(page_title: str) -> tuple[str, str | None]:
     'Python Developer at Codesky | LinkedIn' -> ('Python Developer', 'Codesky')
     'Python Developer - Codesky - Just Join IT' -> ('Python Developer', 'Codesky')
     'Python Developer - Just Join IT' -> ('Python Developer', None)
+    'Python Developer at Codesky — Wrocław - LinkedIn' -> ('Python Developer', 'Codesky')
     """
     text = page_title.split(' | ')[0].strip().removesuffix('...').removesuffix('…').strip()
     title, company = text, None
@@ -87,7 +88,8 @@ def split_title(page_title: str) -> tuple[str, str | None]:
         parts = DASH.split(text)
         if len(parts) > 1:
             title, company = parts[0], parts[1]
-    company = (company or '').strip()
+    # LinkedIn adds a place and the site after the company: 'Codesky — Wrocław - LinkedIn'
+    company = DASH.split(company or '')[0].strip()
     if company.lower() in SITE_NAMES:
         company = ''
     return TITLE_SUFFIX.sub('', title.strip()), company or None
