@@ -5,6 +5,7 @@ from pydantic import SecretStr
 from app.core.config import settings
 from app.search_sources.base import SearchSource
 from app.search_sources.fake import FakeSearchSource, load_demo_results
+from app.search_sources.jsearch import JSearchSource
 from app.search_sources.tavily import TavilySource
 
 
@@ -22,10 +23,15 @@ def build_tavily() -> SearchSource:
     )
 
 
+def build_jsearch() -> SearchSource:
+    return JSearchSource(api_key=require_key(settings.jsearch_api_key, 'JSEARCH_API_KEY'))
+
+
 # Name in settings -> function that builds the source
 SOURCE_FACTORIES: dict[str, Callable[[], SearchSource]] = {
     'fake': lambda: FakeSearchSource(results=load_demo_results()),
     'tavily': build_tavily,
+    'jsearch': build_jsearch,
 }
 
 
