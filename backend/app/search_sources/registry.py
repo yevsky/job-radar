@@ -24,7 +24,10 @@ def build_tavily() -> SearchSource:
 
 
 def build_jsearch() -> SearchSource:
-    return JSearchSource(api_key=require_key(settings.jsearch_api_key, 'JSEARCH_API_KEY'))
+    return JSearchSource(
+        api_key=require_key(settings.jsearch_api_key, 'JSEARCH_API_KEY'),
+        country=settings.jsearch_country,
+    )
 
 
 # Name in settings -> function that builds the source
