@@ -174,32 +174,14 @@ def test_posted_within_becomes_date_posted(
     assert sent_params(requests)['date_posted'] == date_posted
 
 
-@pytest.mark.parametrize(
-    ('level', 'requirement'),
-    [
-        (ExperienceLevel.TRAINEE, 'no_experience'),
-        (ExperienceLevel.JUNIOR, 'under_3_years_experience'),
-        (ExperienceLevel.SENIOR, 'more_than_3_years_experience'),
-        (ExperienceLevel.LEAD, 'more_than_3_years_experience'),
-    ],
-)
-def test_wanted_level_becomes_job_requirements(
-    recording: JSearchSource,
-    requests: list[httpx.Request],
-    level: ExperienceLevel,
-    requirement: str,
-) -> None:
-    recording.search(QUERY.model_copy(update={'experience_level': level}), 5)
-
-    assert sent_params(requests)['job_requirements'] == requirement
-
-
-def test_middle_level_sends_no_job_requirements(
+def test_wanted_level_is_not_sent_as_a_jsearch_filter(
     recording: JSearchSource, requests: list[httpx.Request]
 ) -> None:
-    recording.search(QUERY.model_copy(update={'experience_level': ExperienceLevel.MIDDLE}), 5)
+    """job_requirements gave 0 jobs for Poland; collect_results filters by level instead."""
+    recording.search(QUERY.model_copy(update={'experience_level': ExperienceLevel.JUNIOR}), 5)
 
     assert 'job_requirements' not in sent_params(requests)
+    assert sent_params(requests)['query'] == 'junior Python developer FastAPI'
 
 
 def test_b2b_is_left_out_of_the_filter(

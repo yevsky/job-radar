@@ -4,7 +4,7 @@ import httpx
 from pydantic import ValidationError
 
 from app.core.levels import guess_level
-from app.models.enums import EmploymentType, ExperienceLevel
+from app.models.enums import EmploymentType
 from app.schemas.job_offer import JobOfferImport
 from app.schemas.search import PostedWithin, SearchQuery
 from app.search_sources.base import SearchSource, SearchSourceError
@@ -27,15 +27,6 @@ DATE_POSTED = {
     PostedWithin.DAY: 'today',
     PostedWithin.WEEK: 'week',
     PostedWithin.MONTH: 'month',
-}
-
-# The wanted level -> JSearch's experience filter
-# Middle has none: it spans both sides of 3 years
-JOB_REQUIREMENTS = {
-    ExperienceLevel.TRAINEE: 'no_experience',
-    ExperienceLevel.JUNIOR: 'under_3_years_experience',
-    ExperienceLevel.SENIOR: 'more_than_3_years_experience',
-    ExperienceLevel.LEAD: 'more_than_3_years_experience',
 }
 
 
@@ -108,6 +99,8 @@ class JSearchSource(SearchSource):
 
     def build_params(self, query: SearchQuery) -> dict[str, str]:
         """The query string of the request: the phrase plus JSearch's own filters."""
+        # No job_requirements: Google Jobs rarely tags offers outside the US with experience,
+        # so that filter returned 0 jobs for Poland. The level filter in collect_results is used.
         params = {'query': query.text(), 'num_pages': '1', 'country': self.country}
         types = [TO_JSEARCH[t] for t in query.employment_types if t in TO_JSEARCH]
         if types:
@@ -116,10 +109,6 @@ class JSearchSource(SearchSource):
             params['work_from_home'] = 'true'
         if query.posted_within:
             params['date_posted'] = DATE_POSTED[query.posted_within]
-        wanted = query.wanted_level()
-        requirement = JOB_REQUIREMENTS.get(wanted) if wanted else None
-        if requirement:
-            params['job_requirements'] = requirement
         return params
 
     def send(self, params: dict[str, str]) -> list[Any]:

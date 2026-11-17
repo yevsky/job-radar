@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, ForeignKey, String
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -24,6 +25,8 @@ class User(Base):
     # Set by an admin for this user only
     # None means the default from settings
     search_daily_limit: Mapped[int | None]
+    # Search sources this user wants asked ('tavily', 'jsearch'); None means all enabled ones.
+    search_sources: Mapped[list[str] | None] = mapped_column(ARRAY(String(50)))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )
