@@ -277,6 +277,7 @@ def test_details_returns_all_fields(api: TestClient, access_token: str, db: Sess
         'deadline',
         'technologies',
         'source',
+        'found_via',
         'url',
         'is_active',
         'is_private',

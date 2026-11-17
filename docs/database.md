@@ -47,7 +47,7 @@ Describes how a job offer reached the application.
 
 | Value | Description |
 |---|---|
-| `search` | Found by a Tavily web search built from the user's profile |
+| `search` | A search result the user kept (`POST /search/results`); `found_via` names the search source |
 | `browser` | Sent from the "Send to JobRadar" browser button |
 | `manual` | Added by hand: a pasted link or an admin file import |
 | `posted` | Published on JobRadar itself (for now the demo offers loaded by `just seed`); the only offers with a stored `description` |
@@ -141,10 +141,11 @@ Core table storing the basic facts of individual job postings. The full offer te
 | `title` | varchar | Not null |
 | `company_name` | varchar | Not null |
 | `source` | source_kind | Not null — how the offer reached the application |
+| `found_via` | varchar(50) | Nullable — which search source found the offer (`tavily`, `jsearch`); `NULL` for other sources |
 | `location` | varchar | Free-text |
 | `employment_type` | employment_type | |
 | `experience_level` | experience_level | |
-| `owner_id` | integer | FK → `users.id`, nullable, ON DELETE CASCADE — `NULL` for public offers; set for a private offer that a user saved by hand, which only that user sees |
+| `owner_id` | integer | FK → `users.id`, nullable, ON DELETE CASCADE — `NULL` for public offers; set for a private offer that a user added by hand or kept from a search, which only that user sees |
 | `url` | varchar | Not null — the link to the original offer, used as the dedup key; unique together with `owner_id` (NULLS NOT DISTINCT): one public offer per URL plus one private copy per user |
 | `description` | text | Full offer text; stored only for `posted` offers |
 | `is_active` | boolean | Not null, default `true` — marks whether the offer is still live |
@@ -221,7 +222,7 @@ Deleting a user deletes their profile, preferences, skills links, saved jobs, ap
 - **Deduplication of offers** relies on the `url` uniqueness constraint on `job_offers`. When an import finds an existing URL again, the row is updated (`last_seen_at`, `is_active`) rather than duplicated.
 - **Saved jobs and applications are separate.** Saving is a bookmark with no status; an application has a life cycle. Keeping them in two tables means each fact is stored in one place, and `application_status` has no `saved` value.
 - **Location and preference matching** use free-text fields rather than a normalized `locations` table. Location strings vary significantly between job boards (e.g. "Warszawa" vs "Warsaw, PL" vs "Remote/Warsaw"), so normalization/geocoding is left as a possible future improvement.
-- **Search results are not stored.** A search returns its results to the user and keeps only a `search_runs` row (who, when, how many results). A result is saved only when the user keeps it, as their private offer. The daily limit counts `search_runs` rows since midnight UTC; an admin can give a user their own limit (`users.search_daily_limit`).
+- **Search results are not stored.** A search returns its results to the user and keeps only a `search_runs` row (who, when, how many results). A result is saved only when the user keeps it, as their private offer (`source = search`, `found_via` set). The daily limit counts `search_runs` rows since midnight UTC; an admin can give a user their own limit (`users.search_daily_limit`).
 - **`technologies` and `roles`** are treated as lookup tables. `created_at` was intentionally omitted from `technologies` since no current feature depends on knowing when a technology entry was created.
 
 ## Planned Additions (Future Work)

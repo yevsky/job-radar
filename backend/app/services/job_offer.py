@@ -73,6 +73,7 @@ def to_read(offer: JobOffer) -> JobOfferRead:
         deadline=offer.deadline,
         technologies=sorted(t.name for t in offer.technologies),
         source=offer.source,
+        found_via=offer.found_via,
         url=offer.url,
         description=offer.description,
         is_active=offer.is_active,

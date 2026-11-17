@@ -39,6 +39,7 @@ class JobOfferPage(BaseModel):
 
 class JobOfferRead(JobOfferListItem):
     source: SourceKind
+    found_via: str | None
     url: str
     is_active: bool
     is_private: bool

@@ -62,6 +62,7 @@ class JobOffer(Base):
     )
     url: Mapped[str] = mapped_column(String(2048), nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
+    found_via: Mapped[str | None] = mapped_column(String(50))
     is_active: Mapped[bool] = mapped_column(default=True, server_default=true(), index=True)
     deadline: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
