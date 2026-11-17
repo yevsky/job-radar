@@ -1,56 +1,83 @@
 {
   "status": "OK",
   "request_id": "sample-request-id",
-  "parameters": {"query": "python developer fastapi wroclaw", "page": 1, "num_pages": 1},
-  "data": [
-    {
-      "job_id": "aaa111",
-      "employer_name": "Codesky",
-      "job_publisher": "LinkedIn",
-      "job_title": "Junior Python Developer",
-      "job_apply_link": "https://www.linkedin.com/jobs/view/1234567890",
-      "job_description": "Build FastAPI services with a small team.",
-      "job_is_remote": false,
-      "job_employment_type": "FULLTIME",
-      "job_city": "Wrocław",
-      "job_country": "PL",
-      "job_posted_at_datetime_utc": "2026-11-10T08:00:00.000Z",
-      "job_offer_expiration_datetime_utc": "2026-12-10T00:00:00.000Z",
-      "job_required_skills": ["Python", "FastAPI", "PostgreSQL"]
-    },
-    {
-      "job_id": "bbb222",
-      "employer_name": "Northwind Data",
-      "job_publisher": "Just Join IT",
-      "job_title": "Python Backend Engineer",
-      "job_apply_link": "https://justjoin.it/job-offer/northwind-data-python-backend-engineer",
-      "job_description": "Remote-first data platform team.",
-      "job_is_remote": true,
-      "job_employment_type": "CONTRACTOR",
-      "job_city": null,
-      "job_country": "PL",
-      "job_offer_expiration_datetime_utc": null,
-      "job_required_skills": null
-    },
-    {
-      "job_id": "ccc333",
-      "employer_name": "Blue Fjord",
-      "job_publisher": "Indeed",
-      "job_title": "Python Developer (Temporary)",
-      "job_apply_link": "https://pl.indeed.com/viewjob?jk=ccc333",
-      "job_description": "Six month project.",
-      "job_is_remote": false,
-      "job_employment_type": "TEMPORARY",
-      "job_city": "Kraków",
-      "job_country": "PL",
-      "job_required_skills": ["Django", "a skill name that is far too long to fit into our technology column"]
-    },
-    {
-      "job_id": "ddd444",
-      "employer_name": null,
-      "job_title": "Broken job without an employer",
-      "job_apply_link": "https://example.com/jobs/4",
-      "job_is_remote": false
-    }
-  ]
+  "parameters": {
+    "query": "python developer fastapi wroclaw",
+    "cursor": "",
+    "num_pages": 1,
+    "date_posted": "all",
+    "country": "pl"
+  },
+  "data": {
+    "jobs": [
+      {
+        "job_id": "aaa111",
+        "employer_name": "Codesky",
+        "job_publisher": "LinkedIn",
+        "job_title": "Junior Python Developer",
+        "job_apply_link": "https://www.linkedin.com/jobs/view/1234567890",
+        "job_description": "Build FastAPI services with a small team.",
+        "job_is_remote": false,
+        "job_employment_type": "Full-time",
+        "job_employment_types": [
+          "FULLTIME"
+        ],
+        "job_location": "Wrocław, Lower Silesian Voivodeship, Poland",
+        "job_city": "Wrocław",
+        "job_country": "PL",
+        "job_posted_at_datetime_utc": "2026-11-10T08:00:00.000Z",
+        "job_offer_expiration_datetime_utc": "2026-12-10T00:00:00.000Z",
+        "job_required_skills": [
+          "Python",
+          "FastAPI",
+          "PostgreSQL"
+        ]
+      },
+      {
+        "job_id": "bbb222",
+        "employer_name": "Northwind Data",
+        "job_publisher": "Just Join IT",
+        "job_title": "Python Backend Engineer",
+        "job_apply_link": "https://justjoin.it/job-offer/northwind-data-python-backend-engineer",
+        "job_description": "Remote-first data platform team.",
+        "job_is_remote": true,
+        "job_employment_type": "Contractor",
+        "job_employment_types": [
+          "CONTRACTOR"
+        ],
+        "job_location": "Poland",
+        "job_city": null,
+        "job_country": "PL",
+        "job_offer_expiration_datetime_utc": null,
+        "job_required_skills": null
+      },
+      {
+        "job_id": "ccc333",
+        "employer_name": "Blue Fjord",
+        "job_publisher": "Indeed",
+        "job_title": "Python Developer (Temporary)",
+        "job_apply_link": "https://pl.indeed.com/viewjob?jk=ccc333",
+        "job_description": "Six month project.",
+        "job_is_remote": false,
+        "job_employment_type": "Temporary",
+        "job_employment_types": [
+          "TEMPORARY"
+        ],
+        "job_city": "Kraków",
+        "job_country": "PL",
+        "job_required_skills": [
+          "Django",
+          "a skill name that is far too long to fit into our technology column"
+        ]
+      },
+      {
+        "job_id": "ddd444",
+        "employer_name": null,
+        "job_title": "Broken job without an employer",
+        "job_apply_link": "https://example.com/jobs/4",
+        "job_is_remote": false
+      }
+    ],
+    "cursor": "next-page-cursor"
+  }
 }

@@ -12,10 +12,10 @@ from pydantic import SecretStr
 
 from app.dependencies import get_search_sources
 from app.main import app
-from app.models.enums import EmploymentType
+from app.models.enums import EmploymentType, ExperienceLevel
 from app.schemas.search import PostedWithin, SearchQuery
 from app.search_sources.base import SearchSourceError
-from app.search_sources.jsearch import JSEARCH_HOST, JSEARCH_URL, JSearchSource
+from app.search_sources.jsearch import JSEARCH_URL, JSearchSource
 from app.search_sources.registry import build_sources
 from app.search_sources.tavily import TavilySource
 from tests.helpers import auth_header
@@ -34,7 +34,7 @@ def mock_client(handler: Handler) -> httpx.Client:
 
 def make_source(handler: Handler) -> JSearchSource:
     """A JSearchSource whose HTTP client never touches the network: handler answers instead."""
-    return JSearchSource(api_key='rapid-test-key', client=mock_client(handler))
+    return JSearchSource(api_key='jsearch-test-key', client=mock_client(handler))
 
 
 def answer(status: int = 200, body: Any = SAMPLE) -> Handler:
@@ -76,7 +76,7 @@ def test_sample_maps_to_offers() -> None:
     first = offers[0]
     assert first.company_name == 'Codesky'
     assert str(first.url) == 'https://www.linkedin.com/jobs/view/1234567890'
-    assert first.location == 'Wrocław, PL'
+    assert first.location == 'Wrocław, Lower Silesian Voivodeship, Poland'  # job_location
     assert first.employment_type == EmploymentType.FULL_TIME
     assert first.description == 'Build FastAPI services with a small team.'
     assert first.technologies == ['Python', 'FastAPI', 'PostgreSQL']
@@ -99,6 +99,12 @@ def test_unknown_employment_type_gives_none() -> None:
     assert temporary.employment_type is None
 
 
+def test_without_job_location_city_and_country_are_used() -> None:
+    temporary = make_source(answer()).search(QUERY, 10)[2]
+
+    assert temporary.location == 'Kraków, PL'
+
+
 def test_skill_names_that_are_too_long_are_dropped() -> None:
     temporary = make_source(answer()).search(QUERY, 10)[2]
 
@@ -118,7 +124,7 @@ def test_results_are_cut_to_the_limit() -> None:
 # --- the request -----------------------------------------------------------------------
 
 
-def test_request_sends_query_and_rapidapi_headers(
+def test_request_sends_query_country_and_api_key(
     recording: JSearchSource, requests: list[httpx.Request]
 ) -> None:
     recording.search(QUERY, 5)
@@ -126,12 +132,11 @@ def test_request_sends_query_and_rapidapi_headers(
     request = requests[0]
     assert request.method == 'GET'
     assert request.url.copy_with(query=None) == httpx.URL(JSEARCH_URL)
-    assert request.headers['X-RapidAPI-Key'] == 'rapid-test-key'
-    assert request.headers['X-RapidAPI-Host'] == JSEARCH_HOST
+    assert request.headers['x-api-key'] == 'jsearch-test-key'
     assert sent_params(requests) == {
         'query': 'Python developer FastAPI',
-        'page': '1',
         'num_pages': '1',
+        'country': 'pl',
     }
 
 
@@ -167,6 +172,34 @@ def test_posted_within_becomes_date_posted(
     recording.search(QUERY.model_copy(update={'posted_within': posted_within}), 5)
 
     assert sent_params(requests)['date_posted'] == date_posted
+
+
+@pytest.mark.parametrize(
+    ('level', 'requirement'),
+    [
+        (ExperienceLevel.TRAINEE, 'no_experience'),
+        (ExperienceLevel.JUNIOR, 'under_3_years_experience'),
+        (ExperienceLevel.SENIOR, 'more_than_3_years_experience'),
+        (ExperienceLevel.LEAD, 'more_than_3_years_experience'),
+    ],
+)
+def test_wanted_level_becomes_job_requirements(
+    recording: JSearchSource,
+    requests: list[httpx.Request],
+    level: ExperienceLevel,
+    requirement: str,
+) -> None:
+    recording.search(QUERY.model_copy(update={'experience_level': level}), 5)
+
+    assert sent_params(requests)['job_requirements'] == requirement
+
+
+def test_middle_level_sends_no_job_requirements(
+    recording: JSearchSource, requests: list[httpx.Request]
+) -> None:
+    recording.search(QUERY.model_copy(update={'experience_level': ExperienceLevel.MIDDLE}), 5)
+
+    assert 'job_requirements' not in sent_params(requests)
 
 
 def test_b2b_is_left_out_of_the_filter(
@@ -206,7 +239,9 @@ def test_timeout_raises_search_source_error() -> None:
         make_source(handler).search(QUERY, 5)
 
 
-@pytest.mark.parametrize('body', [{'status': 'OK'}, {'data': 'nope'}, ['a', 'list']])
+@pytest.mark.parametrize(
+    'body', [{'status': 'OK'}, {'data': 'nope'}, {'data': {'jobs': 'nope'}}, ['a', 'list']]
+)
 def test_unexpected_json_raises_search_source_error(body: Any) -> None:
     with pytest.raises(SearchSourceError, match='could not read'):
         make_source(answer(200, body)).search(QUERY, 5)
@@ -234,6 +269,7 @@ def test_registry_builds_jsearch_with_its_key(monkeypatch: pytest.MonkeyPatch) -
     assert isinstance(source, JSearchSource)
     assert source.name == 'jsearch'
     assert source.api_key == 'k'
+    assert source.country == 'pl'
 
 
 def test_registry_without_key_fails_with_a_clear_message(

@@ -115,8 +115,9 @@ class JSearchSource(SearchSource):
         if query.posted_within:
             params['date_posted'] = DATE_POSTED[query.posted_within]
         wanted = query.wanted_level()
-        if wanted in JOB_REQUIREMENTS:
-            params['job_requirements'] = JOB_REQUIREMENTS[wanted]
+        requirement = JOB_REQUIREMENTS.get(wanted) if wanted else None
+        if requirement:
+            params['job_requirements'] = requirement
         return params
 
     def send(self, params: dict[str, str]) -> list[Any]:
