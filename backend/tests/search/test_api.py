@@ -13,6 +13,7 @@ from app.schemas.job_offer import JobOfferImport
 from app.schemas.search import SearchQuery
 from app.search_sources.base import SearchSource
 from app.search_sources.fake import FakeSearchSource
+from app.search_sources.registry import build_sources
 from tests.helpers import auth_header
 
 URL = '/search'
@@ -244,8 +245,12 @@ def test_normal_user_cannot_check_sources(api: TestClient, access_token: str) ->
     assert response.status_code == status.HTTP_403_FORBIDDEN
 
 
-def test_fake_source_from_settings_returns_demo_results(api: TestClient, access_token: str) -> None:
-    """Without an override, the sources come from settings ('fake' by default)."""
+def test_fake_source_from_the_registry_returns_demo_results(
+    api: TestClient, access_token: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The 'fake' source as the registry builds it; SEARCH_SOURCES in .env doesn't matter."""
+    monkeypatch.setattr('app.dependencies.search_sources', build_sources(['fake']))
+
     body = search(api, access_token)
 
     assert len(result_urls(body)) == 8
