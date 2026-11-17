@@ -111,3 +111,16 @@ class SearchLimitRead(BaseModel):
     user_id: int
     search_daily_limit: int | None  # the user's own limit, or None
     effective_limit: int  # what actually applies: the user's limit or the default
+
+
+SourceName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=50)]
+
+
+class SearchSourcesRead(BaseModel):
+    available: list[str]  # the sources the app has turned on, in the order they're asked
+    chosen: list[str] | None  # the user's choice; None means all available ones
+
+
+class SearchSourcesUpdate(BaseModel):
+    # None goes back to all sources; otherwise at least one name
+    sources: list[SourceName] | None = Field(default=None, min_length=1)

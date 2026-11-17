@@ -5,15 +5,25 @@ from app.db.dependencies import DbSession
 from app.dependencies import CurrentUser, SearchSources
 from app.models.enums import SourceKind
 from app.schemas.job_offer import JobOfferRead
-from app.schemas.search import SearchQuery, SearchResponse, SearchResult, SearchUsage
+from app.schemas.search import (
+    SearchQuery,
+    SearchResponse,
+    SearchResult,
+    SearchSourcesRead,
+    SearchSourcesUpdate,
+    SearchUsage,
+)
 from app.services.job_offer import to_read
 from app.services.job_offer_import import add_private_offer
 from app.services.search import (
     EmptyQueryError,
     SearchLimitError,
+    UnknownSourceError,
     default_search_query,
+    get_source_choice,
     get_usage,
     run_search,
+    set_source_choice,
 )
 
 router = APIRouter(prefix='/search', tags=['search'])
@@ -31,11 +41,31 @@ def read_search_usage(user: CurrentUser, db: DbSession) -> SearchUsage:
     return get_usage(db, user)
 
 
+@router.get('/sources', response_model=SearchSourcesRead)
+def read_search_sources(user: CurrentUser, sources: SearchSources) -> SearchSourcesRead:
+    """The sources you can search with, and which of them you chose."""
+    return get_source_choice(user, sources)
+
+
+@router.put('/sources', response_model=SearchSourcesRead)
+def update_search_sources(
+    data: SearchSourcesUpdate, user: CurrentUser, db: DbSession, sources: SearchSources
+) -> SearchSourcesRead:
+    """Choose which sources your searches ask; null asks all of them again."""
+    try:
+        return set_source_choice(db, user, data.sources, sources)
+    except UnknownSourceError as err:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=f'Unknown search source: {", ".join(err.names)}',
+        ) from err
+
+
 @router.post('', response_model=SearchResponse)
 def search_jobs(
     query: SearchQuery, user: CurrentUser, db: DbSession, sources: SearchSources
 ) -> SearchResponse:
-    """Search every enabled source with the form. The results are returned, not saved."""
+    """Search your chosen sources (all, by default) with the form. Results are not saved."""
     try:
         return run_search(db, user, query, sources, settings.search_results_per_source)
     except EmptyQueryError as err:

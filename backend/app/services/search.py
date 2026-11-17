@@ -13,6 +13,7 @@ from app.schemas.search import (
     SearchQuery,
     SearchResponse,
     SearchResult,
+    SearchSourcesRead,
     SearchUsage,
     SourceError,
 )
@@ -30,6 +31,43 @@ class SearchLimitError(Exception):
 
 class UserNotFoundError(Exception):
     """No user with this id."""
+
+
+class UnknownSourceError(Exception):
+    """The user chose a source the app doesn't have turned on."""
+
+    def __init__(self, names: list[str]) -> None:
+        super().__init__(names)
+        self.names = names
+
+
+def chosen_sources(user: User, sources: list[SearchSource]) -> list[SearchSource]:
+    """The enabled sources the user chose, in the app's order; all of them if none is left."""
+    if not user.search_sources:
+        return sources
+    chosen = [source for source in sources if source.name in user.search_sources]
+    return chosen or sources  # an admin may have turned off every source the user chose
+
+
+def get_source_choice(user: User, sources: list[SearchSource]) -> SearchSourcesRead:
+    return SearchSourcesRead(
+        available=[source.name for source in sources], chosen=user.search_sources
+    )
+
+
+def set_source_choice(
+    db: Session, user: User, names: list[str] | None, sources: list[SearchSource]
+) -> SearchSourcesRead:
+    """Save which sources the user's searches ask; None means all of them again."""
+    if names is not None:
+        available = {source.name for source in sources}
+        unknown = [name for name in names if name not in available]
+        if unknown:
+            raise UnknownSourceError(unknown)
+        names = list(dict.fromkeys(names))  # drop repeats, keep the order
+    user.search_sources = names
+    db.commit()
+    return get_source_choice(user, sources)
 
 
 def default_search_query(user: User) -> SearchQuery:
@@ -117,7 +155,7 @@ def run_search(
     if usage.left_today == 0:
         raise SearchLimitError  # checked before any source is called, so it costs nothing
 
-    results, errors = collect_results(query, sources, limit)
+    results, errors = collect_results(query, chosen_sources(user, sources), limit)
 
     db.add(SearchRun(user_id=user.id, result_count=len(results)))
     db.commit()
