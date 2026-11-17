@@ -9,11 +9,12 @@ from app.schemas.job_offer import JobOfferImport
 from app.schemas.search import PostedWithin, SearchQuery
 from app.search_sources.base import SearchSource, SearchSourceError
 
-# OpenWeb Ninja's own API (the same JSearch is also sold on RapidAPI, with other headers).
+# OpenWeb Ninja's own API
 JSEARCH_URL = 'https://api.openwebninja.com/jsearch/search-v2'
 TIMEOUT_SECONDS = 15
 
-# Our employment types -> JSearch's. B2B has no JSearch value, so it is left out of the filter.
+# Our employment types -> JSearch's
+# B2B has no JSearch value, so it is left out of the filter
 TO_JSEARCH = {
     EmploymentType.FULL_TIME: 'FULLTIME',
     EmploymentType.PART_TIME: 'PARTTIME',
@@ -28,7 +29,8 @@ DATE_POSTED = {
     PostedWithin.MONTH: 'month',
 }
 
-# The wanted level -> JSearch's experience filter. Middle has none: it spans both sides of 3 years.
+# The wanted level -> JSearch's experience filter
+# Middle has none: it spans both sides of 3 years
 JOB_REQUIREMENTS = {
     ExperienceLevel.TRAINEE: 'no_experience',
     ExperienceLevel.JUNIOR: 'under_3_years_experience',
