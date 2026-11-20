@@ -1,10 +1,21 @@
 from datetime import date, datetime
 from enum import StrEnum
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
 from app.models.enums import ApplicationStatus
 from app.schemas.job_offer import JobOfferListItem
+
+# The stages an application moves through, in order. `saved` comes before the funnel, and
+# `rejected` / `declined` are outcomes rather than stages.
+FUNNEL_STAGES: tuple[ApplicationStatus, ...] = (
+    ApplicationStatus.APPLIED,
+    ApplicationStatus.SCREENING,
+    ApplicationStatus.INTERVIEW,
+    ApplicationStatus.OFFER,
+    ApplicationStatus.ACCEPTED,
+)
 
 Notes = str | None
 
@@ -72,3 +83,30 @@ class CalendarEvent(BaseModel):
     application_id: int | None
     status: ApplicationStatus | None
     time: str | None  # 'HH:MM' (UTC), interviews only
+
+
+StatsRange = Literal['30d', '90d', 'all']
+
+
+class FunnelStep(BaseModel):
+    stage: ApplicationStatus
+    reached: int  # applications that got at least this far
+
+
+class Outcome(BaseModel):
+    stage: ApplicationStatus  # the furthest stage the application reached
+    status: ApplicationStatus  # where it is now
+    count: int
+
+
+class WeeklyCount(BaseModel):
+    week_start: date  # Monday
+    saved: int
+    applied: int
+
+
+class ApplicationStats(BaseModel):
+    range: StatsRange
+    funnel: list[FunnelStep]
+    outcomes: list[Outcome]
+    weekly: list[WeeklyCount]

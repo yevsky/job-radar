@@ -1,11 +1,12 @@
-"""Applications, saved offers and the calendar.
+"""Applications, saved offers, the calendar and the dashboard stats.
 
-A saved offer is an application with status 'saved'. Every status an application gets is also
-written to 'application_status_changes', which the history and the calendar read.
+A saved offer is an application with status `saved`. Every status an application gets is also
+written to `application_status_changes`, which the history, the calendar and the stats read.
 """
 
+from collections import Counter
 from collections.abc import Sequence
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, time, timedelta
 
 from sqlalchemy import Select, select
 from sqlalchemy.orm import Session, selectinload
@@ -13,17 +14,24 @@ from sqlalchemy.orm import Session, selectinload
 from app.models import Application, ApplicationStatusChange, JobOffer
 from app.models.enums import ApplicationStatus
 from app.schemas.application import (
+    FUNNEL_STAGES,
     ApplicationCreate,
     ApplicationRead,
+    ApplicationStats,
     ApplicationUpdate,
     CalendarEvent,
     CalendarEventKind,
+    FunnelStep,
+    Outcome,
     SavedJobRead,
+    StatsRange,
     StatusChangeRead,
+    WeeklyCount,
 )
 from app.services.job_offer import to_list_item, visible_to
 
 SAVED = ApplicationStatus.SAVED
+RANGE_DAYS = {'30d': 30, '90d': 90}
 
 
 class ApplicationNotFoundError(Exception):
@@ -36,6 +44,9 @@ class OfferNotFoundError(Exception):
 
 class NotSavedError(Exception):
     """The offer isn't saved (no application, or it has moved past `saved`)."""
+
+
+# ---- reading -------------------------------------------------------------------------------
 
 
 def to_read(application: Application) -> ApplicationRead:
@@ -94,6 +105,9 @@ def get_history(db: Session, user_id: int, application_id: int) -> list[StatusCh
         StatusChangeRead(status=c.status, changed_at=c.changed_at)
         for c in application.status_changes
     ]
+
+
+# ---- writing -------------------------------------------------------------------------------
 
 
 def _record(application: Application, status: ApplicationStatus, at: datetime) -> None:
@@ -162,6 +176,9 @@ def delete_application(db: Session, user_id: int, application_id: int) -> None:
     db.commit()
 
 
+# ---- saved offers (a shortcut over applications with status `saved`) -----------------------
+
+
 def list_saved(db: Session, user_id: int) -> list[SavedJobRead]:
     rows = db.scalars(
         _owned(user_id)
@@ -192,6 +209,9 @@ def unsave_offer(db: Session, user_id: int, job_offer_id: int) -> None:
         raise NotSavedError
     db.delete(application)
     db.commit()
+
+
+# ---- calendar ------------------------------------------------------------------------------
 
 
 def calendar(db: Session, user_id: int, start: date, end: date) -> list[CalendarEvent]:
@@ -250,3 +270,89 @@ def calendar(db: Session, user_id: int, start: date, end: date) -> list[Calendar
             events.append(event(offer.deadline, CalendarEventKind.DEADLINE, None))
 
     return sorted(events, key=lambda e: (e.date, e.time or '', e.title))
+
+
+# ---- stats ---------------------------------------------------------------------------------
+
+
+def _applied_at(application: Application) -> datetime | None:
+    """When the user applied: the stored date, else the first status past `saved`."""
+    if application.applied_at:
+        return application.applied_at
+    for change in application.status_changes:
+        if change.status != SAVED:
+            return change.changed_at
+    return None
+
+
+def _furthest_stage(application: Application) -> int:
+    """Index in FUNNEL_STAGES of the furthest stage the history reached (0 = applied)."""
+    reached = [
+        FUNNEL_STAGES.index(c.status)
+        for c in application.status_changes
+        if c.status in FUNNEL_STAGES
+    ]
+    return max(reached, default=0)
+
+
+def _monday(day: date) -> date:
+    return day - timedelta(days=day.weekday())
+
+
+def stats(
+    db: Session, user_id: int, range_: StatsRange, now: datetime | None = None
+) -> ApplicationStats:
+    """Funnel, outcomes and weekly counts for the applications sent in the range."""
+    now = now or datetime.now(UTC)
+    since = now - timedelta(days=RANGE_DAYS[range_]) if range_ in RANGE_DAYS else None
+    applications = list_applications(db, user_id)
+
+    sent = [
+        (a, at)
+        for a in applications
+        if (at := _applied_at(a)) is not None and (since is None or at >= since)
+    ]
+
+    reached = [_furthest_stage(a) for a, _ in sent]
+    funnel = [
+        FunnelStep(stage=stage, reached=sum(1 for r in reached if r >= i))
+        for i, stage in enumerate(FUNNEL_STAGES)
+    ]
+
+    counts: Counter[tuple[ApplicationStatus, ApplicationStatus]] = Counter()
+    for (application, _), stage_index in zip(sent, reached, strict=True):
+        stage = FUNNEL_STAGES[stage_index]
+        if stage != ApplicationStatus.ACCEPTED:
+            counts[(stage, application.status)] += 1
+    order = list(ApplicationStatus)
+    outcomes = [
+        Outcome(stage=stage, status=status, count=count)
+        for (stage, status), count in sorted(
+            counts.items(), key=lambda item: (order.index(item[0][0]), order.index(item[0][1]))
+        )
+    ]
+
+    saved_times = [
+        c.changed_at for a in applications for c in a.status_changes if c.status == SAVED
+    ]
+    applied_times = [at for a in applications if (at := _applied_at(a)) is not None]
+    moments = [*saved_times, *applied_times]
+
+    weekly: list[WeeklyCount] = []
+    if since is not None or moments:
+        first = since or min(moments)
+        week = _monday(first.astimezone(UTC).date())
+        last = _monday(now.astimezone(UTC).date())
+        while week <= last:
+            start = datetime.combine(week, time.min, tzinfo=UTC)
+            end = start + timedelta(days=7)
+            weekly.append(
+                WeeklyCount(
+                    week_start=week,
+                    saved=sum(1 for t in saved_times if start <= t < end),
+                    applied=sum(1 for t in applied_times if start <= t < end),
+                )
+            )
+            week += timedelta(days=7)
+
+    return ApplicationStats(range=range_, funnel=funnel, outcomes=outcomes, weekly=weekly)
