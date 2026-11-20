@@ -7,6 +7,7 @@ import { AuthProvider } from '@/features/auth/AuthContext'
 import { LoginPage, RegisterPage } from '@/features/auth/AuthPages'
 import { RequireAuth } from '@/features/auth/RequireAuth'
 import { CalendarPage } from '@/features/calendar/CalendarPage'
+import { DashboardPage } from '@/features/dashboard/DashboardPage'
 import { NewOfferPage } from '@/features/offers/NewOfferPage'
 import { OfferDetailPage } from '@/features/offers/OfferDetailPage'
 import { OffersPage } from '@/features/offers/OffersPage'
@@ -24,10 +25,7 @@ export function App() {
           <Route element={<RequireAuth />}>
             <Route element={<AppLayout />}>
               {/* One line per feature; see COMMIT_PLAN.md for the order they land in. */}
-              <Route
-                index
-                element={<Empty title="Welcome to JobRadar">Pages appear here as they land.</Empty>}
-              />
+              <Route index element={<DashboardPage />} />
               <Route path="profile" element={<ProfilePage />} />
               <Route path="search" element={<SearchPage />} />
               <Route path="offers" element={<OffersPage />} />
