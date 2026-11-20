@@ -1,11 +1,11 @@
-"""Applications and saved offers.
+"""Applications, saved offers and the calendar.
 
-A saved offer is an application with status `saved`. Every status an application gets is also
-written to `application_status_changes`, which the history reads.
+A saved offer is an application with status 'saved'. Every status an application gets is also
+written to 'application_status_changes', which the history and the calendar read.
 """
 
 from collections.abc import Sequence
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 from sqlalchemy import Select, select
 from sqlalchemy.orm import Session, selectinload
@@ -16,6 +16,8 @@ from app.schemas.application import (
     ApplicationCreate,
     ApplicationRead,
     ApplicationUpdate,
+    CalendarEvent,
+    CalendarEventKind,
     SavedJobRead,
     StatusChangeRead,
 )
@@ -34,9 +36,6 @@ class OfferNotFoundError(Exception):
 
 class NotSavedError(Exception):
     """The offer isn't saved (no application, or it has moved past `saved`)."""
-
-
-# ---- reading -------------------------------------------------------------------------------
 
 
 def to_read(application: Application) -> ApplicationRead:
@@ -95,9 +94,6 @@ def get_history(db: Session, user_id: int, application_id: int) -> list[StatusCh
         StatusChangeRead(status=c.status, changed_at=c.changed_at)
         for c in application.status_changes
     ]
-
-
-# ---- writing -------------------------------------------------------------------------------
 
 
 def _record(application: Application, status: ApplicationStatus, at: datetime) -> None:
@@ -166,9 +162,6 @@ def delete_application(db: Session, user_id: int, application_id: int) -> None:
     db.commit()
 
 
-# ---- saved offers (a shortcut over applications with status `saved`) -----------------------
-
-
 def list_saved(db: Session, user_id: int) -> list[SavedJobRead]:
     rows = db.scalars(
         _owned(user_id)
@@ -199,3 +192,61 @@ def unsave_offer(db: Session, user_id: int, job_offer_id: int) -> None:
         raise NotSavedError
     db.delete(application)
     db.commit()
+
+
+def calendar(db: Session, user_id: int, start: date, end: date) -> list[CalendarEvent]:
+    """Applied dates, status changes, interviews and offer deadlines between two days (UTC)."""
+
+    def inside(moment: datetime | None) -> bool:
+        return moment is not None and start <= moment.astimezone(UTC).date() <= end
+
+    events: list[CalendarEvent] = []
+    for application in list_applications(db, user_id):
+        offer = application.job_offer
+
+        def event(
+            moment: datetime,
+            kind: CalendarEventKind,
+            status: ApplicationStatus | None,
+            with_time: bool = False,
+            app: Application = application,
+        ) -> CalendarEvent:
+            utc = moment.astimezone(UTC)
+            return CalendarEvent(
+                date=utc.date(),
+                kind=kind,
+                title=app.job_offer.title,
+                company_name=app.job_offer.company_name,
+                job_offer_id=app.job_offer_id,
+                application_id=app.id,
+                status=status,
+                time=utc.strftime('%H:%M') if with_time else None,
+            )
+
+        for change in application.status_changes:
+            if change.status == SAVED or not inside(change.changed_at):
+                continue
+            if change.status == ApplicationStatus.APPLIED:
+                events.append(event(change.changed_at, CalendarEventKind.APPLIED, change.status))
+            elif change.status == ApplicationStatus.INTERVIEW and application.interview_at:
+                continue  # shown once, at the interview's own date and time
+            else:
+                events.append(
+                    event(change.changed_at, CalendarEventKind.STATUS_CHANGE, change.status)
+                )
+
+        if application.interview_at and inside(application.interview_at):
+            events.append(
+                event(
+                    application.interview_at,
+                    CalendarEventKind.INTERVIEW,
+                    ApplicationStatus.INTERVIEW,
+                    with_time=True,
+                )
+            )
+
+        closed = application.status in (ApplicationStatus.REJECTED, ApplicationStatus.DECLINED)
+        if offer.deadline and not closed and inside(offer.deadline):
+            events.append(event(offer.deadline, CalendarEventKind.DEADLINE, None))
+
+    return sorted(events, key=lambda e: (e.date, e.time or '', e.title))

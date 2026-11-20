@@ -1,4 +1,5 @@
-from datetime import datetime
+from datetime import date, datetime
+from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
@@ -53,3 +54,21 @@ class SavedJobRead(BaseModel):
     id: int
     job_offer: JobOfferListItem
     created_at: datetime
+
+
+class CalendarEventKind(StrEnum):
+    APPLIED = 'applied'
+    STATUS_CHANGE = 'status_change'
+    INTERVIEW = 'interview'
+    DEADLINE = 'deadline'
+
+
+class CalendarEvent(BaseModel):
+    date: date
+    kind: CalendarEventKind
+    title: str
+    company_name: str
+    job_offer_id: int
+    application_id: int | None
+    status: ApplicationStatus | None
+    time: str | None  # 'HH:MM' (UTC), interviews only
