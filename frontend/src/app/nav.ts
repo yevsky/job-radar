@@ -1,0 +1,19 @@
+import type { IconName } from '@/components/Icon'
+
+export interface NavItem {
+  to: string
+  label: string
+  icon: IconName
+}
+
+export interface NavSection {
+  title?: string
+  /** Shown only to users the backend lets into /admin. */
+  adminOnly?: boolean
+  items: NavItem[]
+}
+
+/** Sidebar links. Add a line here when a page lands (see COMMIT_PLAN.md). */
+export const navSections: NavSection[] = [
+  { items: [{ to: '/', label: 'Dashboard', icon: 'home' }] },
+]

@@ -1,0 +1,101 @@
+/*
+ * Design tokens.
+ * Light: warm paper, serif headings (the original look).
+ * Dark: near-black sidebar, charcoal cards, pastel accents, sans headings.
+ * Funnel stage colours (applied → offer) were checked with a colour-blindness validator in
+ * both themes, and every chart mark also has a text label.
+ */
+:root {
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-serif: 'Newsreader', Georgia, 'Times New Roman', serif;
+  --font-heading: var(--font-serif);
+  --font-mono: ui-monospace, 'JetBrains Mono', 'Cascadia Code', Consolas, monospace;
+  --heading-weight: 400;
+
+  --bg: #f3f1ec;
+  --page: #faf9f6;
+  --card: #f7f5f1;
+  --surface: #faf9f6;
+  --surface-2: #ece9e2;
+  --border: #e3dfd6;
+  --border-strong: #cfc9bd;
+  --divider: #d9d4ca;
+  --text: #1f1d1a;
+  --text-muted: #6b665e;
+  --text-faint: #9a948a;
+  --ink: #1f1d1a;
+  --ink-text: #f8f6f1;
+  --focus: #4a7cc4;
+  --danger: #a5483d;
+  --success: #4f7f4a;
+
+  /* Board tags and the "next interview" highlight. */
+  --tag-new: #f6dbe6;
+  --tag-new-text: #8a2f57;
+  --tag-info: #e1e4f5;
+  --tag-info-text: #34479a;
+  --priority-bg: #fbf3e4;
+  --priority-border: #c08a2a;
+  --priority-text: var(--text);
+
+  /* Status colours (funnel, board, calendar). */
+  --st-saved: #9a948a;
+  --st-applied: #4a7cc4;
+  --st-screening: #21a08f;
+  --st-interview: #8a6fc4;
+  --st-offer: #c08a2a;
+  --st-accepted: #5f8f5a;
+  --st-rejected: #b8655a;
+  --st-declined: #6e6a64;
+
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 1px 2px rgb(31 29 26 / 6%), 0 4px 16px rgb(31 29 26 / 4%);
+  --sidebar-w: 264px;
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  --font-sans: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+  --font-heading: var(--font-sans);
+  --heading-weight: 500;
+
+  --bg: #0c0b0f;
+  --page: #16151a;
+  --card: #222128;
+  --surface: #222128;
+  --surface-2: #2c2b32;
+  --border: #2a2930;
+  --border-strong: #3d3c45;
+  --divider: #3a3941;
+  --text: #f3f2f6;
+  --text-muted: #a3a0ad;
+  --text-faint: #6f6c78;
+  --ink: #ffffff;
+  --ink-text: #141318;
+  --focus: #9c9cf6;
+  --danger: #f07a6a;
+  --success: #5fc27c;
+
+  --tag-new: #f7a6cf;
+  --tag-new-text: #3d1229;
+  --tag-info: #a9a9f7;
+  --tag-info-text: #1d1d4a;
+  --priority-bg: linear-gradient(140deg, #f2a07b 0%, #e78bb6 45%, #8d84f0 100%);
+  --priority-border: transparent;
+  --priority-text: #1b1420;
+
+  --st-saved: #bd8f2a;
+  --st-applied: #6a84ee;
+  --st-screening: #29a088;
+  --st-interview: #a473e8;
+  --st-offer: #bd8f2a;
+  --st-accepted: #4fae6a;
+  --st-rejected: #e06a5a;
+  --st-declined: #8a8794;
+
+  --radius: 16px;
+  --radius-sm: 10px;
+  --shadow: 0 1px 2px rgb(0 0 0 / 35%), 0 8px 24px rgb(0 0 0 / 25%);
+  color-scheme: dark;
+}
