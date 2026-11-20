@@ -12,6 +12,7 @@ import { NewOfferPage } from '@/features/offers/NewOfferPage'
 import { OfferDetailPage } from '@/features/offers/OfferDetailPage'
 import { OffersPage } from '@/features/offers/OffersPage'
 import { ProfilePage } from '@/features/profile/ProfilePage'
+import { ResumesPage } from '@/features/resumes/ResumesPage'
 import { SavedPage } from '@/features/saved/SavedPage'
 import { SearchPage } from '@/features/search/SearchPage'
 
@@ -27,6 +28,7 @@ export function App() {
               {/* One line per feature; see COMMIT_PLAN.md for the order they land in. */}
               <Route index element={<DashboardPage />} />
               <Route path="profile" element={<ProfilePage />} />
+              <Route path="cvs" element={<ResumesPage />} />
               <Route path="search" element={<SearchPage />} />
               <Route path="offers" element={<OffersPage />} />
               <Route path="offers/new" element={<NewOfferPage />} />
