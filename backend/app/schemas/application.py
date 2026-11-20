@@ -41,3 +41,15 @@ class ApplicationRead(BaseModel):
 class StatusChangeRead(BaseModel):
     status: ApplicationStatus
     changed_at: datetime
+
+
+class SavedJobCreate(BaseModel):
+    job_offer_id: int
+
+
+class SavedJobRead(BaseModel):
+    """A saved offer: an application with status `saved`, in the shape the Save button uses."""
+
+    id: int
+    job_offer: JobOfferListItem
+    created_at: datetime
