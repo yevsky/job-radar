@@ -6,6 +6,7 @@ import { ApplicationsPage } from '@/features/applications/ApplicationsPage'
 import { AuthProvider } from '@/features/auth/AuthContext'
 import { LoginPage, RegisterPage } from '@/features/auth/AuthPages'
 import { RequireAuth } from '@/features/auth/RequireAuth'
+import { CalendarPage } from '@/features/calendar/CalendarPage'
 import { NewOfferPage } from '@/features/offers/NewOfferPage'
 import { OfferDetailPage } from '@/features/offers/OfferDetailPage'
 import { OffersPage } from '@/features/offers/OffersPage'
@@ -34,6 +35,7 @@ export function App() {
               <Route path="offers/:id" element={<OfferDetailPage />} />
               <Route path="saved" element={<SavedPage />} />
               <Route path="applications" element={<ApplicationsPage />} />
+              <Route path="calendar" element={<CalendarPage />} />
               <Route path="*" element={<Empty title="Page not found" />} />
             </Route>
           </Route>
