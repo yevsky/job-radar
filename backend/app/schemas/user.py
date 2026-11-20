@@ -16,6 +16,12 @@ class UserRead(BaseModel):
     created_at: datetime
 
 
+class AdminUserRead(UserRead):
+    """What admins see in the user list: also the user's own daily search limit."""
+
+    search_daily_limit: int | None  # None means the default from settings
+
+
 class Token(BaseModel):
     access_token: str
     token_type: str = 'bearer'
