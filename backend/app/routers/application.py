@@ -9,8 +9,10 @@ from app.models.enums import ApplicationStatus
 from app.schemas.application import (
     ApplicationCreate,
     ApplicationRead,
+    ApplicationStats,
     ApplicationUpdate,
     CalendarEvent,
+    StatsRange,
     StatusChangeRead,
 )
 from app.services.application import (
@@ -21,6 +23,7 @@ from app.services.application import (
     delete_application,
     get_history,
     list_applications,
+    stats,
     to_read,
     update_application,
 )
@@ -80,6 +83,14 @@ def read_calendar(
             detail=f'Ask for at most {MAX_CALENDAR_DAYS} days at a time',
         )
     return calendar(db, user.id, start, end)
+
+
+@router.get('/stats', response_model=ApplicationStats)
+def read_stats(
+    db: DbSession, user: CurrentUser, range_: Annotated[StatsRange, Query(alias='range')] = '30d'
+) -> ApplicationStats:
+    """Dashboard numbers: the funnel, where applications stopped, and weekly activity."""
+    return stats(db, user.id, range_)
 
 
 @router.patch('/{application_id}', response_model=ApplicationRead)
