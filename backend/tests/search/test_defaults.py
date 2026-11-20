@@ -7,12 +7,10 @@ from tests.helpers import USER_EMAIL, auth_header
 URL = '/search/defaults'
 EMPTY_FORM: dict[str, object] = {
     'position': None,
-    'experience_level': None,
-    'skills': [],
     'locations': [],
-    'employment_types': [],
-    'remote_only': False,
+    'country': 'pl',
     'posted_within': None,
+    'page': 1,
 }
 
 
@@ -61,23 +59,24 @@ def test_full_profile_fills_the_form(api: TestClient, access_token: str) -> None
 
     assert response.status_code == status.HTTP_200_OK
     body = response.json()
-    assert body['position'] == 'Python developer'
-    assert body['experience_level'] == 'junior'
-    assert sorted(body['skills']) == ['FastAPI', 'Python']
+    assert body['position'] == 'Junior Python developer'  # the profile's level goes in front
     assert sorted(body['locations']) == ['Remote', 'Wrocław']
-    assert sorted(body['employment_types']) == ['b2b', 'full_time']
-    assert body['remote_only'] is False
+    assert body['country'] == 'pl'
     assert body['posted_within'] is None
+    assert 'skills' not in body  # skills and contract types are not search filters any more
 
 
-def test_form_takes_at_most_10_skills(api: TestClient, access_token: str) -> None:
-    skills = [f'Skill {n}' for n in range(12)]
-    fill_profile(api, access_token, skills=skills)
+def test_level_is_not_added_twice(api: TestClient, access_token: str) -> None:
+    fill_profile(api, access_token)
+    api.put(
+        '/profile/me',
+        json={'desired_position': 'Senior Python developer', 'experience_level': 'junior'},
+        headers=auth_header(access_token),
+    )
 
     body = api.get(URL, headers=auth_header(access_token)).json()
 
-    assert len(body['skills']) == 10
-    assert set(body['skills']) <= set(skills)
+    assert body['position'] == 'Senior Python developer'  # the user's own words win
 
 
 def test_form_takes_at_most_5_locations(api: TestClient, access_token: str) -> None:
@@ -115,4 +114,4 @@ def test_form_can_be_sent_back_unchanged(api: TestClient, access_token: str) -> 
 
     body = api.get(URL, headers=auth_header(access_token)).json()
 
-    assert SearchQuery.model_validate(body).text() == 'junior Python developer Python Kraków'
+    assert SearchQuery.model_validate(body).text() == 'Junior Python developer Kraków'

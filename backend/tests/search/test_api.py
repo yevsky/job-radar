@@ -17,14 +17,21 @@ from app.search_sources.registry import build_sources
 from tests.helpers import auth_header
 
 URL = '/search'
-FORM = {'position': 'Python developer', 'skills': ['FastAPI'], 'locations': ['Wrocław']}
+FORM = {'position': 'Python developer', 'locations': ['Wrocław']}
 
 UseSources = Callable[..., None]
 
 
-def make_result(path: str, title: str = 'Backend Developer') -> JobOfferImport:
+def make_result(
+    path: str, title: str = 'Backend Developer', location: str | None = None
+) -> JobOfferImport:
     return JobOfferImport.model_validate(
-        {'title': title, 'company_name': 'Codesky', 'url': f'https://example.com/{path}'}
+        {
+            'title': title,
+            'company_name': 'Codesky',
+            'url': f'https://example.com/{path}',
+            'location': location,
+        }
     )
 
 
@@ -66,7 +73,9 @@ def test_search_returns_results_with_found_via_and_query(
 
     body = search(api, access_token)
 
-    assert body['query'] == 'Python developer FastAPI Wrocław'
+    assert body['query'] == 'Python developer Wrocław'
+    assert body['page'] == 1
+    assert body['has_more'] is False
     assert body['errors'] == []
     results = body['results']
     assert isinstance(results, list)
@@ -82,12 +91,7 @@ def test_source_receives_the_form_with_filters(
 ) -> None:
     source = FakeSearchSource()
     use_sources(source)
-    form = {
-        **FORM,
-        'remote_only': True,
-        'posted_within': 'week',
-        'employment_types': ['b2b'],
-    }
+    form = {**FORM, 'country': 'de', 'posted_within': 'week'}
 
     search(api, access_token, form)
 
@@ -195,10 +199,10 @@ def test_results_per_source_are_limited(
     [
         {},
         {'locations': ['Wrocław']},
-        {'position': '   ', 'skills': [' ']},
+        {'position': '   '},
     ],
 )
-def test_form_without_position_and_skills_returns_422(
+def test_form_without_position_returns_422(
     api: TestClient, access_token: str, use_sources: UseSources, form: dict[str, object]
 ) -> None:
     source = FakeSearchSource()
@@ -207,15 +211,15 @@ def test_form_without_position_and_skills_returns_422(
     response = api.post(URL, json=form, headers=auth_header(access_token))
 
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
-    assert response.json()['detail'] == 'Add a position or at least one skill'
+    assert response.json()['detail'] == 'Add a position to search for'
     assert source.queries == []  # no source was asked
 
 
-def test_too_many_skills_returns_422(
+def test_page_past_the_last_returns_422(
     api: TestClient, access_token: str, use_sources: UseSources
 ) -> None:
     use_sources(FakeSearchSource())
-    form = {'skills': [f'Skill {n}' for n in range(11)]}
+    form = {**FORM, 'page': 11}
 
     response = api.post(URL, json=form, headers=auth_header(access_token))
 
@@ -251,7 +255,7 @@ def test_fake_source_from_the_registry_returns_demo_results(
     """The 'fake' source as the registry builds it; SEARCH_SOURCES in .env doesn't matter."""
     monkeypatch.setattr('app.dependencies.search_sources', build_sources(['fake']))
 
-    body = search(api, access_token)
+    body = search(api, access_token, {'position': 'Python developer'})  # no city filter
 
     assert len(result_urls(body)) == 8
 
@@ -271,7 +275,7 @@ def test_offers_far_from_the_wanted_level_are_left_out(
         FakeSearchSource(results=[make_result(f'jobs/{i}', t) for i, t in enumerate(titles)])
     )
 
-    body = search(api, access_token, {'position': 'Python developer', 'experience_level': 'junior'})
+    body = search(api, access_token, {'position': 'Junior Python developer'})
 
     results = body['results']
     assert isinstance(results, list)
@@ -287,6 +291,107 @@ def test_without_a_level_nothing_is_left_out(
     api: TestClient, access_token: str, use_sources: UseSources
 ) -> None:
     use_sources(FakeSearchSource(results=[make_result('jobs/1', 'Senior Python Developer')]))
+
+    body = search(api, access_token, {'position': 'Python developer'})
+
+    assert len(result_urls(body)) == 1
+
+
+# pages
+
+
+def test_next_page_returns_the_next_results(
+    api: TestClient, access_token: str, use_sources: UseSources, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr('app.routers.search.settings.search_results_per_source', 2)
+    use_sources(FakeSearchSource(results=[make_result(f'jobs/{n}') for n in range(5)]))
+
+    first = search(api, access_token)
+    second = search(api, access_token, {**FORM, 'page': 2})
+    third = search(api, access_token, {**FORM, 'page': 3})
+
+    assert result_urls(first) == ['https://example.com/jobs/0', 'https://example.com/jobs/1']
+    assert first['has_more'] is True
+    assert result_urls(second) == ['https://example.com/jobs/2', 'https://example.com/jobs/3']
+    assert second['page'] == 2
+    assert result_urls(third) == ['https://example.com/jobs/4']
+    assert third['has_more'] is False
+
+
+def test_has_more_if_any_source_has_more(
+    api: TestClient, access_token: str, use_sources: UseSources, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr('app.routers.search.settings.search_results_per_source', 1)
+    use_sources(
+        FakeSearchSource(name='tavily', results=[make_result('t1')]),
+        FakeSearchSource(name='jsearch', results=[make_result('j1'), make_result('j2')]),
+    )
+
+    assert search(api, access_token)['has_more'] is True
+
+
+def test_only_the_first_page_counts_toward_the_limit(
+    api: TestClient, access_token: str, use_sources: UseSources
+) -> None:
+    use_sources(FakeSearchSource())
+
+    first = search(api, access_token)
+    second = search(api, access_token, {**FORM, 'page': 2})
+
+    assert second['searches_left_today'] == first['searches_left_today']
+    usage = api.get('/search/usage', headers=auth_header(access_token)).json()
+    assert usage['used_today'] == 1
+
+
+# cities
+
+
+def test_offers_from_other_cities_are_left_out(
+    api: TestClient, access_token: str, use_sources: UseSources
+) -> None:
+    places = [
+        'Warszawa, Mazowieckie, Poland',
+        'Katowice, Śląskie, Poland',
+        'Wroclaw',
+        'Remote',
+        'Poland',
+        None,
+    ]
+    use_sources(
+        FakeSearchSource(
+            results=[make_result(f'jobs/{i}', location=p) for i, p in enumerate(places)]
+        )
+    )
+
+    body = search(
+        api, access_token, {'position': 'Python developer', 'locations': ['Warsaw', 'Wrocław']}
+    )
+
+    results = body['results']
+    assert isinstance(results, list)
+    assert [r['location'] for r in results] == [
+        'Warszawa, Mazowieckie, Poland',  # 'Warsaw' in any spelling
+        'Wroclaw',
+        'Poland',  # no city named: kept
+        None,  # unknown: kept
+    ]
+    assert body['hidden'] == 2  # Katowice and Remote
+
+
+def test_remote_offers_are_kept_when_remote_is_asked(
+    api: TestClient, access_token: str, use_sources: UseSources
+) -> None:
+    use_sources(FakeSearchSource(results=[make_result('jobs/1', location='Remote')]))
+
+    body = search(api, access_token, {'position': 'Python developer', 'locations': ['Remote']})
+
+    assert len(result_urls(body)) == 1
+
+
+def test_without_cities_every_place_is_kept(
+    api: TestClient, access_token: str, use_sources: UseSources
+) -> None:
+    use_sources(FakeSearchSource(results=[make_result('jobs/1', location='Katowice')]))
 
     body = search(api, access_token, {'position': 'Python developer'})
 

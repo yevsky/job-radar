@@ -7,7 +7,6 @@ import httpx
 import pytest
 from pydantic import SecretStr
 
-from app.models.enums import EmploymentType
 from app.schemas.search import PostedWithin, SearchQuery
 from app.search_sources.base import SearchSourceError
 from app.search_sources.registry import build_sources
@@ -16,12 +15,13 @@ from app.search_sources.tavily import (
     TavilySource,
     company_from_url,
     is_offer_page,
+    location_from_url,
     split_title,
     to_offer,
 )
 
 SAMPLE = json.loads((Path(__file__).parent / 'data' / 'tavily.json').read_text(encoding='utf-8'))
-QUERY = SearchQuery(position='Python developer', skills=['FastAPI'])
+QUERY = SearchQuery(position='Python developer')
 DOMAINS = ['justjoin.it', 'nofluffjobs.com']
 
 Handler = Callable[[httpx.Request], httpx.Response]
@@ -62,7 +62,7 @@ def sent_body(requests: list[httpx.Request]) -> dict[str, Any]:
 
 
 def test_sample_maps_to_offers() -> None:
-    offers = make_source(answer()).search(QUERY, 10)
+    offers = make_source(answer()).search(QUERY, 10).offers
 
     assert [(o.title, o.company_name, str(o.url)) for o in offers] == [
         ('Junior Python Developer', 'Codesky', 'https://www.linkedin.com/jobs/view/1234567890'),
@@ -79,17 +79,19 @@ def test_sample_maps_to_offers() -> None:
     ]
     assert offers[0].description is not None
     assert offers[0].description.startswith('Codesky is hiring')
+    # Tavily sends no location: the city is read from the link
+    assert [o.location for o in offers] == [None, 'Wrocław', 'Wrocław']
 
 
 def test_broken_result_is_skipped_and_the_rest_returned() -> None:
-    offers = make_source(answer()).search(QUERY, 10)
+    offers = make_source(answer()).search(QUERY, 10).offers
 
     assert len(offers) == 3  # 5 in the sample: a list page and one with 'not a link' are left out
     assert all(o.title != 'Broken result without a link' for o in offers)
 
 
 def test_list_pages_are_skipped() -> None:
-    offers = make_source(answer()).search(QUERY, 10)
+    offers = make_source(answer()).search(QUERY, 10).offers
 
     assert all('/wroclaw/python' not in str(o.url) for o in offers)
 
@@ -145,8 +147,9 @@ def test_company_from_url(title: str, url: str, company: str | None) -> None:
     assert company_from_url(url, title) == company
 
 
-def test_results_are_cut_to_the_limit() -> None:
-    assert len(make_source(answer()).search(QUERY, 2)) == 2
+def test_every_result_is_returned_whatever_the_limit() -> None:
+    """Few results survive the list-page and city filters, so Tavily's are never cut."""
+    assert len(make_source(answer()).search(QUERY, 2).offers) == 3
 
 
 @pytest.mark.parametrize(
@@ -204,9 +207,10 @@ def test_request_sends_query_domains_and_key(
     assert str(request.url) == TAVILY_URL
     assert request.headers['Authorization'] == 'Bearer tvly-test-key'
     body = sent_body(requests)
-    assert body['query'] == 'Python developer FastAPI'
-    assert body['max_results'] == 5
+    assert body['query'] == 'Python developer'
+    assert body['max_results'] == 20  # always the most: 1 credit whatever the count
     assert body['include_domains'] == DOMAINS
+    assert 'country' not in body  # include_domains already picks the boards
     assert 'time_range' not in body
 
 
@@ -218,16 +222,69 @@ def test_posted_within_becomes_time_range(
     assert sent_body(requests)['time_range'] == 'week'
 
 
-def test_employment_types_are_added_to_the_phrase(
-    recording: TavilySource, requests: list[httpx.Request]
-) -> None:
-    query = QUERY.model_copy(
-        update={'employment_types': [EmploymentType.B2B, EmploymentType.FULL_TIME]}
-    )
+def test_tavily_has_one_page() -> None:
+    assert make_source(answer()).search(QUERY, 10).has_more is False
 
-    recording.search(query, 5)
 
-    assert sent_body(requests)['query'] == 'Python developer FastAPI B2B full-time'
+def test_second_page_sends_nothing(recording: TavilySource, requests: list[httpx.Request]) -> None:
+    page = recording.search(QUERY.model_copy(update={'page': 2}), 10)
+
+    assert page.offers == []
+    assert page.has_more is False
+    assert requests == []  # no credit spent
+
+
+@pytest.mark.parametrize(
+    'page_title',
+    [
+        'General Dynamics Jobs in United States (11,000+ Open Roles)',
+        'Python Developer Jobs in Warsaw',
+        'Python Developer - 1,234 jobs',
+        'Oferty pracy Python Developer',
+    ],
+)
+def test_titles_of_list_pages_are_skipped(page_title: str) -> None:
+    assert to_offer({'title': page_title, 'url': 'https://jobs.example.com/x'}) is None
+
+
+def test_a_normal_title_is_an_offer() -> None:
+    assert to_offer({'title': 'Python Developer (3 years)', 'url': 'https://a.example/1'})
+
+
+@pytest.mark.parametrize(
+    ('url', 'page_title', 'wanted', 'location'),
+    [
+        ('https://justjoin.it/job-offer/codesky-python-dev-warszawa-python', '', [], 'Warszawa'),
+        ('https://nofluffjobs.com/pl/job/python-dev-codesky-krakow-1', '', [], 'Kraków'),
+        (
+            'https://www.pracuj.pl/praca/python-developer-gdansk,oferta,1004',
+            '',
+            [],
+            'Gdańsk',
+        ),
+        (
+            'https://www.linkedin.com/jobs/view/1',
+            'Python Developer at Codesky — Wrocław - LinkedIn',
+            [],
+            'Wrocław',
+        ),
+        ('https://justjoin.it/job-offer/codesky-python-dev-remote-python', '', [], 'Remote'),
+        ('https://example.com/jobs/python-dev-lisbon', '', ['Lisbon'], 'Lisbon'),
+        ('https://example.com/jobs/42', 'Python Developer', [], None),
+    ],
+)
+def test_location_from_url(url: str, page_title: str, wanted: list[str], location: str) -> None:
+    assert location_from_url(url, page_title, wanted) == location
+
+
+def test_tavily_uses_only_the_date_filter() -> None:
+    assert make_source(answer()).features == {'posted_within'}
+
+
+def test_rows_that_are_not_offers_count_as_skipped() -> None:
+    page = make_source(answer()).search(QUERY, 10)
+
+    assert page.skipped == 2  # the list page and the broken row
 
 
 def test_max_results_is_at_most_20(recording: TavilySource, requests: list[httpx.Request]) -> None:
