@@ -2,6 +2,7 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom'
 
 import { AppLayout } from '@/components/AppLayout'
 import { Empty } from '@/components/ui'
+import { ApplicationsPage } from '@/features/applications/ApplicationsPage'
 import { AuthProvider } from '@/features/auth/AuthContext'
 import { LoginPage, RegisterPage } from '@/features/auth/AuthPages'
 import { RequireAuth } from '@/features/auth/RequireAuth'
@@ -32,6 +33,7 @@ export function App() {
               <Route path="offers/new" element={<NewOfferPage />} />
               <Route path="offers/:id" element={<OfferDetailPage />} />
               <Route path="saved" element={<SavedPage />} />
+              <Route path="applications" element={<ApplicationsPage />} />
               <Route path="*" element={<Empty title="Page not found" />} />
             </Route>
           </Route>
