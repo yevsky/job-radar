@@ -1,7 +1,7 @@
-"""Applications and their status history.
+"""Applications and saved offers.
 
-Every status an application gets is also written to `application_status_changes`, which
-the history reads.
+A saved offer is an application with status `saved`. Every status an application gets is also
+written to `application_status_changes`, which the history reads.
 """
 
 from collections.abc import Sequence
@@ -16,6 +16,7 @@ from app.schemas.application import (
     ApplicationCreate,
     ApplicationRead,
     ApplicationUpdate,
+    SavedJobRead,
     StatusChangeRead,
 )
 from app.services.job_offer import to_list_item, visible_to
@@ -29,6 +30,10 @@ class ApplicationNotFoundError(Exception):
 
 class OfferNotFoundError(Exception):
     """The offer doesn't exist, or it is someone else's private offer."""
+
+
+class NotSavedError(Exception):
+    """The offer isn't saved (no application, or it has moved past `saved`)."""
 
 
 # ---- reading -------------------------------------------------------------------------------
@@ -45,6 +50,14 @@ def to_read(application: Application) -> ApplicationRead:
         interview_at=application.interview_at,
         created_at=application.created_at,
         updated_at=application.updated_at,
+    )
+
+
+def to_saved(application: Application) -> SavedJobRead:
+    return SavedJobRead(
+        id=application.id,
+        job_offer=to_list_item(application.job_offer),
+        created_at=application.created_at,
     )
 
 
@@ -150,4 +163,39 @@ def update_application(
 
 def delete_application(db: Session, user_id: int, application_id: int) -> None:
     db.delete(get_application(db, user_id, application_id))
+    db.commit()
+
+
+# ---- saved offers (a shortcut over applications with status `saved`) -----------------------
+
+
+def list_saved(db: Session, user_id: int) -> list[SavedJobRead]:
+    rows = db.scalars(
+        _owned(user_id)
+        .where(Application.status == SAVED)
+        .order_by(Application.created_at.desc(), Application.id.desc())
+    ).all()
+    return [to_saved(row) for row in rows]
+
+
+def save_offer(db: Session, user_id: int, job_offer_id: int) -> tuple[SavedJobRead, bool]:
+    """Save an offer. If it already has an application (saved or further), that one is returned."""
+    application, created = create_application(
+        db, user_id, ApplicationCreate(job_offer_id=job_offer_id, status=SAVED)
+    )
+    return to_saved(application), created
+
+
+def unsave_offer(db: Session, user_id: int, job_offer_id: int) -> None:
+    """Remove a saved offer. An offer the user already applied to is not touched."""
+    application = db.scalar(
+        select(Application).where(
+            Application.user_id == user_id,
+            Application.job_offer_id == job_offer_id,
+            Application.status == SAVED,
+        )
+    )
+    if application is None:
+        raise NotSavedError
+    db.delete(application)
     db.commit()
