@@ -20,4 +20,8 @@ export const navSections: NavSection[] = [
     title: 'You',
     items: [{ to: '/profile', label: 'Profile', icon: 'user' }],
   },
+  {
+    title: 'Job search',
+    items: [{ to: '/offers', label: 'Job offers', icon: 'list' }],
+  },
 ]
