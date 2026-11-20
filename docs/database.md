@@ -2,7 +2,7 @@
 
 ![ER diagram of the database schema](./img/db-schema.png)
 
-This document describes the relational database schema for the job offer discovery and analysis application. It covers the core functionality: user management, user profiles and preferences, job offer storage, technology tagging, saved jobs and application tracking.
+This document describes the relational database schema for the job offer discovery and analysis application. It covers the core functionality: user management, user profiles and preferences, job offer storage, technology tagging and application tracking (saved offers included).
 
 Job offers are **not bulk-scraped** from job boards. They reach the application in three ways: a Tavily web search built from the user's profile, the "Send to JobRadar" browser button, or a manual import of a link. For those offers only the basic facts (link, title, company, location, deadline and source) are stored. The full text is stored only for offers posted on JobRadar itself (`source = posted`, for now the demo offers loaded by `just seed`).
 
@@ -15,7 +15,7 @@ The schema is organized around five functional areas:
 1. **Access control** — users, roles, and user profiles
 2. **User preferences** — skills and standing filter preferences used for search and matching
 3. **Job offer data** — job offers and technologies
-4. **User activity** — saved jobs, applications and search runs
+4. **User activity** — applications (saved offers included), their status history and search runs
 5. *(Planned)* **AI assistant module** — to be added later
 
 ## Enums
@@ -57,10 +57,14 @@ Tracks the state of a user's application to a given job offer.
 
 | Value | Description |
 |---|---|
+| `saved` | Saved for later, not applied yet (the "Saved offers" list) |
 | `applied` | Application submitted |
+| `screening` | First contact or screening call |
 | `interview` | In the interview process |
-| `rejected` | Application rejected |
+| `offer` | Received an offer |
 | `accepted` | Offer accepted |
+| `rejected` | Rejected by the company |
+| `declined` | The user turned the offer down |
 
 ## Tables
 
@@ -165,30 +169,33 @@ Many-to-many mapping between job offers and the technologies they require.
 | `job_offer_id` | integer | FK → `job_offers.id`, part of composite PK |
 | `technology_id` | integer | FK → `technologies.id`, part of composite PK |
 
-### `saved_jobs`
-Tracks which job offers a user has bookmarked for later. Saving is independent of applying: an offer can be saved, applied to, or both.
-
-| Column | Type | Notes |
-|---|---|---|
-| `user_id` | integer | FK → `users.id`, part of composite PK |
-| `job_offer_id` | integer | FK → `job_offers.id`, part of composite PK |
-| `created_at` | timestamp | |
-
 ### `applications`
-Tracks a user's application to a specific job offer, including status and notes.
+One user's progress on one job offer, from saving it to the final answer. A saved offer is an application with status `saved`; moving it to any other status is when the user applied.
 
 | Column | Type | Notes |
 |---|---|---|
 | `id` | integer | Primary key |
-| `user_id` | integer | FK → `users.id`, not null |
-| `job_offer_id` | integer | FK → `job_offers.id`, not null |
-| `status` | application_status | Not null, default `applied` |
-| `applied_at` | timestamp | |
+| `user_id` | integer | FK → `users.id`, not null, ON DELETE CASCADE, indexed |
+| `job_offer_id` | integer | FK → `job_offers.id`, not null, ON DELETE CASCADE, indexed |
+| `status` | application_status | Not null |
+| `resume_id` | integer | Which CV was sent; becomes a FK when the resumes table exists |
 | `notes` | text | |
+| `applied_at` | timestamp | Null while `saved`; set when it moves on |
+| `interview_at` | timestamp | Next interview, shown on the calendar |
 | `created_at` | timestamp | |
 | `updated_at` | timestamp | |
 
 Unique on (`user_id`, `job_offer_id`): a user has at most one application per offer.
+
+### `application_status_changes`
+Every status an application had, with the time it changed. The history, the calendar and the dashboard stats are computed from it.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | integer | Primary key |
+| `application_id` | integer | FK → `applications.id`, not null, ON DELETE CASCADE, indexed |
+| `status` | application_status | Not null |
+| `changed_at` | timestamp | |
 
 ### `search_runs`
 One row per search a user ran, used to enforce the daily search limit. The search results themselves are **not** stored.
@@ -210,18 +217,18 @@ Indexed on (`user_id`, `created_at`) for counting a user's searches today.
 - `user_preferred_employment_types.user_id` → `users.id` (1:N)
 - `user_technologies` links `users` ↔ `technologies` (M:N)
 - `job_offer_technologies` links `job_offers` ↔ `technologies` (M:N)
-- `saved_jobs` links `users` ↔ `job_offers` (M:N)
-- `applications` links `users` ↔ `job_offers` (1 application row per user–offer pair, extended with status/notes)
+- `applications` links `users` ↔ `job_offers` (1 row per user–offer pair, saved offers included)
+- `application_status_changes` belongs to `applications` (1:N)
 - `search_runs.user_id` → `users.id` (1:N)
 
-Deleting a user deletes their profile, preferences, skills links, saved jobs, applications and search runs. Deleting a user never deletes rows in `technologies`.
+Deleting a user deletes their profile, preferences, skills links, applications (with their status history) and search runs. Deleting a job offer deletes the applications to it. Deleting a user never deletes rows in `technologies`.
 
 ## Design Notes
 
 - **No bulk scraping.** Offers are found through Tavily search or sent by the user (browser button, manual import), and only their basic facts are stored. This avoids copying job boards' content, which could conflict with their terms of use and database rights. The offer page is fetched only when the offer is analysed.
 - **No `job_sources` table.** There are only three fixed ways an offer can arrive, so the `source_kind` enum on `job_offers` replaces a lookup table. The job board an offer comes from can be read from its `url` domain.
 - **Deduplication of offers** relies on the `url` uniqueness constraint on `job_offers`. When an import finds an existing URL again, the row is updated (`last_seen_at`, `is_active`) rather than duplicated.
-- **Saved jobs and applications are separate.** Saving is a bookmark with no status; an application has a life cycle. Keeping them in two tables means each fact is stored in one place, and `application_status` has no `saved` value.
+- **Saved offers are applications with status `saved`.** Saving is the first step of the same life cycle, so one table holds it and the board shows saved offers as its first column. `/saved-jobs` is a shortcut over these rows for the Save button. Every status change is also written to `application_status_changes`, so the funnel can count how far each application got even after it was rejected.
 - **Location and preference matching** use free-text fields rather than a normalized `locations` table. Location strings vary significantly between job boards (e.g. "Warszawa" vs "Warsaw, PL" vs "Remote/Warsaw"), so normalization/geocoding is left as a possible future improvement.
 - **Search results are not stored.** A search returns its results to the user and keeps only a `search_runs` row (who, when, how many results). A result is saved only when the user keeps it, as their private offer (`source = search`, `found_via` set). The daily limit counts `search_runs` rows since midnight UTC; an admin can give a user their own limit (`users.search_daily_limit`). Each user can choose which enabled sources their searches ask (`users.search_sources`); a choice that no longer matches any enabled source falls back to all of them.
 - **`technologies` and `roles`** are treated as lookup tables. `created_at` was intentionally omitted from `technologies` since no current feature depends on knowing when a technology entry was created.

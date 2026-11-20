@@ -18,11 +18,16 @@ class EmploymentType(StrEnum):
 
 
 class ApplicationStatus(StrEnum):
+    """Where the user is with one offer, from saving it to the final answer."""
+
     SAVED = 'saved'
     APPLIED = 'applied'
+    SCREENING = 'screening'
     INTERVIEW = 'interview'
-    REJECTED = 'rejected'
+    OFFER = 'offer'
     ACCEPTED = 'accepted'
+    REJECTED = 'rejected'
+    DECLINED = 'declined'
 
 
 class SourceKind(StrEnum):
