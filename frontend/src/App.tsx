@@ -9,6 +9,7 @@ import { NewOfferPage } from '@/features/offers/NewOfferPage'
 import { OfferDetailPage } from '@/features/offers/OfferDetailPage'
 import { OffersPage } from '@/features/offers/OffersPage'
 import { ProfilePage } from '@/features/profile/ProfilePage'
+import { SearchPage } from '@/features/search/SearchPage'
 
 export function App() {
   return (
@@ -25,6 +26,7 @@ export function App() {
                 element={<Empty title="Welcome to JobRadar">Pages appear here as they land.</Empty>}
               />
               <Route path="profile" element={<ProfilePage />} />
+              <Route path="search" element={<SearchPage />} />
               <Route path="offers" element={<OffersPage />} />
               <Route path="offers/new" element={<NewOfferPage />} />
               <Route path="offers/:id" element={<OfferDetailPage />} />
