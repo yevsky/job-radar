@@ -22,6 +22,9 @@ export const navSections: NavSection[] = [
   },
   {
     title: 'Job search',
-    items: [{ to: '/offers', label: 'Job offers', icon: 'list' }],
+    items: [
+      { to: '/search', label: 'Find jobs', icon: 'search' },
+      { to: '/offers', label: 'Job offers', icon: 'list' },
+    ],
   },
 ]
