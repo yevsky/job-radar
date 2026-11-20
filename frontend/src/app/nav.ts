@@ -16,4 +16,8 @@ export interface NavSection {
 /** Sidebar links. Add a line here when a page lands (see COMMIT_PLAN.md). */
 export const navSections: NavSection[] = [
   { items: [{ to: '/', label: 'Dashboard', icon: 'home' }] },
+  {
+    title: 'You',
+    items: [{ to: '/profile', label: 'Profile', icon: 'user' }],
+  },
 ]

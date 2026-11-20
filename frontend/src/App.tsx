@@ -5,6 +5,7 @@ import { Empty } from '@/components/ui'
 import { AuthProvider } from '@/features/auth/AuthContext'
 import { LoginPage, RegisterPage } from '@/features/auth/AuthPages'
 import { RequireAuth } from '@/features/auth/RequireAuth'
+import { ProfilePage } from '@/features/profile/ProfilePage'
 
 export function App() {
   return (
@@ -20,6 +21,7 @@ export function App() {
                 index
                 element={<Empty title="Welcome to JobRadar">Pages appear here as they land.</Empty>}
               />
+              <Route path="profile" element={<ProfilePage />} />
               <Route path="*" element={<Empty title="Page not found" />} />
             </Route>
           </Route>
