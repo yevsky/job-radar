@@ -65,13 +65,16 @@ def update_search_sources(
 def search_jobs(
     query: SearchQuery, user: CurrentUser, db: DbSession, sources: SearchSources
 ) -> SearchResponse:
-    """Search your chosen sources (all, by default) with the form. Results are not saved."""
+    """Search your chosen sources (all, by default) with the form. Results are not saved.
+
+    `page` asks for the next results of the same form; only page 1 counts toward the limit.
+    """
     try:
         return run_search(db, user, query, sources, settings.search_results_per_source)
     except EmptyQueryError as err:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail='Add a position or at least one skill',
+            detail='Add a position to search for',
         ) from err
     except SearchLimitError as err:
         raise HTTPException(

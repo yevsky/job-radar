@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.models.enums import EmploymentType, ExperienceLevel
+from app.models.enums import ExperienceLevel
 from app.schemas.job_offer import JobOfferImport
 from app.schemas.search import PostedWithin, SearchQuery
 from app.search_sources.base import SearchSource, SearchSourceError
@@ -18,24 +18,19 @@ def make_result(number: int) -> JobOfferImport:
     )
 
 
-QUERY = SearchQuery(position='Python developer', skills=['FastAPI'])
+QUERY = SearchQuery(position='Python developer')
 
 
 # SearchQuery.text()
 
 
-def test_text_joins_all_parts() -> None:
-    query = SearchQuery(
-        position='Python developer',
-        experience_level=ExperienceLevel.JUNIOR,
-        skills=['FastAPI', 'PostgreSQL'],
-        locations=['Wrocław', 'Remote'],
-    )
-    assert query.text() == 'junior Python developer FastAPI PostgreSQL Wrocław OR Remote'
+def test_text_joins_position_and_cities() -> None:
+    query = SearchQuery(position='Junior Python developer', locations=['Wrocław', 'Remote'])
+    assert query.text() == 'Junior Python developer Wrocław OR Remote'
 
 
 def test_text_skips_empty_parts() -> None:
-    query = SearchQuery(position='  ', skills=['Python', ' '], locations=[''])
+    query = SearchQuery(position=' Python ', locations=['', ' '])
     assert query.text() == 'Python'
 
 
@@ -48,28 +43,31 @@ def test_text_of_empty_query_is_empty() -> None:
     assert SearchQuery().text() == ''
 
 
-def test_remote_only_adds_remote_once() -> None:
-    assert SearchQuery(position='Tester', remote_only=True).text() == 'Tester Remote'
-    query = SearchQuery(position='Tester', locations=['remote'], remote_only=True)
-    assert query.text() == 'Tester remote'
-
-
 def test_filters_are_not_in_the_phrase() -> None:
-    query = SearchQuery(
-        position='Tester',
-        employment_types=[EmploymentType.B2B],
-        posted_within=PostedWithin.WEEK,
+    query = SearchQuery(position='Tester', country='de', posted_within=PostedWithin.WEEK, page=2)
+    assert query.text() == 'Tester'
+
+
+def test_country_defaults_to_the_setting_and_is_lowercased() -> None:
+    assert SearchQuery().country == 'pl'
+    assert SearchQuery(country=' DE ').country == 'de'
+
+
+def test_old_fields_are_ignored() -> None:
+    """An older frontend may still send skills or a level; they don't fail the search."""
+    query = SearchQuery.model_validate(
+        {'position': 'Tester', 'skills': ['Python'], 'experience_level': 'junior'}
     )
     assert query.text() == 'Tester'
+    assert query.wanted_level() is None
 
 
 @pytest.mark.parametrize(
     ('fields', 'empty'),
     [
         ({}, True),
-        ({'position': '  ', 'skills': [' '], 'locations': ['Wrocław']}, True),
+        ({'position': '  ', 'locations': ['Wrocław']}, True),
         ({'position': 'Tester'}, False),
-        ({'skills': ['Python']}, False),
     ],
 )
 def test_is_empty(fields: dict[str, object], empty: bool) -> None:
@@ -80,14 +78,15 @@ def test_is_empty(fields: dict[str, object], empty: bool) -> None:
     'fields',
     [
         {'position': 'x' * 121},
-        {'skills': ['x' * 51]},
-        {'skills': [f'skill {n}' for n in range(11)]},
         {'locations': [f'city {n}' for n in range(6)]},
+        {'locations': ['x' * 101]},
         {'posted_within': 'year'},
-        {'employment_types': ['freelance']},
+        {'country': 'poland'},
+        {'page': 0},
+        {'page': 11},
     ],
 )
-def test_query_rejects_too_long_input(fields: dict[str, object]) -> None:
+def test_query_rejects_wrong_input(fields: dict[str, object]) -> None:
     with pytest.raises(ValidationError):
         SearchQuery.model_validate(fields)
 
@@ -98,12 +97,34 @@ def test_query_rejects_too_long_input(fields: dict[str, object]) -> None:
 def test_fake_returns_its_results() -> None:
     results = [make_result(1), make_result(2)]
     source = FakeSearchSource(results=results)
-    assert source.search(QUERY, limit=10) == results
+    page = source.search(QUERY, limit=10)
+    assert page.offers == results
+    assert page.has_more is False
 
 
-def test_fake_respects_limit() -> None:
+def test_fake_respects_limit_and_has_more() -> None:
     source = FakeSearchSource(results=[make_result(n) for n in range(5)])
-    assert len(source.search(QUERY, limit=2)) == 2
+    page = source.search(QUERY, limit=2)
+    assert len(page.offers) == 2
+    assert page.has_more is True
+
+
+def test_fake_returns_the_asked_page() -> None:
+    source = FakeSearchSource(results=[make_result(n) for n in range(5)])
+
+    second = source.search(QUERY.model_copy(update={'page': 2}), limit=2)
+    third = source.search(QUERY.model_copy(update={'page': 3}), limit=2)
+    fourth = source.search(QUERY.model_copy(update={'page': 4}), limit=2)
+
+    assert [o.title for o in second.offers] == ['Backend Developer 2', 'Backend Developer 3']
+    assert second.has_more is True
+    assert [o.title for o in third.offers] == ['Backend Developer 4']
+    assert third.has_more is False
+    assert fourth.offers == []
+
+
+def test_fake_uses_no_filters() -> None:
+    assert FakeSearchSource().features == frozenset()
 
 
 def test_fake_records_queries() -> None:
@@ -115,7 +136,7 @@ def test_fake_records_queries() -> None:
 
 
 def test_fake_without_results_returns_empty_list() -> None:
-    assert FakeSearchSource().search(QUERY, limit=10) == []
+    assert FakeSearchSource().search(QUERY, limit=10).offers == []
 
 
 def test_failing_fake_raises_and_still_records_query() -> None:
@@ -152,14 +173,7 @@ def test_level_word_in_position_is_the_wanted_level() -> None:
     query = SearchQuery(position='Junior Python developer', locations=['Kraków'])
 
     assert query.wanted_level() == ExperienceLevel.JUNIOR
-    assert query.text() == 'junior Python developer Kraków'
-
-
-def test_level_field_wins_over_a_level_word_in_position() -> None:
-    query = SearchQuery(position='Senior Python developer', experience_level=ExperienceLevel.JUNIOR)
-
-    assert query.wanted_level() == ExperienceLevel.JUNIOR
-    assert query.text() == 'junior Python developer'  # 'Senior' is not sent
+    assert query.text() == 'Junior Python developer Kraków'  # the position is sent as written
 
 
 def test_no_level_anywhere_means_no_wanted_level() -> None:

@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 from app.dependencies import get_search_sources
 from app.main import app
 from app.schemas.job_offer import JobOfferImport
+from app.schemas.search import SourceFeature
 from app.search_sources.fake import FakeSearchSource
 from tests.conftest import register_and_login
 from tests.helpers import auth_header
@@ -52,7 +53,11 @@ def test_by_default_all_sources_are_available_and_nothing_is_chosen(
     response = api.get(URL, headers=auth_header(access_token))
 
     assert response.status_code == status.HTTP_200_OK
-    assert response.json() == {'available': ['tavily', 'jsearch'], 'chosen': None}
+    assert response.json() == {
+        'available': ['tavily', 'jsearch'],
+        'chosen': None,
+        'features': {'tavily': [], 'jsearch': []},  # fakes use no filter
+    }
 
 
 def test_by_default_a_search_asks_every_source(api: TestClient, access_token: str) -> None:
@@ -63,7 +68,8 @@ def test_choosing_one_source_is_saved(api: TestClient, access_token: str) -> Non
     code, body = choose(api, access_token, ['jsearch'])
 
     assert code == status.HTTP_200_OK
-    assert body == {'available': ['tavily', 'jsearch'], 'chosen': ['jsearch']}
+    assert body['available'] == ['tavily', 'jsearch']
+    assert body['chosen'] == ['jsearch']
     assert api.get(URL, headers=auth_header(access_token)).json()['chosen'] == ['jsearch']
 
 
@@ -127,3 +133,13 @@ def test_chosen_source_turned_off_falls_back_to_all(api: TestClient, access_toke
     ]  # the admin turned JSearch off
 
     assert found_via(api, access_token) == ['tavily']
+
+
+def test_features_say_which_filters_each_source_uses(api: TestClient, access_token: str) -> None:
+    jsearch = FakeSearchSource(name='jsearch')
+    jsearch.features = frozenset({SourceFeature.COUNTRY, SourceFeature.PAGES})
+    app.dependency_overrides[get_search_sources] = lambda: [jsearch]
+
+    body = api.get(URL, headers=auth_header(access_token)).json()
+
+    assert body['features'] == {'jsearch': ['country', 'pages']}

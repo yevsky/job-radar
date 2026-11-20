@@ -12,10 +12,10 @@ from pydantic import SecretStr
 
 from app.dependencies import get_search_sources
 from app.main import app
-from app.models.enums import EmploymentType, ExperienceLevel
+from app.models.enums import EmploymentType
 from app.schemas.search import PostedWithin, SearchQuery
 from app.search_sources.base import SearchSourceError
-from app.search_sources.jsearch import JSEARCH_URL, JSearchSource
+from app.search_sources.jsearch import JSEARCH_URL, JSearchSource, location_of
 from app.search_sources.registry import build_sources
 from app.search_sources.tavily import TavilySource
 from tests.helpers import auth_header
@@ -23,7 +23,7 @@ from tests.helpers import auth_header
 DATA = Path(__file__).parent / 'data'
 SAMPLE = json.loads((DATA / 'jsearch.json').read_text(encoding='utf-8'))
 TAVILY_SAMPLE = json.loads((DATA / 'tavily.json').read_text(encoding='utf-8'))
-QUERY = SearchQuery(position='Python developer', skills=['FastAPI'])
+QUERY = SearchQuery(position='Python developer')
 
 Handler = Callable[[httpx.Request], httpx.Response]
 
@@ -66,7 +66,7 @@ def sent_params(requests: list[httpx.Request]) -> dict[str, str]:
 
 
 def test_sample_maps_to_offers() -> None:
-    offers = make_source(answer()).search(QUERY, 10)
+    offers = make_source(answer()).search(QUERY, 10).offers
 
     assert [o.title for o in offers] == [
         'Junior Python Developer',
@@ -85,78 +85,91 @@ def test_sample_maps_to_offers() -> None:
 
 
 def test_remote_job_has_remote_location() -> None:
-    remote = make_source(answer()).search(QUERY, 10)[1]
+    remote = make_source(answer()).search(QUERY, 10).offers[1]
 
-    assert remote.location == 'Remote'
+    assert remote.location == 'Poland (remote)'  # job_location plus remote
     assert remote.employment_type == EmploymentType.CONTRACT
     assert remote.technologies == []  # job_required_skills was null
     assert remote.deadline is None
 
 
 def test_unknown_employment_type_gives_none() -> None:
-    temporary = make_source(answer()).search(QUERY, 10)[2]
+    temporary = make_source(answer()).search(QUERY, 10).offers[2]
 
     assert temporary.employment_type is None
 
 
 def test_without_job_location_city_and_country_are_used() -> None:
-    temporary = make_source(answer()).search(QUERY, 10)[2]
+    temporary = make_source(answer()).search(QUERY, 10).offers[2]
 
     assert temporary.location == 'Kraków, PL'
 
 
 def test_skill_names_that_are_too_long_are_dropped() -> None:
-    temporary = make_source(answer()).search(QUERY, 10)[2]
+    temporary = make_source(answer()).search(QUERY, 10).offers[2]
 
     assert temporary.technologies == ['Django']
 
 
 def test_broken_job_is_skipped_and_the_rest_returned() -> None:
-    offers = make_source(answer()).search(QUERY, 10)
+    offers = make_source(answer()).search(QUERY, 10).offers
 
     assert len(offers) == 3  # 4 in the sample, the one without employer_name is left out
 
 
 def test_results_are_cut_to_the_limit() -> None:
-    assert len(make_source(answer()).search(QUERY, 2)) == 2
+    assert len(make_source(answer()).search(QUERY, 2).offers) == 2
+
+
+def test_remote_job_in_a_city_keeps_the_city() -> None:
+    job = {'job_is_remote': True, 'job_location': 'Warszawa, Mazowieckie, Poland'}
+
+    assert location_of(job) == 'Warszawa, Mazowieckie, Poland (remote)'
+
+
+def test_short_page_has_no_more() -> None:
+    assert make_source(answer()).search(QUERY, 10).has_more is False  # 4 jobs of 10
+
+
+def test_full_page_may_have_more() -> None:
+    jobs = SAMPLE['data']['jobs']
+    full = {'data': {'jobs': [jobs[0]] * 10}}
+
+    assert make_source(answer(200, full)).search(QUERY, 10).has_more is True
+
+
+def test_jsearch_uses_every_filter() -> None:
+    assert make_source(answer()).features == {'country', 'posted_within', 'pages'}
 
 
 # --- the request -----------------------------------------------------------------------
 
 
-def test_request_sends_query_country_and_api_key(
+def test_request_sends_query_page_country_and_api_key(
     recording: JSearchSource, requests: list[httpx.Request]
 ) -> None:
-    recording.search(QUERY, 5)
+    recording.search(QUERY.model_copy(update={'locations': ['Warsaw', 'Wrocław']}), 5)
 
     request = requests[0]
     assert request.method == 'GET'
     assert request.url.copy_with(query=None) == httpx.URL(JSEARCH_URL)
     assert request.headers['x-api-key'] == 'jsearch-test-key'
     assert sent_params(requests) == {
-        'query': 'Python developer FastAPI',
+        'query': 'Python developer Warsaw OR Wrocław',
+        'page': '1',
         'num_pages': '1',
         'country': 'pl',
     }
 
 
-def test_form_filters_become_jsearch_filters(
+def test_form_country_and_page_are_sent(
     recording: JSearchSource, requests: list[httpx.Request]
 ) -> None:
-    query = QUERY.model_copy(
-        update={
-            'employment_types': [EmploymentType.FULL_TIME, EmploymentType.CONTRACT],
-            'remote_only': True,
-            'posted_within': PostedWithin.WEEK,
-        }
-    )
-
-    recording.search(query, 5)
+    recording.search(QUERY.model_copy(update={'country': 'de', 'page': 3}), 5)
 
     params = sent_params(requests)
-    assert params['employment_types'] == 'FULLTIME,CONTRACTOR'
-    assert params['work_from_home'] == 'true'
-    assert params['date_posted'] == 'week'
+    assert params['country'] == 'de'
+    assert params['page'] == '3'
 
 
 @pytest.mark.parametrize(
@@ -174,34 +187,14 @@ def test_posted_within_becomes_date_posted(
     assert sent_params(requests)['date_posted'] == date_posted
 
 
-def test_wanted_level_is_not_sent_as_a_jsearch_filter(
+def test_level_stays_in_the_phrase_and_is_not_a_jsearch_filter(
     recording: JSearchSource, requests: list[httpx.Request]
 ) -> None:
-    """job_requirements gave 0 jobs for Poland; collect_results filters by level instead."""
-    recording.search(QUERY.model_copy(update={'experience_level': ExperienceLevel.JUNIOR}), 5)
+    """job_requirements gave 0 jobs for Poland; the level is a word in the position instead."""
+    recording.search(QUERY.model_copy(update={'position': 'Junior Python developer'}), 5)
 
     assert 'job_requirements' not in sent_params(requests)
-    assert sent_params(requests)['query'] == 'junior Python developer FastAPI'
-
-
-def test_b2b_is_left_out_of_the_filter(
-    recording: JSearchSource, requests: list[httpx.Request]
-) -> None:
-    query = QUERY.model_copy(
-        update={'employment_types': [EmploymentType.B2B, EmploymentType.INTERNSHIP]}
-    )
-
-    recording.search(query, 5)
-
-    assert sent_params(requests)['employment_types'] == 'INTERN'
-
-
-def test_only_b2b_sends_no_employment_filter(
-    recording: JSearchSource, requests: list[httpx.Request]
-) -> None:
-    recording.search(QUERY.model_copy(update={'employment_types': [EmploymentType.B2B]}), 5)
-
-    assert 'employment_types' not in sent_params(requests)
+    assert sent_params(requests)['query'] == 'Junior Python developer'
 
 
 # --- errors ----------------------------------------------------------------------------
