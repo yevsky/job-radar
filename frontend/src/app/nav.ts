@@ -33,4 +33,9 @@ export const navSections: NavSection[] = [
       { to: '/calendar', label: 'Calendar', icon: 'calendar' },
     ],
   },
+  {
+    title: 'Admin',
+    adminOnly: true,
+    items: [{ to: '/admin/users', label: 'Users and limits', icon: 'sliders' }],
+  },
 ]
