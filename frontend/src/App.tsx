@@ -5,6 +5,8 @@ import { Empty } from '@/components/ui'
 import { AuthProvider } from '@/features/auth/AuthContext'
 import { LoginPage, RegisterPage } from '@/features/auth/AuthPages'
 import { RequireAuth } from '@/features/auth/RequireAuth'
+import { NewOfferPage } from '@/features/offers/NewOfferPage'
+import { OfferDetailPage } from '@/features/offers/OfferDetailPage'
 import { OffersPage } from '@/features/offers/OffersPage'
 import { ProfilePage } from '@/features/profile/ProfilePage'
 
@@ -24,6 +26,8 @@ export function App() {
               />
               <Route path="profile" element={<ProfilePage />} />
               <Route path="offers" element={<OffersPage />} />
+              <Route path="offers/new" element={<NewOfferPage />} />
+              <Route path="offers/:id" element={<OfferDetailPage />} />
               <Route path="*" element={<Empty title="Page not found" />} />
             </Route>
           </Route>
