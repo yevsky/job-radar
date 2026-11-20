@@ -1,3 +1,4 @@
+from datetime import date, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
@@ -9,11 +10,13 @@ from app.schemas.application import (
     ApplicationCreate,
     ApplicationRead,
     ApplicationUpdate,
+    CalendarEvent,
     StatusChangeRead,
 )
 from app.services.application import (
     ApplicationNotFoundError,
     OfferNotFoundError,
+    calendar,
     create_application,
     delete_application,
     get_history,
@@ -21,6 +24,8 @@ from app.services.application import (
     to_read,
     update_application,
 )
+
+MAX_CALENDAR_DAYS = 92
 
 router = APIRouter(
     prefix='/applications', tags=['applications'], dependencies=[Depends(get_current_user)]
@@ -53,6 +58,28 @@ def add_application(
     if not created:
         response.status_code = status.HTTP_200_OK
     return to_read(application)
+
+
+# The fixed paths come before /{application_id}, so FastAPI doesn't try to read 'calendar' as an id.
+@router.get('/calendar', response_model=list[CalendarEvent])
+def read_calendar(
+    db: DbSession,
+    user: CurrentUser,
+    start: Annotated[date, Query(alias='from')],
+    end: Annotated[date, Query(alias='to')],
+) -> list[CalendarEvent]:
+    """Applied dates, status changes, interviews and deadlines between two days (inclusive)."""
+    if start > end:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="'from' must not be after 'to'",
+        )
+    if end - start > timedelta(days=MAX_CALENDAR_DAYS):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=f'Ask for at most {MAX_CALENDAR_DAYS} days at a time',
+        )
+    return calendar(db, user.id, start, end)
 
 
 @router.patch('/{application_id}', response_model=ApplicationRead)
