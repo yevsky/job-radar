@@ -9,6 +9,7 @@ import { NewOfferPage } from '@/features/offers/NewOfferPage'
 import { OfferDetailPage } from '@/features/offers/OfferDetailPage'
 import { OffersPage } from '@/features/offers/OffersPage'
 import { ProfilePage } from '@/features/profile/ProfilePage'
+import { SavedPage } from '@/features/saved/SavedPage'
 import { SearchPage } from '@/features/search/SearchPage'
 
 export function App() {
@@ -30,6 +31,7 @@ export function App() {
               <Route path="offers" element={<OffersPage />} />
               <Route path="offers/new" element={<NewOfferPage />} />
               <Route path="offers/:id" element={<OfferDetailPage />} />
+              <Route path="saved" element={<SavedPage />} />
               <Route path="*" element={<Empty title="Page not found" />} />
             </Route>
           </Route>
