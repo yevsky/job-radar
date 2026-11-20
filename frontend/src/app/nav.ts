@@ -18,7 +18,10 @@ export const navSections: NavSection[] = [
   { items: [{ to: '/', label: 'Dashboard', icon: 'home' }] },
   {
     title: 'You',
-    items: [{ to: '/profile', label: 'Profile', icon: 'user' }],
+    items: [
+      { to: '/profile', label: 'Profile', icon: 'user' },
+      { to: '/cvs', label: 'My CVs', icon: 'file' },
+    ],
   },
   {
     title: 'Job search',
