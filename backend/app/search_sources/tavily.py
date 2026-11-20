@@ -6,23 +6,14 @@ import httpx
 from pydantic import ValidationError
 
 from app.core.levels import guess_level
-from app.models.enums import EmploymentType
+from app.core.locations import guess_location
 from app.schemas.job_offer import JobOfferImport
-from app.schemas.search import SearchQuery
-from app.search_sources.base import SearchSource, SearchSourceError
+from app.schemas.search import SearchQuery, SourceFeature
+from app.search_sources.base import SearchSource, SearchSourceError, SourcePage
 
 TAVILY_URL = 'https://api.tavily.com/search'
 TIMEOUT_SECONDS = 15
-MAX_RESULTS = 20
-
-# Tavily has no employment type filter, so these words are added to the phrase instead.
-EMPLOYMENT_WORDS = {
-    EmploymentType.FULL_TIME: 'full-time',
-    EmploymentType.PART_TIME: 'part-time',
-    EmploymentType.CONTRACT: 'contract',
-    EmploymentType.INTERNSHIP: 'internship',
-    EmploymentType.B2B: 'B2B',
-}
+MAX_RESULTS = 20  # the most Tavily returns for one search; it has no pages of its own
 
 # "Python Developer - Codesky" or "Python Developer – Codesky"
 DASH = re.compile(r'\s[-–—]\s')
@@ -63,8 +54,19 @@ def board_of(host: str) -> str | None:
     return next((b for b in OFFER_PATHS if host == b or host.endswith(f'.{b}')), None)
 
 
-def is_offer_page(url: object) -> bool:
-    """False for a job board page that lists many offers instead of showing one."""
+# Titles of pages that list many offers: 'Python Jobs in Warsaw', '11,000+ Open Roles'
+LIST_TITLE = re.compile(
+    r'\b(?:\d[\d,.]*\+?\s+(?:new\s+|open\s+)?(?:jobs|roles|positions|offers|ofert)'
+    r'|jobs\s+in|job\s+offers\s+in|oferty\s+pracy)\b',
+    re.IGNORECASE,
+)
+
+
+def is_offer_page(url: object, page_title: str = '') -> bool:
+    """False for a page that lists many offers instead of showing one: a job board's list
+    path, or any site's title like 'Python Jobs in Warsaw (1,200 open roles)'."""
+    if LIST_TITLE.search(page_title):
+        return False
     host = host_of(url)
     board = board_of(host) if host else None
     if board is None:
@@ -126,12 +128,28 @@ def company_from_url(url: object, title: str) -> str | None:
     return company.strip('-').replace('-', ' ').title() or None
 
 
-def to_offer(row: object) -> JobOfferImport | None:
-    """Turn one Tavily result into an offer, best effort; None if it isn't a single offer."""
-    if not isinstance(row, dict) or not is_offer_page(row.get('url')):
+def location_from_url(url: object, page_title: str, wanted: list[str] | None = None) -> str | None:
+    """Guess the city from the offer link or the page title; Tavily sends no location.
+
+    Job boards put the city in the link ('.../codesky-python-developer-warszawa-python')
+    and LinkedIn in the title ('Python Developer at Codesky — Wrocław - LinkedIn').
+    """
+    slug = urlsplit(url).path if isinstance(url, str) else ''
+    return guess_location(slug, page_title, wanted=wanted)
+
+
+def to_offer(row: object, wanted: list[str] | None = None) -> JobOfferImport | None:
+    """Turn one Tavily result into an offer, best effort; None if it isn't a single offer.
+
+    `wanted` are the cities the user asked for, so a city we don't list is found too.
+    """
+    if not isinstance(row, dict):
         return None
     url = row.get('url')
-    title, company = split_title(str(row.get('title') or ''))
+    page_title = str(row.get('title') or '')
+    if not is_offer_page(url, page_title):
+        return None
+    title, company = split_title(page_title)
     description = row.get('content') or None
     try:
         return JobOfferImport.model_validate(
@@ -139,6 +157,7 @@ def to_offer(row: object) -> JobOfferImport | None:
                 'title': title[:200],
                 'company_name': company or company_from_url(url, title) or host_of(url),
                 'url': url,
+                'location': location_from_url(url, page_title, wanted),
                 'experience_level': guess_level(title, str(description or '')),
                 'description': description,
             }
@@ -151,6 +170,10 @@ class TavilySource(SearchSource):
     """Web search through Tavily. It returns pages, not job data, so mapping is best effort."""
 
     name = 'tavily'
+    # No country: include_domains already picks the job boards, and the cities are in the
+    # phrase. No pages: Tavily can't skip results, so one search asks for all MAX_RESULTS
+    # (a basic search costs 1 credit whatever the count).
+    features = frozenset({SourceFeature.POSTED_WITHIN})
 
     def __init__(
         self, api_key: str, domains: list[str], client: httpx.Client | None = None
@@ -159,13 +182,13 @@ class TavilySource(SearchSource):
         self.domains = domains
         self.client = client or httpx.Client(timeout=TIMEOUT_SECONDS)  # tests pass their own
 
-    def build_body(self, query: SearchQuery, limit: int) -> dict[str, Any]:
-        """The JSON body of the request: the phrase plus Tavily's own filters."""
-        words = [query.text(), *(EMPLOYMENT_WORDS[t] for t in query.employment_types)]
-        body: dict[str, Any] = {
-            'query': ' '.join(word for word in words if word),
-            'max_results': min(limit, MAX_RESULTS),
-        }
+    def build_body(self, query: SearchQuery) -> dict[str, Any]:
+        """The JSON body of the request: the phrase plus Tavily's own filters.
+
+        Always the most results Tavily gives: many are list pages or other cities and get
+        left out, so asking for fewer left almost nothing to show.
+        """
+        body: dict[str, Any] = {'query': query.text(), 'max_results': MAX_RESULTS}
         if query.posted_within:
             body['time_range'] = query.posted_within.value  # Tavily uses the same day/week/month
         if self.domains:
@@ -194,10 +217,17 @@ class TavilySource(SearchSource):
             raise SearchSourceError('Tavily sent a response we could not read')
         return results
 
-    def search(self, query: SearchQuery, limit: int) -> list[JobOfferImport]:
-        rows = self.send(self.build_body(query, limit))
-        offers = [offer for row in rows if (offer := to_offer(row)) is not None]
-        return offers[:limit]
+    def search(self, query: SearchQuery, limit: int) -> SourcePage:
+        """Everything Tavily found, on page 1; `limit` is not used, since the results that
+        survive the filters are few. Later pages are empty and cost no credit."""
+        del limit
+        if query.page > 1:
+            return SourcePage()
+        rows = self.send(self.build_body(query))
+        wanted = query.cities()
+        offers = [offer for row in rows if (offer := to_offer(row, wanted)) is not None]
+        # rows that weren't one offer (list pages, broken rows) count as hidden too
+        return SourcePage(offers=offers, has_more=False, skipped=len(rows) - len(offers))
 
     def test(self) -> bool:
         try:

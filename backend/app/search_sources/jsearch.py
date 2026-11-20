@@ -6,22 +6,21 @@ from pydantic import ValidationError
 from app.core.levels import guess_level
 from app.models.enums import EmploymentType
 from app.schemas.job_offer import JobOfferImport
-from app.schemas.search import PostedWithin, SearchQuery
-from app.search_sources.base import SearchSource, SearchSourceError
+from app.schemas.search import PostedWithin, SearchQuery, SourceFeature
+from app.search_sources.base import SearchSource, SearchSourceError, SourcePage
 
 # OpenWeb Ninja's own API
 JSEARCH_URL = 'https://api.openwebninja.com/jsearch/search-v2'
 TIMEOUT_SECONDS = 15
+JSEARCH_PAGE_SIZE = 10
 
-# Our employment types -> JSearch's
-# B2B has no JSearch value, so it is left out of the filter
-TO_JSEARCH = {
-    EmploymentType.FULL_TIME: 'FULLTIME',
-    EmploymentType.PART_TIME: 'PARTTIME',
-    EmploymentType.CONTRACT: 'CONTRACTOR',
-    EmploymentType.INTERNSHIP: 'INTERN',
+# JSearch's employment types -> ours (B2B has no JSearch value)
+FROM_JSEARCH = {
+    'FULLTIME': EmploymentType.FULL_TIME,
+    'PARTTIME': EmploymentType.PART_TIME,
+    'CONTRACTOR': EmploymentType.CONTRACT,
+    'INTERN': EmploymentType.INTERNSHIP,
 }
-FROM_JSEARCH = {value: key for key, value in TO_JSEARCH.items()}
 
 DATE_POSTED = {
     PostedWithin.DAY: 'today',
@@ -31,15 +30,16 @@ DATE_POSTED = {
 
 
 def location_of(job: dict[str, Any]) -> str | None:
-    """'Remote' for a remote job, else JSearch's 'City, Region, Country', else city and country."""
-    if job.get('job_is_remote'):
-        return 'Remote'
+    """JSearch's 'City, Region, Country', else city and country; '(remote)' added for a
+    remote job, so the city still counts in the city filter. Just 'Remote' without a place."""
     location = job.get('job_location')
-    if isinstance(location, str) and location.strip():
-        return location.strip()[:100]
-    parts = [job.get('job_city'), job.get('job_country')]
-    text = ', '.join(part for part in parts if isinstance(part, str) and part.strip())
-    return text[:100] or None
+    if not isinstance(location, str) or not location.strip():
+        parts = [job.get('job_city'), job.get('job_country')]
+        location = ', '.join(part for part in parts if isinstance(part, str) and part.strip())
+    location = location.strip()
+    if job.get('job_is_remote'):
+        location = f'{location[:90]} (remote)' if location else 'Remote'
+    return location[:100] or None
 
 
 def employment_type_of(job: dict[str, Any]) -> EmploymentType | None:
@@ -89,24 +89,26 @@ class JSearchSource(SearchSource):
     """Job postings through JSearch (OpenWeb Ninja): structured data, so mapping is direct."""
 
     name = 'jsearch'
+    features = frozenset(SourceFeature)  # country, date_posted and page are JSearch filters
 
     def __init__(
         self, api_key: str, country: str = 'pl', client: httpx.Client | None = None
     ) -> None:
         self.api_key = api_key
-        self.country = country  # JSearch searches the US unless told otherwise
+        self.country = country  # for test(); a search sends the form's country
         self.client = client or httpx.Client(timeout=TIMEOUT_SECONDS)  # tests pass their own
 
     def build_params(self, query: SearchQuery) -> dict[str, str]:
         """The query string of the request: the phrase plus JSearch's own filters."""
         # No job_requirements: Google Jobs rarely tags offers outside the US with experience,
-        # so that filter returned 0 jobs for Poland. The level filter in collect_results is used.
-        params = {'query': query.text(), 'num_pages': '1', 'country': self.country}
-        types = [TO_JSEARCH[t] for t in query.employment_types if t in TO_JSEARCH]
-        if types:
-            params['employment_types'] = ','.join(types)
-        if query.remote_only:
-            params['work_from_home'] = 'true'
+        # so that filter returned 0 jobs for Poland. The level is a word in the position, and
+        # the level filter in collect_results drops offers far from it.
+        params = {
+            'query': query.text(),
+            'page': str(query.page),
+            'num_pages': '1',
+            'country': query.country,  # JSearch searches the US unless told otherwise
+        }
         if query.posted_within:
             params['date_posted'] = DATE_POSTED[query.posted_within]
         return params
@@ -133,10 +135,11 @@ class JSearchSource(SearchSource):
             raise SearchSourceError('JSearch sent a response we could not read')
         return jobs
 
-    def search(self, query: SearchQuery, limit: int) -> list[JobOfferImport]:
+    def search(self, query: SearchQuery, limit: int) -> SourcePage:
         jobs = self.send(self.build_params(query))
         offers = [offer for job in jobs if (offer := to_offer(job)) is not None]
-        return offers[:limit]
+        # a JSearch page holds 10 jobs; a full page means the next one may have more
+        return SourcePage(offers=offers[:limit], has_more=len(jobs) >= JSEARCH_PAGE_SIZE)
 
     def test(self) -> bool:
         try:

@@ -4,11 +4,12 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.levels import fits_level
+from app.core.levels import fits_level, levels_in
+from app.core.locations import location_fits
 from app.models import SearchRun, User
+from app.models.enums import ExperienceLevel
 from app.schemas.search import (
     MAX_LOCATIONS,
-    MAX_SKILLS,
     SearchLimitRead,
     SearchQuery,
     SearchResponse,
@@ -22,7 +23,7 @@ from app.services.job_offer_import import normalize_url
 
 
 class EmptyQueryError(Exception):
-    """The search form has no position and no skills, so there is nothing to search for."""
+    """The search form has no position, so there is nothing to search for."""
 
 
 class SearchLimitError(Exception):
@@ -51,7 +52,9 @@ def chosen_sources(user: User, sources: list[SearchSource]) -> list[SearchSource
 
 def get_source_choice(user: User, sources: list[SearchSource]) -> SearchSourcesRead:
     return SearchSourcesRead(
-        available=[source.name for source in sources], chosen=user.search_sources
+        available=[source.name for source in sources],
+        chosen=user.search_sources,
+        features={source.name: sorted(source.features) for source in sources},
     )
 
 
@@ -70,17 +73,38 @@ def set_source_choice(
     return get_source_choice(user, sources)
 
 
+# How a level is written in front of a position: 'Junior Python developer'
+LEVEL_WORD = {
+    ExperienceLevel.TRAINEE: 'Intern',
+    ExperienceLevel.JUNIOR: 'Junior',
+    ExperienceLevel.MIDDLE: 'Mid',
+    ExperienceLevel.SENIOR: 'Senior',
+    ExperienceLevel.LEAD: 'Lead',
+}
+
+
+def position_with_level(position: str | None, level: ExperienceLevel | None) -> str | None:
+    """The profile's position with its level in front, unless the position names one.
+
+    ('Python developer', junior) -> 'Junior Python developer'; ('Senior dev', junior) stays.
+    """
+    if not position or not position.strip():
+        return None
+    position = position.strip()
+    if level is None or levels_in(position):
+        return position
+    return f'{LEVEL_WORD[level]} {position}'[:120]
+
+
 def default_search_query(user: User) -> SearchQuery:
     """The search form prefilled from the profile: job fields only, never name, bio or email."""
     profile = user.profile
     return SearchQuery(
-        position=profile.desired_position if profile else None,
-        experience_level=profile.experience_level if profile else None,
-        skills=[technology.name for technology in user.technologies][:MAX_SKILLS],
+        position=position_with_level(
+            profile.desired_position if profile else None,
+            profile.experience_level if profile else None,
+        ),
         locations=[preferred.location for preferred in user.preferred_locations][:MAX_LOCATIONS],
-        employment_types=[
-            preferred.employment_type for preferred in user.preferred_employment_types
-        ],
     )
 
 
@@ -110,27 +134,38 @@ def get_usage(db: Session, user: User) -> SearchUsage:
 
 def collect_results(
     query: SearchQuery, sources: list[SearchSource], limit: int
-) -> tuple[list[SearchResult], list[SourceError]]:
-    """Ask every source and merge the answers.
+) -> tuple[list[SearchResult], list[SourceError], bool, int]:
+    """Ask every source for the query's page and merge the answers.
 
     A source that fails is listed in errors and the others still count. A link found by
-    two sources (same normalized URL) is returned once, from the first source. When the
-    form asks for a level, offers more than one level away are left out.
+    two sources (same normalized URL) is returned once, from the first source. Offers more
+    than one level away from a level in the position are left out, and so are offers in a
+    city the user didn't ask for. The bool is True if any source may have another page; the
+    int counts what was left out: by the city and level filters, or by the source itself
+    (Tavily's list pages).
     """
     wanted = query.wanted_level()
+    cities = query.cities()
     results: list[SearchResult] = []
     errors: list[SourceError] = []
     seen_urls: set[str] = set()
+    has_more = False
+    hidden = 0
 
     for source in sources:
         try:
-            offers = source.search(query, limit)
+            page = source.search(query, limit)
         except SearchSourceError as err:
             errors.append(SourceError(source=source.name, message=str(err)))
             continue
+        has_more = has_more or page.has_more
+        hidden += page.skipped
 
-        for offer in offers:
-            if wanted and not fits_level(offer.title, offer.experience_level, wanted):
+        for offer in page.offers:
+            if (wanted and not fits_level(offer.title, offer.experience_level, wanted)) or (
+                not location_fits(offer.location, cities)
+            ):
+                hidden += 1
                 continue
             url = normalize_url(str(offer.url))
             if url in seen_urls:
@@ -138,7 +173,7 @@ def collect_results(
             seen_urls.add(url)
             results.append(SearchResult(**offer.model_dump(), found_via=source.name))
 
-    return results, errors
+    return results, errors, has_more, hidden
 
 
 def run_search(
@@ -146,25 +181,33 @@ def run_search(
 ) -> SearchResponse:
     """Run one search for the user, within their daily limit. Results are not saved.
 
-    Only a small SearchRun row (who, when, how many results) is stored, to count searches.
+    Only page 1 counts as a search: a small SearchRun row (who, when, how many results) is
+    stored for it. Next pages of the same form are free, up to MAX_PAGE.
     """
     if query.is_empty():
         raise EmptyQueryError
 
     usage = get_usage(db, user)
-    if usage.left_today == 0:
+    first_page = query.page == 1
+    if first_page and usage.left_today == 0:
         raise SearchLimitError  # checked before any source is called, so it costs nothing
 
-    results, errors = collect_results(query, chosen_sources(user, sources), limit)
+    results, errors, has_more, hidden = collect_results(query, chosen_sources(user, sources), limit)
 
-    db.add(SearchRun(user_id=user.id, result_count=len(results)))
-    db.commit()
+    left = usage.left_today
+    if first_page:
+        db.add(SearchRun(user_id=user.id, result_count=len(results)))
+        db.commit()
+        left -= 1
 
     return SearchResponse(
         query=query.text(),
         results=results,
         errors=errors,
-        searches_left_today=usage.left_today - 1,
+        searches_left_today=left,
+        page=query.page,
+        has_more=has_more,
+        hidden=hidden,
     )
 
 
