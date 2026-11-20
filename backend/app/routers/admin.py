@@ -10,7 +10,7 @@ from app.models.enums import SourceKind
 from app.models.role import RoleName
 from app.schemas.job_offer import ImportReport, JobOfferRead, JobOfferStatusUpdate
 from app.schemas.search import SearchLimitRead, SearchLimitUpdate, SourceStatus
-from app.schemas.user import UserRead
+from app.schemas.user import AdminUserRead
 from app.services.job_offer import delete_job_offer, set_job_offer_active
 from app.services.job_offer_import import ImportFileError, import_offers, parse_json_rows
 from app.services.search import UserNotFoundError, set_search_limit
@@ -23,7 +23,7 @@ router = APIRouter(
 )
 
 
-@router.get('/users', response_model=list[UserRead])
+@router.get('/users', response_model=list[AdminUserRead])
 def get_all_users(db: DbSession) -> Sequence[User]:
     """Return the list of all users."""
     return db.scalars(select(User).order_by(User.id)).all()
