@@ -1,0 +1,38 @@
+import type { ApplicationStatus, EmploymentType, ExperienceLevel, SourceKind } from '@/api/enums'
+
+export const experienceLabel: Record<ExperienceLevel, string> = {
+  trainee: 'Trainee',
+  junior: 'Junior',
+  middle: 'Mid',
+  senior: 'Senior',
+  lead: 'Lead',
+}
+
+export const employmentLabel: Record<EmploymentType, string> = {
+  full_time: 'Full-time',
+  part_time: 'Part-time',
+  contract: 'Contract',
+  internship: 'Internship',
+  b2b: 'B2B',
+}
+
+export const sourceLabel: Record<SourceKind, string> = {
+  search: 'Found by search',
+  browser: 'Sent from browser',
+  manual: 'Imported',
+  posted: 'Posted',
+}
+
+export const statusLabel: Record<ApplicationStatus, string> = {
+  saved: 'Saved',
+  applied: 'Applied',
+  screening: 'Screening',
+  interview: 'Interview',
+  offer: 'Offer',
+  accepted: 'Accepted',
+  rejected: 'Rejected',
+  declined: 'Declined',
+}
+
+/** CSS colour variable for a status, used by badges, the board and the charts. */
+export const statusColor = (status: ApplicationStatus) => `var(--st-${status})`
