@@ -7,6 +7,7 @@ from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.validation import format_errors
 from app.models import JobOffer
 from app.models.enums import SourceKind
 from app.schemas.job_offer import ImportReport, ImportRowError, JobOfferImport
@@ -49,13 +50,6 @@ def normalize_url(url: str) -> str:
         if not is_tracking_param(name)
     )
     return urlunsplit((parts.scheme.lower(), host, path, urlencode(query), ''))
-
-
-def format_errors(error: ValidationError) -> str:
-    """Turn Pydantic's error list into one readable line, e.g. 'title: Field required; url: ...'."""
-    return '; '.join(
-        f'{".".join(str(part) for part in e["loc"]) or "row"}: {e["msg"]}' for e in error.errors()
-    )
 
 
 def fill_offer(db: Session, offer: JobOffer, data: JobOfferImport, now: datetime) -> None:
