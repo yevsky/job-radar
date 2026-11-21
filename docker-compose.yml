@@ -12,5 +12,26 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  ollama:
+    image: ollama/ollama:latest
+    container_name: job-radar-ollama
+    profiles: ["ai"]
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    environment:
+      OLLAMA_CONTEXT_LENGTH: 8192
+      OLLAMA_KEEP_ALIVE: 30m
+    volumes:
+      - ollama_data:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
 volumes:
   postgres_data:
+  ollama_data:
