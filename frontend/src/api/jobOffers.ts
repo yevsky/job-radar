@@ -44,6 +44,28 @@ export interface JobOfferCreate {
   description?: string | null
 }
 
+/** Pasted posting limits, the same as JobOfferParseRequest in backend/app/schemas/ai.py. */
+export const MIN_POSTING_LENGTH = 50
+export const MAX_POSTING_LENGTH = 20_000
+
+/** Answer of POST /job-offers/parse (JobOfferParseResponse): a draft to check. Nothing is saved. */
+export interface JobOfferDraft {
+  title: string
+  company_name: string | null
+  location: string | null
+  experience_level: ExperienceLevel | null
+  employment_type: EmploymentType | null
+  /** A day, 'YYYY-MM-DD'. */
+  deadline: string | null
+  technologies: string[]
+  /** The link the user gave, or the first link found in the text. */
+  url: string | null
+  /** The pasted text. */
+  description: string
+  /** Provider and model, e.g. 'ollama/qwen2.5:3b'. */
+  parsed_with: string
+}
+
 export interface JobOfferFilters {
   technology: string[]
   location: string
@@ -85,6 +107,13 @@ export const createJobOffer = (data: JobOfferCreate) =>
   existing(
     () => request<JobOfferRead>('/job-offers', { method: 'POST', body: data }),
     () => mockOffers.create(data, 'manual'),
+  )
+
+/** The AI reads a pasted posting into form fields. Saves nothing; 502 if the AI didn't answer. */
+export const parseJobOffer = (text: string) =>
+  existing(
+    () => request<JobOfferDraft>('/job-offers/parse', { method: 'POST', body: { text } }),
+    () => mockOffers.parse(text),
   )
 
 export const deleteJobOffer = (id: number) =>
