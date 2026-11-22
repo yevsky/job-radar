@@ -1,8 +1,15 @@
 repos:
   - repo: local
     hooks:
-      - id: just-check
-        name: just check
+      - id: backend-check
+        name: backend (ruff, mypy, pytest)
         entry: just check
         language: system
+        files: ^backend/
+        pass_filenames: false
+      - id: frontend-check
+        name: frontend (tsc, eslint, prettier, vitest)
+        entry: just frontend-check
+        language: system
+        files: ^frontend/
         pass_filenames: false
