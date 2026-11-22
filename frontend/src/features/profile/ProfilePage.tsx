@@ -4,7 +4,10 @@ import { Link } from 'react-router-dom'
 import { EMPLOYMENT_TYPES, EXPERIENCE_LEVELS, type ExperienceLevel } from '@/api/enums'
 import * as profileApi from '@/api/profile'
 import type { ProfileRead, ProfileUpdate } from '@/api/profile'
+import { getSearchSources, getSearchUsage } from '@/api/search'
+import { Icon } from '@/components/Icon'
 import { ErrorBox, Loading, PageHeader, TagInput, ToggleChips } from '@/components/ui'
+import { SourcePicker } from '@/features/search/SourcePicker'
 import { employmentLabel, experienceLabel } from '@/lib/labels'
 import { useAsync } from '@/lib/useAsync'
 
@@ -12,7 +15,7 @@ export function ProfilePage() {
   const profile = useAsync(() => profileApi.getProfile(), [])
 
   return (
-    <>
+    <div className="page-center">
       <PageHeader
         icon="user"
         title="Profile"
@@ -25,8 +28,71 @@ export function ProfilePage() {
       />
       {profile.loading && !profile.data && <Loading />}
       {profile.error && <ErrorBox error={profile.error} onRetry={profile.reload} />}
-      {profile.data && <ProfileForm initial={profile.data} onSaved={profile.setData} />}
-    </>
+      {profile.data && (
+        <div className="profile-grid">
+          <ProfileForm initial={profile.data} onSaved={profile.setData} />
+          <SearchSettings profile={profile.data} />
+        </div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * The user's search settings next to the profile: which sources to ask (saved right away,
+ * like on the search page), how many searches are left today and what the search form
+ * takes from the profile.
+ */
+function SearchSettings({ profile }: { profile: ProfileRead }) {
+  const sources = useAsync(() => getSearchSources(), [])
+  const usage = useAsync(() => getSearchUsage(), [])
+  const position = [profile.experience_level, profile.desired_position].filter(Boolean).join(' ')
+  const prefill: [string, string][] = [
+    ['Position', position || 'not set'],
+    ['Skills', profile.skills.slice(0, 10).join(', ') || 'none'],
+    ['Cities', profile.preferred_locations.join(', ') || 'none'],
+  ]
+
+  return (
+    <aside className="stack">
+      <section className="card">
+        <div className="card-head">
+          <div>
+            <h2>Your search</h2>
+            <p>Where we look for offers and what the search form starts with.</p>
+          </div>
+        </div>
+        <div className="stack" style={{ gap: 16 }}>
+          <div className="field">
+            <span className="label">Search sources</span>
+            {sources.loading && !sources.data && <span className="hint">Loading sources…</span>}
+            {sources.error && !sources.data && (
+              <span className="hint">{sources.error.message}</span>
+            )}
+            {sources.data && <SourcePicker data={sources.data} onChange={sources.setData} />}
+          </div>
+          {usage.data && (
+            <div className="field">
+              <span className="label">Searches today</span>
+              <span>
+                {usage.data.left_today} of {usage.data.daily_limit} left
+              </span>
+            </div>
+          )}
+          <dl className="prefill">
+            {prefill.map(([term, value]) => (
+              <div key={term}>
+                <dt className="muted small">{term}</dt>
+                <dd>{value}</dd>
+              </div>
+            ))}
+          </dl>
+          <Link to="/search" className="btn">
+            <Icon name="search" size={16} /> Find jobs
+          </Link>
+        </div>
+      </section>
+    </aside>
   )
 }
 
@@ -98,7 +164,7 @@ function ProfileForm({
   }
 
   return (
-    <form className="stack" onSubmit={save} style={{ maxWidth: 820 }}>
+    <form className="stack" onSubmit={save}>
       <section className="card">
         <div className="card-head">
           <div>
