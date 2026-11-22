@@ -19,6 +19,7 @@ from app.search_sources.tavily import (
     is_only_a_place,
     location_from_url,
     page_text,
+    read_row,
     split_title,
     to_offer,
 )
@@ -285,10 +286,13 @@ def test_tavily_uses_only_the_date_filter() -> None:
     assert make_source(answer()).features == {'posted_within'}
 
 
-def test_rows_that_are_not_offers_count_as_skipped() -> None:
+def test_list_pages_are_hidden_with_the_reason_and_broken_rows_skipped() -> None:
     page = make_source(answer()).search(QUERY, 10)
 
-    assert page.skipped == 2  # the list page and the broken row
+    assert [(h.offer.title, h.reason) for h in page.hidden] == [
+        ('Python Jobs Wrocław', 'list_page')
+    ]
+    assert page.skipped == 1  # the row with 'not a link' can't even be shown
 
 
 def test_max_results_is_at_most_20(recording: TavilySource, requests: list[httpx.Request]) -> None:
@@ -499,3 +503,26 @@ def test_a_city_is_never_the_company() -> None:
     )
     assert offer is not None
     assert offer.company_name != 'Wrocław'
+
+
+@pytest.mark.parametrize(
+    ('found', 'reason'),
+    [
+        (row('Junior Python Developer', content='No longer accepting applications'), 'closed'),
+        (row('Wroclaw', content='Junior Python Developer'), 'expired'),
+        (row('Python Jobs in Wrocław', 'https://nofluffjobs.com/pl/wroclaw/python'), 'list_page'),
+        (row('Junior Python Developer'), None),
+    ],
+)
+def test_read_row_says_why_a_result_is_hidden(found: dict[str, Any], reason: str | None) -> None:
+    offer, why = read_row(found)
+    assert offer is not None  # still readable, so the user can look at it
+    assert why == reason
+
+
+def test_closed_offers_are_in_the_hidden_list() -> None:
+    body = {'results': [row('Junior Python Developer', LINKEDIN_OFFER, 'Offer expired')]}
+    page = make_source(answer(body=body)).search(QUERY, 10)
+
+    assert page.offers == []
+    assert [(str(h.offer.url), h.reason) for h in page.hidden] == [(LINKEDIN_OFFER, 'closed')]

@@ -396,3 +396,70 @@ def test_without_cities_every_place_is_kept(
     body = search(api, access_token, {'position': 'Python developer'})
 
     assert len(result_urls(body)) == 1
+
+
+def hidden(body: dict[str, object]) -> list[tuple[str, str]]:
+    rows = body['hidden_results']
+    assert isinstance(rows, list)
+    return [(row['title'], row['hidden_because']) for row in rows]
+
+
+def test_hidden_results_come_with_the_reason(
+    api: TestClient, access_token: str, use_sources: UseSources
+) -> None:
+    use_sources(
+        FakeSearchSource(
+            results=[
+                make_result('jobs/1', 'Junior Python Developer', 'Wrocław'),
+                make_result('jobs/2', 'Junior Python Developer', 'Katowice'),
+                make_result('jobs/3', 'Senior Python Developer', 'Wrocław'),
+            ]
+        )
+    )
+
+    body = search(
+        api, access_token, {'position': 'Junior Python developer', 'locations': ['Wrocław']}
+    )
+
+    assert result_urls(body) == ['https://example.com/jobs/1']
+    assert hidden(body) == [
+        ('Junior Python Developer', 'other_city'),
+        ('Senior Python Developer', 'other_level'),
+    ]
+    assert body['hidden'] == 2
+
+
+def test_a_hidden_result_has_everything_needed_to_save_it(
+    api: TestClient, access_token: str, use_sources: UseSources
+) -> None:
+    use_sources(FakeSearchSource(results=[make_result('jobs/1', location='Katowice')]))
+
+    body = search(api, access_token, {'position': 'Python developer', 'locations': ['Wrocław']})
+
+    rows = body['hidden_results']
+    assert isinstance(rows, list)
+    assert rows[0]['url'] == 'https://example.com/jobs/1'
+    assert rows[0]['found_via'] == 'fake'
+    assert rows[0]['company_name'] == 'Codesky'
+
+
+def test_a_link_hidden_by_one_source_and_found_by_another_is_shown_once(
+    api: TestClient, access_token: str, use_sources: UseSources
+) -> None:
+    use_sources(
+        FakeSearchSource('first', results=[make_result('jobs/1', location='Wrocław')]),
+        FakeSearchSource('second', results=[make_result('jobs/1', location='Wrocław')]),
+    )
+
+    body = search(api, access_token, {'position': 'Python developer', 'locations': ['Wrocław']})
+
+    assert result_urls(body) == ['https://example.com/jobs/1']
+    assert hidden(body) == []
+
+
+def test_without_hidden_results_the_list_is_empty(
+    api: TestClient, access_token: str, use_sources: UseSources
+) -> None:
+    use_sources(FakeSearchSource(results=[make_result('jobs/1')]))
+    body = search(api, access_token)
+    assert (body['hidden'], body['hidden_results']) == (0, [])

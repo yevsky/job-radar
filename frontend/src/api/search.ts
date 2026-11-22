@@ -44,6 +44,13 @@ export interface SearchResult extends JobOfferCreate {
   posted_at?: string | null
 }
 
+/** Why a found offer is not among the results (the backend's HiddenReason). */
+export type HiddenReason = 'list_page' | 'closed' | 'expired' | 'other_city' | 'other_level'
+
+export interface HiddenResult extends SearchResult {
+  hidden_because: HiddenReason
+}
+
 export interface SearchResponse {
   query: string
   results: SearchResult[]
@@ -53,6 +60,8 @@ export interface SearchResponse {
   has_more: boolean
   /** Results left out: list pages, other cities, levels far from the position. */
   hidden?: number
+  /** The left-out offers that could be read, with the reason. */
+  hidden_results?: HiddenResult[]
   /** Only page 1 counts as a search. */
   searches_left_today?: number
 }

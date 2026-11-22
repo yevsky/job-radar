@@ -6,6 +6,7 @@ import {
   MAX_PAGE,
   runSearch,
   saveSearchResult,
+  type HiddenResult,
   type SearchQuery,
   type SearchResponse,
   type SearchResult,
@@ -18,7 +19,6 @@ import { useAsync } from '@/lib/useAsync'
 import { ResultCard } from './ResultCard'
 import { ResultDetail } from './ResultDetail'
 import { SearchFilters } from './SearchFilters'
-import { sortResults, type SortKey } from './searchUtils'
 
 export function SearchPage() {
   const defaults = useAsync(() => getSearchDefaults(), [])
@@ -36,11 +36,8 @@ export function SearchPage() {
   )
 }
 
-const SORTS: { key: SortKey; label: string }[] = [
-  { key: 'relevant', label: 'Most relevant' },
-  { key: 'salary', label: 'Best paid' },
-  { key: 'newest', label: 'Newest' },
-]
+/** Which list is shown: the results, or what the filters and the sources left out. */
+type View = 'found' | 'hidden'
 
 /** The last search that ran, page by page. Paging reuses its form even if the filters were
  * edited since; pages already fetched are shown again without asking the sources. */
@@ -60,7 +57,7 @@ function SearchView({ initial }: { initial: SearchQuery }) {
     isEmptyQuery(initial) ? null : 'search',
   )
   const [error, setError] = useState<Error>()
-  const [sort, setSort] = useState<SortKey>('relevant')
+  const [view, setView] = useState<View>('found')
   const [selectedUrl, setSelectedUrl] = useState<string | null>(null)
   const [showFilters, setShowFilters] = useState(false)
   const [saved, setSaved] = useState<Record<string, number>>({})
@@ -82,6 +79,7 @@ function SearchView({ initial }: { initial: SearchQuery }) {
     setBusy('search')
     setError(undefined)
     setSelectedUrl(null)
+    setView('found')
     try {
       setRun({ query, pages: { 1: await runSearch(query, 1) }, current: 1 })
     } catch (err) {
@@ -104,8 +102,16 @@ function SearchView({ initial }: { initial: SearchQuery }) {
     try {
       const response = await runSearch(run.query, page)
       // a link already shown on an earlier page is not shown again
-      const known = new Set(Object.values(run.pages).flatMap((p) => p.results.map((r) => r.url)))
-      const fresh = { ...response, results: response.results.filter((r) => !known.has(r.url)) }
+      const known = new Set(
+        Object.values(run.pages).flatMap((p) =>
+          [...p.results, ...(p.hidden_results ?? [])].map((r) => r.url),
+        ),
+      )
+      const fresh = {
+        ...response,
+        results: response.results.filter((r) => !known.has(r.url)),
+        hidden_results: (response.hidden_results ?? []).filter((r) => !known.has(r.url)),
+      }
       setRun({ ...run, pages: { ...run.pages, [page]: fresh }, current: page })
     } catch (err) {
       setError(err instanceof Error ? err : new Error(String(err)))
@@ -130,7 +136,10 @@ function SearchView({ initial }: { initial: SearchQuery }) {
   }
 
   const response = run?.pages[run.current]
-  const results = response ? sortResults(response.results, sort) : []
+  const found = response?.results ?? []
+  const hidden: HiddenResult[] = response?.hidden_results ?? []
+  const results: SearchResult[] = view === 'found' ? found : hidden
+  const reasonOf = (url: string) => hidden.find((h) => h.url === url)?.hidden_because
   const last = run ? lastPage(run) : 1
   const canNext =
     !!run && run.current < MAX_PAGE && (run.current < last || !!run.pages[last]?.has_more)
@@ -160,17 +169,28 @@ function SearchView({ initial }: { initial: SearchQuery }) {
 
       <section className="results" aria-live="polite" ref={topRef}>
         <div className="results-bar">
-          <div className="row" role="group" aria-label="Sort results">
-            {SORTS.map((s) => (
-              <button
-                key={s.key}
-                className="pill"
-                aria-pressed={sort === s.key}
-                onClick={() => setSort(s.key)}
-              >
-                {s.label}
-              </button>
-            ))}
+          <div className="row" role="group" aria-label="Show">
+            <button
+              className="pill"
+              aria-pressed={view === 'found'}
+              onClick={() => {
+                setView('found')
+                setSelectedUrl(null)
+              }}
+            >
+              Show found{response ? ` (${found.length})` : ''}
+            </button>
+            <button
+              className="pill"
+              aria-pressed={view === 'hidden'}
+              onClick={() => {
+                setView('hidden')
+                setSelectedUrl(null)
+              }}
+              title="Offers the sources sent that we left out: lists of offers, closed or expired offers, other cities and levels far from the position"
+            >
+              Show hidden{response ? ` (${hidden.length})` : ''}
+            </button>
           </div>
           {detailMode && (
             <button className="btn btn-sm" onClick={() => setShowFilters(!showFilters)}>
@@ -183,12 +203,14 @@ function SearchView({ initial }: { initial: SearchQuery }) {
           <div className="row small muted" style={{ justifyContent: 'space-between' }}>
             <span className="row" style={{ gap: 8 }}>
               <strong style={{ color: 'var(--text)' }}>
-                {results.length} offers · page {run.current}
+                {view === 'found'
+                  ? `${found.length} offers · page ${run.current}`
+                  : `${hidden.length} hidden · page ${run.current}`}
               </strong>
               <DemoBadge feature="search" />
-              {!!response.hidden && (
-                <span title="The sources sent these too, but they list many offers, are in another city or are far from the level in the position">
-                  · {response.hidden} hidden (list pages, other cities, levels)
+              {view === 'hidden' && (response.hidden ?? 0) > hidden.length && (
+                <span title="Rows a source sent without a title or a working link">
+                  · {(response.hidden ?? 0) - hidden.length} more couldn&apos;t be read
                 </span>
               )}
               {response.searches_left_today !== undefined && (
@@ -211,7 +233,10 @@ function SearchView({ initial }: { initial: SearchQuery }) {
         {!run && busy === null && !error && (
           <Empty title="Start a search">Add a position in the filters.</Empty>
         )}
-        {run && busy === null && results.length === 0 && (
+        {run && busy === null && view === 'hidden' && results.length === 0 && (
+          <Empty title="Nothing hidden">Every offer the sources sent on this page is shown.</Empty>
+        )}
+        {run && busy === null && view === 'found' && results.length === 0 && (
           <Empty title={run.current > 1 ? 'No more offers' : 'Nothing found'}>
             {run.current > 1
               ? 'The sources had nothing new on this page.'
@@ -227,6 +252,7 @@ function SearchView({ initial }: { initial: SearchQuery }) {
                 result={r}
                 selected={r.url === selectedUrl}
                 compact={detailMode}
+                hiddenBecause={view === 'hidden' ? reasonOf(r.url) : undefined}
                 savedId={saved[r.url]}
                 now={now}
                 onOpen={() => setSelectedUrl(r.url)}
