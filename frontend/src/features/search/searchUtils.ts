@@ -14,7 +14,8 @@ export function formatSalary(r: SearchResult): string | null {
       ? `${money.format(r.salary_min)}–${money.format(r.salary_max)}`
       : money.format((r.salary_max ?? r.salary_min)!)
   const period = r.salary_period ? ` / ${PERIOD[r.salary_period]}` : ''
-  return `${range} ${r.salary_currency ?? ''}${period}`.replace(/\s+/g, ' ').trim()
+  // only plain spaces: \s would also turn the narrow no-break spaces in 12 000 into breaking ones
+  return `${range} ${r.salary_currency ?? ''}${period}`.replace(/ +/g, ' ').trim()
 }
 
 /** Why a result is hidden, in the user's words. */
