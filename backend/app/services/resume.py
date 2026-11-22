@@ -54,6 +54,18 @@ class ProfileLimitError(Exception):
     """Copying the CV data would go over a profile limit (50 skills, 10 locations)."""
 
 
+# LaTeX fonts (Computer Modern) draw "ł" as two glyphs: a stroke called "suppress" and an "l".
+# pypdf has no Unicode letter for "suppress", so it writes the glyph's name: 'Wroc/suppresslaw'.
+TEX_LETTERS = {'/suppressl': 'ł', '/suppressL': 'Ł'}
+
+
+def fix_tex_letters(text: str) -> str:
+    """'Wroc/suppresslaw' -> 'Wrocław'; a stray '/suppress' left over is removed."""
+    for glyphs, letter in TEX_LETTERS.items():
+        text = text.replace(glyphs, letter)
+    return text.replace('/suppress', '')
+
+
 def pdf_text(content: bytes) -> str:
     """All text of a PDF, page by page. Raises ResumeFileError if there is none to read."""
     if not content.startswith(b'%PDF'):
@@ -74,6 +86,7 @@ def pdf_text(content: bytes) -> str:
 
     # Postgres text can't hold NUL characters, and some PDFs contain them
     text = '\n\n'.join(page.strip() for page in pages if page.strip()).replace('\x00', '')
+    text = fix_tex_letters(text)
     if not text:
         raise ResumeFileError(
             'The PDF has no text to read. A scanned CV is only an image: '

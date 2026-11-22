@@ -28,3 +28,15 @@ def test_empty_pages_are_skipped() -> None:
 def test_unreadable_files_raise_a_clear_error(content: bytes, message: str) -> None:
     with pytest.raises(ResumeFileError, match=message):
         pdf_text(content)
+
+
+@pytest.mark.parametrize(
+    ('drawn', 'expected'),
+    [
+        ('Wroc\x01law, Poland', 'Wrocław, Poland'),
+        ('\x01Lukasz Ma\x01lecki', 'Łukasz Małecki'),
+    ],
+)
+def test_latex_letter_l_with_stroke_is_read(drawn: str, expected: str) -> None:
+    """LaTeX CVs draw "ł" as a "suppress" stroke plus "l"; pypdf gives 'Wroc/suppresslaw'."""
+    assert pdf_text(make_pdf(drawn, tex_font=True)) == expected
