@@ -15,6 +15,8 @@ import { mockResumes } from '@/mocks/resumes'
 export interface ResumeExtracted {
   desired_position: string | null
   experience_level: ExperienceLevel | null
+  /** Years of work, counted by the backend from the CV's job dates. */
+  experience_years?: number | null
   skills: string[]
   locations: string[]
   employment_types: EmploymentType[]
@@ -32,8 +34,13 @@ export interface Resume {
   applied_to_profile_at: string | null
 }
 
-/** Only the fields the user ticked are sent. */
-export type ResumeApply = Partial<ResumeExtracted>
+/**
+ * Only the fields the user ticked are sent. Skills are added to the profile's by default;
+ * `skills_mode: 'replace'` keeps only the CV's.
+ */
+export type ResumeApply = Partial<Omit<ResumeExtracted, 'summary' | 'experience_years'>> & {
+  skills_mode?: 'add' | 'replace'
+}
 
 export const listResumes = () =>
   planned(
