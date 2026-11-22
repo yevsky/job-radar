@@ -7,6 +7,8 @@ answer always gives the same score and every point can be explained:
     required skills 45 | nice-to-have 10 | level 20 | location 10 | employment type 5 | role fit 10
 """
 
+import re
+
 from app.ai.base import AIProvider
 from app.ai.prompts import OFFER_ANALYSIS_VERSION, offer_analysis_messages
 from app.ai.structured import generate
@@ -26,14 +28,39 @@ EMPLOYMENT_TYPE_POINTS = 5
 
 
 def covering_skill(requirement: Requirement, skills_by_key: dict[str, str]) -> str | None:
-    """The user's skill the model says covers this requirement, if the user really has it.
+    """The user's skill that covers this requirement, if the user really has it.
 
+    The skill the model named, else the requirement itself when it is one of the user's skills
+    (a small model sometimes leaves `skill` empty for 'Django' even if the user has Django).
     Compared ignoring case and spaces. A skill that isn't in the user's list (the model made
     it up, or took it from the posting) counts as no match.
     """
-    if requirement.skill is None:
-        return None
-    return skills_by_key.get(requirement.skill.strip().lower())
+    for name in (requirement.skill, requirement.text):
+        if name is not None and (skill := skills_by_key.get(name.strip().lower())) is not None:
+            return skill
+    return None
+
+
+def mentions(text: str, name: str) -> bool:
+    """True if the text names it as a whole word: 'Python 3' mentions Python, 'Jython' not."""
+    pattern = rf'(?<!\w){re.escape(name.casefold())}(?!\w)'
+    return re.search(pattern, text.casefold()) is not None
+
+
+def with_offer_technologies(
+    requirements: list[Requirement], technologies: list[str]
+) -> list[Requirement]:
+    """The model's requirements plus every technology the offer lists that none of them names.
+
+    The offer's own list is data we trust more than a small model's reading of the text:
+    v2 with qwen2.5:3b left out Django, Git and SQL of an offer that listed them.
+    """
+    extra = [
+        Requirement(text=technology, required=True)
+        for technology in technologies
+        if not any(mentions(r.text, technology) for r in requirements)
+    ]
+    return [*requirements, *extra]
 
 
 def match_skills(
@@ -114,7 +141,8 @@ def employment_type_points(
 def score_breakdown(
     offer: JobOfferImport, profile: ProfileRead, output: OfferAnalysisOutput
 ) -> ScoreBreakdown:
-    required, nice = skill_points(output.requirements, profile.skills)
+    requirements = with_offer_technologies(output.requirements, offer.technologies)
+    required, nice = skill_points(requirements, profile.skills)
     offer_level = offer.experience_level or guess_level(offer.title, offer.description)
     return ScoreBreakdown(
         required_skills=required,
@@ -147,7 +175,8 @@ def analyse(
     """
     messages = offer_analysis_messages(offer, profile, resume_text)
     output = generate(provider, messages, OfferAnalysisOutput)
-    matched, missing = match_skills(output.requirements, profile.skills)
+    requirements = with_offer_technologies(output.requirements, offer.technologies)
+    matched, missing = match_skills(requirements, profile.skills)
     breakdown = score_breakdown(offer, profile, output)
     return AnalysisResult(
         score=breakdown.total,

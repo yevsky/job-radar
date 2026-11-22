@@ -1,11 +1,21 @@
 """What the AI model must answer for each task. Validated by app/ai/structured.generate."""
 
+import re
 from datetime import date
 from enum import StrEnum
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field, HttpUrl, UrlConstraints, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    HttpUrl,
+    UrlConstraints,
+    field_validator,
+    model_validator,
+)
 
+from app.core.levels import cap_level_by_years
 from app.models.enums import EmploymentType, ExperienceLevel
 from app.schemas.job_offer import TechnologyName
 from app.schemas.profile import unique_ignoring_case
@@ -103,6 +113,78 @@ def cut_text(value: object, max_chars: int) -> object:
     return value.strip()[:max_chars] or None
 
 
+# Words a CV uses for a job that hasn't ended
+ONGOING = {
+    'present',
+    'now',
+    'current',
+    'currently',
+    'today',
+    'obecnie',
+    'teraz',
+    'nadal',
+    'ongoing',
+}
+YEAR_MONTH = re.compile(r'^(\d{4})(?:[-./ ](\d{1,2}))?(?:[-./ ]\d{1,2})?$')  # 2026-03, 2026
+MONTH_YEAR = re.compile(r'^(\d{1,2})[-./ ](\d{4})$')  # 03/2026, 3.2026
+
+
+def month_of(value: object) -> date | None:
+    """The first day of the month a CV date names: '2026-03', '03/2026', '2026' (January);
+    None for anything else, including 'present'."""
+    if isinstance(value, date):
+        return value.replace(day=1)
+    if not isinstance(value, str):
+        return None
+    text = value.strip()
+    if match := YEAR_MONTH.match(text):
+        year, month = int(match.group(1)), int(match.group(2) or 1)
+    elif match := MONTH_YEAR.match(text):
+        month, year = int(match.group(1)), int(match.group(2))
+    else:
+        return None
+    if not (1 <= month <= 12 and 1950 <= year <= 2100):
+        return None
+    return date(year, month, 1)
+
+
+class WorkPeriod(AIAnswer):
+    """One job or internship from a CV: its first and last month; no end means it goes on."""
+
+    title: str = Field(default='', max_length=200)
+    start: date
+    end: date | None = None
+
+    @field_validator('title', mode='before')
+    @classmethod
+    def cut_title(cls, value: object) -> object:
+        return value[:200] if isinstance(value, str) else ''
+
+    @field_validator('start', mode='before')
+    @classmethod
+    def start_month(cls, value: object) -> date | None:
+        return month_of(value)  # None fails validation: a job without a start is dropped
+
+    @field_validator('end', mode='before')
+    @classmethod
+    def end_month(cls, value: object) -> date | None:
+        """None for 'present', 'obecnie', null or a date we can't read: the job goes on."""
+        return month_of(value)
+
+    def months(self, today: date) -> set[int]:
+        """The months worked, as numbers (year * 12 + month), up to this month at most."""
+        first = self.start.year * 12 + self.start.month
+        end = min(self.end or today, today)
+        last = end.year * 12 + end.month
+        return set(range(first, last + 1))
+
+
+def years_of_work(jobs: list[WorkPeriod], today: date) -> float:
+    """Years worked, counting a month only once when jobs overlap; to two decimals."""
+    months: set[int] = set().union(*(job.months(today) for job in jobs))
+    return round(len(months) / 12, 2)
+
+
 class ResumeExtracted(AIAnswer):
     """What a CV says about the person's job wishes and skills.
 
@@ -112,6 +194,12 @@ class ResumeExtracted(AIAnswer):
 
     desired_position: str | None = Field(default=None, max_length=120)
     experience_level: ExperienceLevel | None = None
+    # Jobs and internships in IT with their dates; code counts the years from them, because
+    # the model doesn't know today's date ("2026-03 - present") and adds months badly.
+    jobs: list[WorkPeriod] | None = Field(default=None, max_length=20)
+    # Years of work in IT: counted by code from `jobs`; the model's own number only if it
+    # sent no jobs. Code uses it to cap experience_level (see the validator).
+    experience_years: float | None = None
     skills: list[str] = Field(default=[], max_length=50)
     locations: list[str] = Field(default=[], max_length=10)
     employment_types: list[EmploymentType] = []
@@ -132,6 +220,30 @@ class ResumeExtracted(AIAnswer):
     def known_level(cls, value: object) -> ExperienceLevel | None:
         return known_or_none(value, ExperienceLevel)
 
+    @field_validator('experience_years', mode='before')
+    @classmethod
+    def plausible_years(cls, value: object) -> float | None:
+        """A number from 0 to 60; anything else ('a few', -1, true) is dropped."""
+        if isinstance(value, bool) or not isinstance(value, int | float):
+            return None
+        return float(value) if 0 <= value <= 60 else None
+
+    @field_validator('jobs', mode='before')
+    @classmethod
+    def readable_jobs(cls, values: object) -> object:
+        """Jobs we can't read (no start, end before start) are dropped, not the whole answer."""
+        if not isinstance(values, list):
+            return None
+        jobs: list[WorkPeriod] = []
+        for value in values:
+            try:
+                job = WorkPeriod.model_validate(value)
+            except ValueError:
+                continue
+            if job.end is None or job.end >= job.start:
+                jobs.append(job)
+        return jobs[:20]
+
     @field_validator('skills', mode='before')
     @classmethod
     def clean_skills(cls, names: object) -> object:
@@ -151,6 +263,15 @@ class ResumeExtracted(AIAnswer):
         known = [known_or_none(value, EmploymentType) for value in values]
         return list(dict.fromkeys(value for value in known if value is not None))
 
+    @model_validator(mode='after')
+    def level_fits_the_years(self) -> 'ResumeExtracted':
+        """Code, not the model, has the last word: the years come from the job dates, and
+        the level can't be above them (8 months is never middle or senior)."""
+        if self.jobs is not None:
+            self.experience_years = years_of_work(self.jobs, date.today())
+        self.experience_level = cap_level_by_years(self.experience_level, self.experience_years)
+        return self
+
 
 class Requirement(AIAnswer):
     """One requirement of a posting and which of the candidate's skills covers it."""
@@ -168,6 +289,12 @@ class OfferAnalysisOutput(AIAnswer):
     summary: str = Field(max_length=300)
     reasons: list[str] = Field(default=[], max_length=5)
     red_flags: list[str] = Field(default=[], max_length=5)
+
+    @field_validator('reasons', 'red_flags')
+    @classmethod
+    def no_repeats(cls, points: list[str]) -> list[str]:
+        """A small model sometimes writes the same red flag twice."""
+        return unique_ignoring_case([p for p in points if p])
 
 
 class AIProviderStatus(BaseModel):

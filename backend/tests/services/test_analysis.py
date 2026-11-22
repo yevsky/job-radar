@@ -22,6 +22,7 @@ from app.services.analysis import (
     score,
     score_breakdown,
     skill_points,
+    with_offer_technologies,
 )
 
 J, M, S = ExperienceLevel.JUNIOR, ExperienceLevel.MIDDLE, ExperienceLevel.SENIOR
@@ -189,7 +190,12 @@ def test_a_perfect_match_scores_100() -> None:
 
 def test_the_breakdown_explains_every_point() -> None:
     breakdown = score_breakdown(
-        make_offer(location='Katowice', experience_level=M, employment_type=None),
+        make_offer(
+            location='Katowice',
+            experience_level=M,
+            employment_type=None,
+            technologies=['Python', 'Kubernetes'],  # both already in the requirements
+        ),
         make_profile(),
         output(
             requirements=[
@@ -308,3 +314,53 @@ def test_the_prompt_has_the_users_skills_but_not_their_name() -> None:
     assert '"skills": ["Python", "FastAPI", "PostgreSQL"]' in user_message
     assert 'Anna' not in user_message
     assert 'Kowalska' not in user_message
+
+
+# --- the offer's own technologies and the model's slips ------------------------------------
+
+
+def test_listed_technologies_the_model_left_out_become_required() -> None:
+    requirements = with_offer_technologies(
+        [req('Python 3', 'Python'), req('Poszukiwane cechy i umiejętności')],
+        ['Django', 'Python', 'SQL'],
+    )
+    assert [(r.text, r.required) for r in requirements] == [
+        ('Python 3', True),
+        ('Poszukiwane cechy i umiejętności', True),
+        ('Django', True),
+        ('SQL', True),
+    ]
+
+
+def test_a_technology_inside_another_word_is_not_counted_as_named() -> None:
+    requirements = with_offer_technologies([req('Jython scripting')], ['Python'])
+    assert [r.text for r in requirements] == ['Jython scripting', 'Python']
+
+
+def test_a_requirement_that_is_one_of_the_users_skills_matches_without_skill() -> None:
+    """A small model sometimes leaves `skill` empty for 'Django' when the user has Django."""
+    matched, missing = match_skills([req('django'), req('Git')], ['Python', 'Django'])
+    assert (matched, missing) == (['Django'], ['Git'])
+
+
+def test_the_analysis_adds_the_offers_technologies() -> None:
+    """The real v2 run: the model named only Python and a heading; the offer listed more."""
+    answer = output(
+        requirements=[
+            {'text': 'Python', 'required': True, 'skill': 'Python'},
+            {'text': 'Poszukiwane cechy i umiejętności', 'required': True, 'skill': None},
+        ]
+    )
+    provider = FakeAIProvider([json.dumps(answer.model_dump())])
+    offer = make_offer(technologies=['Django', 'Git', 'Python', 'SQL'])
+
+    result = analyse(provider, offer, make_profile(skills=['Python', 'SQL']))
+
+    assert result.matched_skills == ['Python', 'SQL']
+    assert result.missing_skills == ['Poszukiwane cechy i umiejętności', 'Django', 'Git']
+
+
+def test_repeated_reasons_and_red_flags_are_shown_once() -> None:
+    flag = 'The posting does not say the level.'
+    answer = output(reasons=['Python', 'python', ''], red_flags=[flag, flag.upper()])
+    assert (answer.reasons, answer.red_flags) == (['Python'], [flag])

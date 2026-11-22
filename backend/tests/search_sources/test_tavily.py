@@ -14,8 +14,11 @@ from app.search_sources.tavily import (
     TAVILY_URL,
     TavilySource,
     company_from_url,
+    is_closed,
     is_offer_page,
+    is_only_a_place,
     location_from_url,
+    page_text,
     split_title,
     to_offer,
 )
@@ -209,6 +212,7 @@ def test_request_sends_query_domains_and_key(
     body = sent_body(requests)
     assert body['query'] == 'Python developer'
     assert body['max_results'] == 20  # always the most: 1 credit whatever the count
+    assert body['include_raw_content'] == 'text'  # the full page, still 1 credit
     assert body['include_domains'] == DOMAINS
     assert 'country' not in body  # include_domains already picks the boards
     assert 'time_range' not in body
@@ -393,3 +397,105 @@ def test_level_is_read_from_the_title_or_years() -> None:
     assert by_years.experience_level == 'senior'
     assert unknown is not None
     assert unknown.experience_level is None
+
+
+# --- full pages, closed and expired offers -------------------------------------------------
+
+NFJ_OFFER = 'https://nofluffjobs.com/pl/job/junior-python-developer-masterborn-wroclaw'
+LINKEDIN_OFFER = 'https://pl.linkedin.com/jobs/view/junior-python-developer-at-capgemini-123'
+
+
+def row(
+    title: str, url: str = NFJ_OFFER, content: str = '', raw: str | None = None
+) -> dict[str, Any]:
+    return {'title': title, 'url': url, 'content': content, 'raw_content': raw}
+
+
+def test_the_full_page_becomes_the_description() -> None:
+    raw = 'Junior Python Developer\n\n\n  Stack: Python, FastAPI  \n\nB2B 50-80 PLN/h'
+    offer = to_offer(row('Junior Python Developer', content='short snippet', raw=raw))
+
+    assert offer is not None
+    assert offer.description == 'Junior Python Developer\nStack: Python, FastAPI\nB2B 50-80 PLN/h'
+
+
+def test_the_snippet_is_kept_when_there_is_no_full_page() -> None:
+    offer = to_offer(row('Junior Python Developer', content='short snippet'))
+    assert offer is not None
+    assert offer.description == 'short snippet'
+
+
+def test_a_long_page_is_cut_to_the_description_limit() -> None:
+    text = page_text('x' * 30_000)
+    assert text is not None
+    assert len(text) == 20_000
+
+
+@pytest.mark.parametrize('raw', [None, 42, '', ' \n \n'])
+def test_page_text_without_text_is_none(raw: object) -> None:
+    assert page_text(raw) is None
+
+
+@pytest.mark.parametrize(
+    ('snippet', 'raw'),
+    [
+        ('Capgemini · Wrocław · No longer accepting applications', None),
+        ('', 'Junior Python Developer\nCapgemini\nNo longer accepting applications'),
+        ('Ta oferta wygasła.', None),
+        ('', 'Nie przyjmuje już aplikacji'),
+    ],
+)
+def test_closed_offers_are_skipped(snippet: str, raw: str | None) -> None:
+    assert to_offer(row('Junior Python Developer', LINKEDIN_OFFER, snippet, raw)) is None
+
+
+def test_closed_only_looks_at_the_top_of_the_page() -> None:
+    """Further down, pages list other offers, some of them closed."""
+    raw = 'Junior Python Developer\n' + 'x' * 3_000 + '\nNo longer accepting applications'
+    assert not is_closed('', raw)
+    assert to_offer(row('Junior Python Developer', raw=raw)) is not None
+
+
+def test_an_expired_offer_redirected_to_a_list_is_skipped() -> None:
+    """No Fluff Jobs sends an expired offer's link to a search page titled with the city."""
+    assert to_offer(row('Wroclaw', content='Junior Python Developer. B2B 6 000 PLN')) is None
+
+
+@pytest.mark.parametrize(
+    ('text', 'expected'),
+    [
+        ('Wroclaw', True),
+        ('Wrocław, Poland', True),
+        ('Remote', True),
+        ('Bielsko-Biała', True),
+        ('Python Developer', False),
+        ('Capgemini', False),
+        ('', False),
+    ],
+)
+def test_is_only_a_place(text: str, expected: bool) -> None:
+    assert is_only_a_place(text) is expected
+
+
+@pytest.mark.parametrize(
+    ('page_title', 'expected'),
+    [
+        (
+            'Junior Python Developer w firmie Capgemini - Wrocław',
+            ('Junior Python Developer', 'Capgemini'),
+        ),
+        ('Junior Python Developer - Wrocław', ('Junior Python Developer', None)),
+    ],
+)
+def test_split_title_polish_company_and_a_city_after_the_dash(
+    page_title: str, expected: tuple[str, str | None]
+) -> None:
+    assert split_title(page_title) == expected
+
+
+def test_a_city_is_never_the_company() -> None:
+    offer = to_offer(
+        row('Junior Python Developer - Wrocław', 'https://www.pracuj.pl/praca/x,oferta,1004412345')
+    )
+    assert offer is not None
+    assert offer.company_name != 'Wrocław'

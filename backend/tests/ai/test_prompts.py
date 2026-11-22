@@ -114,6 +114,13 @@ def test_resume_extract_has_system_rules_and_resume() -> None:
     assert user.content == '<resume>\nPython developer, 2 years\n</resume>'
 
 
+def test_resume_extract_judges_the_level_by_years_not_skills() -> None:
+    system = resume_extract_messages('CV')[0].content
+    assert '"jobs"' in system  # in the schema: the model copies the dates, code counts
+    assert 'never by the number of skills' in system
+    assert RESUME_EXTRACT_VERSION == 'resume-extract-v3'
+
+
 def test_long_resume_is_cut() -> None:
     user = resume_extract_messages('y' * (MAX_RESUME_CHARS + 500))[1]
     assert user.content.count('y') == MAX_RESUME_CHARS

@@ -69,14 +69,36 @@ def level_from_years(text: str) -> ExperienceLevel | None:
     match = YEARS.search(text)
     if match is None:
         return None
-    years = int(match.group(1))
+    return level_for_years(int(match.group(1)))
+
+
+def level_for_years(years: float) -> ExperienceLevel:
+    """The level a number of years of work usually means, by the common guideline: under
+    1 trainee, under 2 junior, 2 to 5 middle, 5 or more senior."""
     if years < 1:
         return ExperienceLevel.TRAINEE
-    if years <= 2:
+    if years < 2:
         return ExperienceLevel.JUNIOR
-    if years <= 4:
+    if years < 5:
         return ExperienceLevel.MIDDLE
     return ExperienceLevel.SENIOR
+
+
+def cap_level_by_years(
+    level: ExperienceLevel | None, years: float | None
+) -> ExperienceLevel | None:
+    """A CV's level, never above what its years of work allow.
+
+    The model reads a long skills list as "senior"; the years are harder to get wrong.
+    With under a year the cap is junior, not trainee: a student with a first job looks for
+    junior roles. Without years the model's level stays; without a level the years decide.
+    """
+    if years is None:
+        return level
+    cap = max(level_for_years(years), ExperienceLevel.JUNIOR, key=LADDER.index)
+    if level is None:
+        return cap
+    return min(level, cap, key=LADDER.index)
 
 
 def guess_level(title: str, description: str | None = None) -> ExperienceLevel | None:

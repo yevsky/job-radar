@@ -5,10 +5,16 @@ def escape(text: str) -> str:
     return text.replace('\\', '\\\\').replace('(', '\\(').replace(')', '\\)')
 
 
-def make_pdf(*pages: str) -> bytes:
+# A LaTeX font's trick for "ł": character 1 is the glyph "suppress" (a stroke over the next l)
+TEX_ENCODING = b' /Encoding << /Type /Encoding /Differences [1 /suppress] >>'
+
+
+def make_pdf(*pages: str, tex_font: bool = False) -> bytes:
     """A valid PDF whose pages show the given text (ASCII; one line per '\\n').
 
     make_pdf() gives a page with no text at all, like a scanned CV without a text layer.
+    tex_font=True draws "\\x01" as the LaTeX "suppress" glyph, the stroke of "ł":
+    make_pdf("Wroc\\x01law", tex_font=True) reads as "Wrocław".
     """
     pages = pages or ('',)
     page_ids = [3 + 2 * n for n in range(len(pages))]
@@ -17,7 +23,9 @@ def make_pdf(*pages: str) -> bytes:
         1: b'<< /Type /Catalog /Pages 2 0 R >>',
         2: f'<< /Type /Pages /Kids [{" ".join(f"{i} 0 R" for i in page_ids)}] '
         f'/Count {len(pages)} >>'.encode(),
-        font_id: b'<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+        font_id: b'<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica'
+        + (TEX_ENCODING if tex_font else b'')
+        + b' >>',
     }
     for page_id, text in zip(page_ids, pages, strict=True):
         lines = ' T* '.join(f'({escape(line)}) Tj' for line in text.split('\n') if line)

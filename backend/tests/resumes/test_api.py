@@ -239,3 +239,19 @@ def test_delete_my_cv(
 
     assert response.status_code == status.HTTP_204_NO_CONTENT
     assert count_resumes(db) == 0
+
+
+def test_a_latex_cv_of_a_student_reads_wroclaw_and_junior(
+    api: TestClient, access_token: str, use_provider: UseProvider, db: Session
+) -> None:
+    """The two bugs from a real CV: 'Wroc/suppresslaw' in the text, and 'senior' for 8 months."""
+    student = {**EXTRACTED, 'experience_level': 'senior', 'experience_years': 0.75}
+    use_provider(FakeAIProvider(responses=[answer(student)]))
+    pdf = make_pdf('Computer Engineering student\nWroc\x01law, Poland', tex_font=True)
+
+    body = upload(api, access_token, content=pdf).json()
+
+    resume = db.get(Resume, body['id'])
+    assert resume is not None
+    assert 'Wrocław, Poland' in resume.text
+    assert body['extracted']['experience_level'] == 'junior'
