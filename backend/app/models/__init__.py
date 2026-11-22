@@ -2,6 +2,7 @@
 
 from app.models.application import Application, ApplicationStatusChange
 from app.models.job_offer import JobOffer
+from app.models.resume import Resume
 from app.models.role import Role
 from app.models.search_run import SearchRun
 from app.models.technology import Technology
@@ -21,4 +22,5 @@ __all__ = [
     'SearchRun',
     'Application',
     'ApplicationStatusChange',
+    'Resume',
 ]

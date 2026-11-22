@@ -85,8 +85,30 @@ class ParsedOffer(AIAnswer):
         return unique_ignoring_case(names)
 
 
+def clean_names(names: object, max_chars: int, max_items: int) -> object:
+    """Trimmed text items, without blanks, too long ones and repeats, cut to max_items.
+
+    Anything that isn't a list is returned as it is, so Pydantic reports it.
+    """
+    if not isinstance(names, list):
+        return names
+    kept = [n.strip() for n in names if isinstance(n, str) and 0 < len(n.strip()) <= max_chars]
+    return unique_ignoring_case(kept)[:max_items]
+
+
+def cut_text(value: object, max_chars: int) -> object:
+    """A trimmed string cut to max_chars ('' becomes None); anything else as it is."""
+    if not isinstance(value, str):
+        return value
+    return value.strip()[:max_chars] or None
+
+
 class ResumeExtracted(AIAnswer):
-    """What a CV says about the person's job wishes and skills."""
+    """What a CV says about the person's job wishes and skills.
+
+    Lenient everywhere: a CV is long and every field is optional, so a value that doesn't fit
+    is dropped or cut instead of failing the whole answer. Limits are the profile's.
+    """
 
     desired_position: str | None = Field(default=None, max_length=120)
     experience_level: ExperienceLevel | None = None
@@ -94,6 +116,40 @@ class ResumeExtracted(AIAnswer):
     locations: list[str] = Field(default=[], max_length=10)
     employment_types: list[EmploymentType] = []
     summary: str | None = Field(default=None, max_length=500)
+
+    @field_validator('desired_position', mode='before')
+    @classmethod
+    def cut_position(cls, value: object) -> object:
+        return cut_text(value, 120)
+
+    @field_validator('summary', mode='before')
+    @classmethod
+    def cut_summary(cls, value: object) -> object:
+        return cut_text(value, 500)
+
+    @field_validator('experience_level', mode='before')
+    @classmethod
+    def known_level(cls, value: object) -> ExperienceLevel | None:
+        return known_or_none(value, ExperienceLevel)
+
+    @field_validator('skills', mode='before')
+    @classmethod
+    def clean_skills(cls, names: object) -> object:
+        return clean_names(names, max_chars=50, max_items=50)
+
+    @field_validator('locations', mode='before')
+    @classmethod
+    def clean_locations(cls, names: object) -> object:
+        return clean_names(names, max_chars=100, max_items=10)
+
+    @field_validator('employment_types', mode='before')
+    @classmethod
+    def known_employment_types(cls, values: object) -> object:
+        """['B2B', 'freelance', 'b2b'] -> [b2b]: unknown ones and repeats dropped."""
+        if not isinstance(values, list):
+            return values
+        known = [known_or_none(value, EmploymentType) for value in values]
+        return list(dict.fromkeys(value for value in known if value is not None))
 
 
 class Requirement(AIAnswer):
