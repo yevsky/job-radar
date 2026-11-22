@@ -13,6 +13,7 @@ dependencies = [
     "pydantic>=2.13.4",
     "pydantic-settings>=2.14.2",
     "pyjwt>=2.15.1",
+    "pypdf>=7.1.1",
     "sqlalchemy>=2.0.51",
 ]
 
