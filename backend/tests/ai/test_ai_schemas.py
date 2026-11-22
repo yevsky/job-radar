@@ -65,6 +65,32 @@ def test_resume_extracted_can_be_empty() -> None:
     assert ResumeExtracted.model_validate({}).skills == []
 
 
+def test_resume_extracted_cleans_lists_instead_of_failing() -> None:
+    extracted = ResumeExtracted.model_validate(
+        {
+            'skills': ['Python', ' python ', '', 7, 'x' * 51, *[f's{n}' for n in range(60)]],
+            'locations': ['Wrocław', 'wrocław', 'Remote'],
+            'employment_types': ['B2B', 'freelance', 'b2b', 'Full-time'],
+            'experience_level': 'expert',
+        }
+    )
+    assert extracted.skills[:2] == ['Python', 's0']
+    assert len(extracted.skills) == 50
+    assert extracted.locations == ['Wrocław', 'Remote']
+    assert extracted.employment_types == ['b2b', 'full_time']
+    assert extracted.experience_level is None
+
+
+def test_resume_extracted_cuts_long_texts() -> None:
+    extracted = ResumeExtracted.model_validate(
+        {'desired_position': ' ' + 'p' * 200, 'summary': 's' * 900}
+    )
+    assert extracted.desired_position == 'p' * 120
+    assert extracted.summary is not None
+    assert len(extracted.summary) == 500
+    assert ResumeExtracted.model_validate({'summary': '   '}).summary is None
+
+
 def test_analysis_output_reads_requirements() -> None:
     output = OfferAnalysisOutput.model_validate(
         {
@@ -88,7 +114,7 @@ def test_analysis_output_reads_requirements() -> None:
         (ParsedOffer, {'title': 'T', 'technologies': [f't{n}' for n in range(31)]}),
         (OfferAnalysisOutput, {'role_fit': 11, 'summary': 's'}),
         (OfferAnalysisOutput, {'role_fit': 5, 'summary': 's', 'reasons': ['r'] * 6}),
-        (ResumeExtracted, {'employment_types': ['freelance']}),
+        (ResumeExtracted, {'skills': 'Python'}),  # not a list at all
     ],
 )
 def test_wrong_answers_are_rejected(schema: type[BaseModel], data: dict[str, object]) -> None:
