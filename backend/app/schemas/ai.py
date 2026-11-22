@@ -52,3 +52,12 @@ class OfferAnalysisOutput(AIAnswer):
     summary: str = Field(max_length=300)
     reasons: list[str] = Field(default=[], max_length=5)
     red_flags: list[str] = Field(default=[], max_length=5)
+
+
+class AIProviderStatus(BaseModel):
+    """Which AI provider the app uses and whether it answers."""
+
+    provider: str
+    model: str
+    base_url: str | None
+    ok: bool

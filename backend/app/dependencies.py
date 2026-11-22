@@ -5,6 +5,8 @@ import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 
+from app.ai.base import AIProvider
+from app.ai.registry import build_provider
 from app.core.config import settings
 from app.core.token import decode_access_token
 from app.db.dependencies import DbSession
@@ -61,3 +63,14 @@ def get_search_sources() -> list[SearchSource]:
 
 
 SearchSources = Annotated[list[SearchSource], Depends(get_search_sources)]
+
+
+ai_provider = build_provider(settings.ai_provider)
+
+
+def get_ai_provider() -> AIProvider:
+    """The AI provider chosen in AI_PROVIDER; tests replace this with a fake one."""
+    return ai_provider
+
+
+AI = Annotated[AIProvider, Depends(get_ai_provider)]
