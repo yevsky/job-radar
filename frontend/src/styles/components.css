@@ -58,6 +58,36 @@
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 20px;
 }
+/* A page that reads best at a set width (forms): centered, whatever the screen */
+.page-center {
+  max-width: 1320px;
+  margin-inline: auto;
+}
+/* Profile: the form, and the search settings beside it on wide screens */
+.profile-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+@media (min-width: 1280px) {
+  .profile-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(18rem, 24rem);
+  }
+  .profile-grid > aside {
+    position: sticky;
+    top: 24px;
+  }
+}
+.prefill {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+.prefill dd {
+  margin: 2px 0 0;
+  overflow-wrap: anywhere;
+}
 .split {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 360px;
@@ -1191,4 +1221,43 @@ table.data td {
 .pager .pill:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+/* Big screens: everything grows a little, so a 4K monitor (or a zoomed-out browser) doesn't
+   show a small page in a corner. rem sizes follow html, text follows body. */
+@media (min-width: 1800px) {
+  html {
+    font-size: 17px;
+  }
+  body {
+    font-size: 16px;
+  }
+}
+@media (min-width: 2400px) {
+  html {
+    font-size: 19px;
+  }
+  body {
+    font-size: 18px;
+  }
+  :root {
+    --sidebar-w: 300px;
+  }
+  .page-center {
+    max-width: 1600px;
+  }
+}
+@media (min-width: 3200px) {
+  html {
+    font-size: 22px;
+  }
+  body {
+    font-size: 21px;
+  }
+  :root {
+    --sidebar-w: 340px;
+  }
+  .page-center {
+    max-width: 2000px;
+  }
 }
