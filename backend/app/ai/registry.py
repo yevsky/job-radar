@@ -2,6 +2,7 @@ from collections.abc import Callable
 
 from pydantic import SecretStr
 
+from app.ai.anthropic_provider import AnthropicProvider
 from app.ai.base import AIProvider
 from app.ai.fake import FakeAIProvider
 from app.ai.openai_compat import OpenAICompatProvider
@@ -32,6 +33,15 @@ def build_openai_compat(name: str, api_key: str) -> AIProvider:
     )
 
 
+def build_anthropic() -> AIProvider:
+    return AnthropicProvider(
+        api_key=require_key(settings.anthropic_api_key, 'ANTHROPIC_API_KEY'),
+        model=settings.ai_model,
+        timeout=settings.ai_timeout_seconds,
+        base_url=settings.ai_base_url,  # None = Anthropic's own address
+    )
+
+
 # Name in settings -> function that builds the provider
 PROVIDER_FACTORIES: dict[str, Callable[[], AIProvider]] = {
     'fake': FakeAIProvider,
@@ -43,6 +53,7 @@ PROVIDER_FACTORIES: dict[str, Callable[[], AIProvider]] = {
     'gemini': lambda: build_openai_compat(
         'gemini', require_key(settings.gemini_api_key, 'GEMINI_API_KEY')
     ),
+    'anthropic': build_anthropic,
 }
 
 
