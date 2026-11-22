@@ -6,7 +6,7 @@ import httpx
 from pydantic import ValidationError
 
 from app.core.levels import guess_level
-from app.core.locations import guess_location
+from app.core.locations import CITIES, COUNTRIES, REMOTE_WORDS, guess_location, normalize
 from app.schemas.job_offer import JobOfferImport
 from app.schemas.search import SearchQuery, SourceFeature
 from app.search_sources.base import SearchSource, SearchSourceError, SourcePage
@@ -14,6 +14,7 @@ from app.search_sources.base import SearchSource, SearchSourceError, SourcePage
 TAVILY_URL = 'https://api.tavily.com/search'
 TIMEOUT_SECONDS = 15
 MAX_RESULTS = 20  # the most Tavily returns for one search; it has no pages of its own
+MAX_DESCRIPTION = 20_000  # JobOfferImport.description's limit
 
 # "Python Developer - Codesky" or "Python Developer – Codesky"
 DASH = re.compile(r'\s[-–—]\s')
@@ -36,6 +37,34 @@ SITE_NAMES = {
     'pracuj.pl',
     'linkedin',
 }
+
+# Words a page title can be made of when it names only a place, like 'Wroclaw': the title a
+# job board gives the list page it redirects an expired offer to.
+PLACE_WORDS = {
+    word
+    for spellings in [s for _name, s in CITIES] + [list(COUNTRIES.values()), REMOTE_WORDS]
+    for spelling in spellings
+    for word in spelling.split()
+} | {'poland', 'polska'}
+
+# What a page says when the offer is closed (compared after normalize(): no diacritics)
+CLOSED_PHRASES = [
+    'no longer accepting applications',
+    'this job is no longer available',
+    'this offer is no longer available',
+    'this job offer has expired',
+    'this offer has expired',
+    'offer expired',
+    'nie przyjmuje juz aplikacji',
+    'nie przyjmujemy juz aplikacji',
+    'oferta wygasla',
+    'ogloszenie wygaslo',
+    'oferta jest nieaktualna',
+    'ogloszenie jest nieaktualne',
+    'rekrutacja zakonczona',
+]
+# The offer's status is near the top of the page; further down come other offers
+CLOSED_CHECK_CHARS = 3_000
 
 # Words some boards add to the title: 'Python Developer Job' -> 'Python Developer'
 TITLE_SUFFIX = re.compile(r'\s+(?:job|job offer)$', re.IGNORECASE)
@@ -74,6 +103,28 @@ def is_offer_page(url: object, page_title: str = '') -> bool:
     return bool(OFFER_PATHS[board].match(urlsplit(str(url)).path))
 
 
+def is_only_a_place(text: str) -> bool:
+    """True for 'Wroclaw' or 'Wrocław, Poland': a place name, not a job title or company."""
+    words = normalize(text).split()
+    return bool(words) and all(word in PLACE_WORDS for word in words)
+
+
+def is_closed(*texts: str) -> bool:
+    """True if the page says the offer no longer takes applications."""
+    words = ' '.join(normalize(text[:CLOSED_CHECK_CHARS]) for text in texts)
+    return any(f' {phrase} ' in f' {words} ' for phrase in CLOSED_PHRASES)
+
+
+def page_text(raw: object) -> str | None:
+    """The full page text Tavily read, without blank lines and cut to the description's
+    limit; None if it sent none."""
+    if not isinstance(raw, str):
+        return None
+    lines = [line.strip() for line in raw.splitlines()]
+    text = '\n'.join(line for line in lines if line)
+    return text[:MAX_DESCRIPTION] or None
+
+
 def split_title(page_title: str) -> tuple[str, str | None]:
     """Guess (job title, company) from a page title; company is None if there is no pattern.
 
@@ -81,18 +132,21 @@ def split_title(page_title: str) -> tuple[str, str | None]:
     'Python Developer - Codesky - Just Join IT' -> ('Python Developer', 'Codesky')
     'Python Developer - Just Join IT' -> ('Python Developer', None)
     'Python Developer at Codesky — Wrocław - LinkedIn' -> ('Python Developer', 'Codesky')
+    'Python Developer w firmie Codesky - Wrocław' -> ('Python Developer', 'Codesky')
     """
     text = page_title.split(' | ')[0].strip().removesuffix('...').removesuffix('…').strip()
     title, company = text, None
     if ' at ' in text:
         title, company = text.rsplit(' at ', 1)
+    elif ' w firmie ' in text:  # Polish: 'at the company'
+        title, company = text.rsplit(' w firmie ', 1)
     else:
         parts = DASH.split(text)
         if len(parts) > 1:
             title, company = parts[0], parts[1]
     # LinkedIn adds a place and the site after the company: 'Codesky — Wrocław - LinkedIn'
     company = DASH.split(company or '')[0].strip()
-    if company.lower() in SITE_NAMES:
+    if company.lower() in SITE_NAMES or is_only_a_place(company):  # 'Python Dev - Wrocław'
         company = ''
     return TITLE_SUFFIX.sub('', title.strip()), company or None
 
@@ -139,7 +193,8 @@ def location_from_url(url: object, page_title: str, wanted: list[str] | None = N
 
 
 def to_offer(row: object, wanted: list[str] | None = None) -> JobOfferImport | None:
-    """Turn one Tavily result into an offer, best effort; None if it isn't a single offer.
+    """Turn one Tavily result into an offer, best effort; None if it isn't a single open
+    offer: a list page, a closed offer, or an expired one the board redirects to a list.
 
     `wanted` are the cities the user asked for, so a city we don't list is found too.
     """
@@ -150,7 +205,10 @@ def to_offer(row: object, wanted: list[str] | None = None) -> JobOfferImport | N
     if not is_offer_page(url, page_title):
         return None
     title, company = split_title(page_title)
-    description = row.get('content') or None
+    snippet = str(row.get('content') or '')
+    full_text = page_text(row.get('raw_content'))
+    if is_only_a_place(title) or is_closed(snippet, full_text or ''):
+        return None
     try:
         return JobOfferImport.model_validate(
             {
@@ -158,8 +216,10 @@ def to_offer(row: object, wanted: list[str] | None = None) -> JobOfferImport | N
                 'company_name': company or company_from_url(url, title) or host_of(url),
                 'url': url,
                 'location': location_from_url(url, page_title, wanted),
-                'experience_level': guess_level(title, str(description or '')),
-                'description': description,
+                # the snippet, not the page: pages also list other offers with their levels
+                'experience_level': guess_level(title, snippet),
+                # the whole posting when Tavily read it, for the analysis and the save
+                'description': full_text or snippet or None,
             }
         )
     except ValidationError:
@@ -188,7 +248,12 @@ class TavilySource(SearchSource):
         Always the most results Tavily gives: many are list pages or other cities and get
         left out, so asking for fewer left almost nothing to show.
         """
-        body: dict[str, Any] = {'query': query.text(), 'max_results': MAX_RESULTS}
+        body: dict[str, Any] = {
+            'query': query.text(),
+            'max_results': MAX_RESULTS,
+            # each page's full text too, at no extra credit: the snippet is ~300 characters
+            'include_raw_content': 'text',
+        }
         if query.posted_within:
             body['time_range'] = query.posted_within.value  # Tavily uses the same day/week/month
         if self.domains:
