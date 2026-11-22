@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field, StringConstraints
 from app.core.config import settings
 from app.core.levels import levels_in
 from app.models.enums import ExperienceLevel
-from app.schemas.job_offer import JobOfferImport
+from app.schemas.job_offer import JobOfferImport, JobOfferRead
 
 MAX_LOCATIONS = 5
 MAX_PAGE = 10
@@ -131,3 +131,9 @@ class SearchSourcesRead(BaseModel):
 class SearchSourcesUpdate(BaseModel):
     # None goes back to all sources; otherwise at least one name
     sources: list[SourceName] | None = Field(default=None, min_length=1)
+
+
+class SavedSearchResult(JobOfferRead):
+    """The saved offer; enriched is True if the AI filled empty fields from its page."""
+
+    enriched: bool = False

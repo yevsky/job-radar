@@ -2,9 +2,12 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 
+from app.ai.base import AIProviderError
+from app.ai.structured import AIOutputError
 from app.db.dependencies import DbSession
-from app.dependencies import CurrentUser, get_current_user
+from app.dependencies import AI, CurrentUser, get_current_user
 from app.models.enums import EmploymentType, ExperienceLevel
+from app.schemas.ai import JobOfferParseRequest, JobOfferParseResponse
 from app.schemas.job_offer import JobOfferFilters, JobOfferImport, JobOfferPage, JobOfferRead
 from app.services.job_offer import (
     NotOfferOwnerError,
@@ -15,6 +18,7 @@ from app.services.job_offer import (
     to_read,
 )
 from app.services.job_offer_import import add_private_offer
+from app.services.offer_parsing import draft_offer
 
 router = APIRouter(
     prefix='/job-offers', tags=['job-offers'], dependencies=[Depends(get_current_user)]
@@ -58,6 +62,19 @@ def create_job_offer(
     if not created:
         response.status_code = status.HTTP_200_OK
     return to_read(offer)
+
+
+@router.post('/parse', response_model=JobOfferParseResponse)
+def parse_job_offer(data: JobOfferParseRequest, ai: AI) -> JobOfferParseResponse:
+    """Read a pasted posting's fields with the AI. Saves nothing: check the fields, then
+    save the offer with POST /job-offers."""
+    try:
+        return draft_offer(ai, data)
+    except (AIProviderError, AIOutputError) as err:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="The AI provider didn't answer, try again or fill the fields by hand",
+        ) from err
 
 
 @router.delete('/{offer_id}', status_code=status.HTTP_204_NO_CONTENT)

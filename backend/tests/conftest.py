@@ -1,4 +1,4 @@
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 
 import pytest
 from fastapi.testclient import TestClient
@@ -6,12 +6,16 @@ from sqlalchemy import Engine, create_engine, insert, select
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 
+from app.ai.base import AIProvider
+from app.ai.fake import FakeAIProvider
 from app.core.config import settings
 from app.db.base import Base
 from app.db.dependencies import get_db
+from app.dependencies import get_ai_provider, get_page_reader
 from app.main import app
 from app.models import Role, User
 from app.models.role import RoleName
+from app.search_sources.page_reader import FakePageReader, PageReader
 from tests.helpers import ADMIN_EMAIL, PASSWORD, USER_EMAIL
 
 TEST_DATABASE_URL = make_url(settings.database_url).set(database='job_radar_test')
@@ -48,8 +52,14 @@ def db(engine: Engine) -> Generator[Session]:
 
 @pytest.fixture
 def api(client: TestClient, db: Session) -> Generator[TestClient]:
-    """A test client whose routes use the test database session instead of the real one."""
+    """A test client whose routes use the test database session instead of the real one.
+
+    The AI and the page reader are fakes too, so no test ever calls Ollama or Tavily,
+    whatever .env says. use_provider / use_pages swap in other fakes.
+    """
     app.dependency_overrides[get_db] = lambda: db
+    app.dependency_overrides[get_ai_provider] = lambda: FakeAIProvider()
+    app.dependency_overrides[get_page_reader] = lambda: FakePageReader()
     yield client
     app.dependency_overrides.clear()
 
@@ -93,3 +103,32 @@ def admin_token(api: TestClient, db: Session) -> str:
     db.flush()
 
     return token
+
+
+UseProvider = Callable[[AIProvider], None]
+UsePages = Callable[[PageReader | None], None]
+
+
+@pytest.fixture
+def use_provider(api: TestClient) -> UseProvider:
+    """Make the app use the given AI provider instead of the default fake.
+
+    Depends on `api`, whose teardown clears app.dependency_overrides after the test.
+    """
+    del api  # requested only for its cleanup
+
+    def use(provider: AIProvider) -> None:
+        app.dependency_overrides[get_ai_provider] = lambda: provider
+
+    return use
+
+
+@pytest.fixture
+def use_pages(api: TestClient) -> UsePages:
+    """Make the app read pages with the given reader (no Tavily key)."""
+    del api
+
+    def use(reader: PageReader | None) -> None:
+        app.dependency_overrides[get_page_reader] = lambda: reader
+
+    return use

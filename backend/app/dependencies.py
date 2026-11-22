@@ -12,6 +12,7 @@ from app.core.token import decode_access_token
 from app.db.dependencies import DbSession
 from app.models import User
 from app.search_sources.base import SearchSource
+from app.search_sources.page_reader import PageReader, build_page_reader
 from app.search_sources.registry import build_sources
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl='/auth/login')
@@ -74,3 +75,14 @@ def get_ai_provider() -> AIProvider:
 
 
 AI = Annotated[AIProvider, Depends(get_ai_provider)]
+
+
+page_reader = build_page_reader(settings.tavily_api_key)
+
+
+def get_page_reader() -> PageReader | None:
+    """Reads full posting pages (Tavily Extract); None without a Tavily key."""
+    return page_reader
+
+
+Pages = Annotated[PageReader | None, Depends(get_page_reader)]
