@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     gemini_api_key: SecretStr | None = None
     tavily_api_key: SecretStr | None = None
     jsearch_api_key: SecretStr | None = None
+    openai_api_key: SecretStr | None = None
 
     # Which search sources POST /search asks, in this order. In .env as JSON:
     # SEARCH_SOURCES='["tavily","jsearch"]'. 'fake' returns demo results and needs no key.
@@ -26,6 +27,14 @@ class Settings(BaseSettings):
     jsearch_country: str = 'pl'
     # searches per user per day, unless an admin sets another
     search_daily_limit: int = 10
+
+    # Which AI backend the app uses: fake | ollama | openai | gemini. 'fake' needs nothing.
+    ai_provider: str = 'fake'
+    ai_model: str = 'qwen2.5:3b'
+    # Empty = the provider's usual address (Ollama: http://localhost:11434/v1)
+    ai_base_url: str | None = None
+    # A local model on a CPU can take minutes; cloud APIs answer in seconds
+    ai_timeout_seconds: float = 300
 
     model_config = SettingsConfigDict(
         env_file=[
