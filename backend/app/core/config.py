@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     tavily_api_key: SecretStr | None = None
     jsearch_api_key: SecretStr | None = None
     openai_api_key: SecretStr | None = None
+    anthropic_api_key: SecretStr | None = None
 
     # Which search sources POST /search asks, in this order. In .env as JSON:
     # SEARCH_SOURCES='["tavily","jsearch"]'. 'fake' returns demo results and needs no key.
@@ -28,7 +29,8 @@ class Settings(BaseSettings):
     # searches per user per day, unless an admin sets another
     search_daily_limit: int = 10
 
-    # Which AI backend the app uses: fake | ollama | openai | gemini. 'fake' needs nothing.
+    # Which AI backend the app uses: fake | ollama | openai | gemini | anthropic.
+    # 'fake' needs nothing.
     ai_provider: str = 'fake'
     ai_model: str = 'qwen2.5:3b'
     # Empty = the provider's usual address (Ollama: http://localhost:11434/v1)

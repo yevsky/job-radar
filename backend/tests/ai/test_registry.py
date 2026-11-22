@@ -1,6 +1,7 @@
 import pytest
 from pydantic import SecretStr
 
+from app.ai.anthropic_provider import AnthropicProvider
 from app.ai.fake import FakeAIProvider
 from app.ai.openai_compat import OpenAICompatProvider
 from app.ai.registry import build_provider
@@ -60,11 +61,25 @@ def test_openai_uses_its_key_and_address(monkeypatch: pytest.MonkeyPatch) -> Non
     assert provider.client.api_key == 'sk-test'
 
 
+def test_anthropic_uses_its_key_and_model(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(f'{SETTINGS}.anthropic_api_key', SecretStr('sk-ant-test'))
+    monkeypatch.setattr(f'{SETTINGS}.ai_model', 'claude-opus-5-5')
+
+    provider = build_provider('anthropic')
+
+    assert isinstance(provider, AnthropicProvider)
+    assert (provider.name, provider.model) == ('anthropic', 'claude-opus-5-5')
+    assert provider.base_url is None  # the package's own address
+    assert provider.client.api_key == 'sk-ant-test'
+    assert provider.client.timeout == 300
+
+
 @pytest.mark.parametrize(
     ('name', 'setting', 'env_name'),
     [
         ('openai', 'openai_api_key', 'OPENAI_API_KEY'),
         ('gemini', 'gemini_api_key', 'GEMINI_API_KEY'),
+        ('anthropic', 'anthropic_api_key', 'ANTHROPIC_API_KEY'),
     ],
 )
 @pytest.mark.parametrize('key', [None, SecretStr(''), SecretStr('   ')])
