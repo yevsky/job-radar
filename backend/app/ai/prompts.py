@@ -16,7 +16,7 @@ from app.schemas.ai import OfferAnalysisOutput, ParsedOffer, ResumeExtracted
 from app.schemas.job_offer import JobOfferImport
 from app.schemas.profile import ProfileRead
 
-OFFER_PARSE_VERSION = 'offer-parse-v1'
+OFFER_PARSE_VERSION = 'offer-parse-v2'
 RESUME_EXTRACT_VERSION = 'resume-extract-v1'
 OFFER_ANALYSIS_VERSION = 'offer-analysis-v1'
 
@@ -62,10 +62,18 @@ def system_message(task: str, schema: type[BaseModel]) -> ChatMessage:
 
 def offer_parse_messages(text: str) -> list[ChatMessage]:
     """Read the fields of a job posting (title, company, location, level, ...)."""
+    # v2: the title without company or city, b2b named, nice-to-have technologies kept
+    # (v1 gave 'Junior Python Developer - Codesky (Wrocław, hybrid)', 'contract' for B2B
+    # and dropped the nice-to-have React and AWS)
     task = (
         'You read job postings and fill in their fields. '
         'Copy names as written in the posting. '
-        'technologies: programming languages, frameworks, databases and tools the job uses.'
+        'title: only the job title, without the company, city or work mode. '
+        'employment_type: b2b for a B2B contract, full_time for an employment contract '
+        '(umowa o pracę), contract for other contracts (umowa zlecenie). '
+        'deadline: the last day to apply, as YYYY-MM-DD. '
+        'technologies: every programming language, framework, database, cloud and tool '
+        'the posting names, both required and nice to have.'
     )
     return [
         system_message(task, ParsedOffer),

@@ -1,10 +1,17 @@
 """What the AI model must answer for each task. Validated by app/ai/structured.generate."""
 
 from datetime import date
+from enum import StrEnum
+from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl, UrlConstraints, field_validator
 
 from app.models.enums import EmploymentType, ExperienceLevel
+from app.schemas.job_offer import TechnologyName
+from app.schemas.profile import unique_ignoring_case
+
+# The longest posting text a user can paste: the same as an offer's description
+MAX_POSTING_TEXT = 20_000
 
 
 class AIAnswer(BaseModel):
@@ -13,8 +20,25 @@ class AIAnswer(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True, extra='ignore')
 
 
+def known_or_none[E: StrEnum](value: object, enum: type[E]) -> E | None:
+    """The enum member a model's word stands for, or None if we don't have it.
+
+    'B2B' -> b2b, 'Full-time' -> full_time, 'expert' -> None.
+    """
+    if isinstance(value, enum):
+        return value
+    if not isinstance(value, str):
+        return None
+    word = value.strip().lower().replace('-', '_').replace(' ', '_')
+    return next((member for member in enum if member.value == word), None)
+
+
 class ParsedOffer(AIAnswer):
-    """The fields of one job posting, read from its text."""
+    """The fields of one job posting, read from its text.
+
+    Lenient where a small model is often wrong: an unknown level, employment type or date
+    becomes None and an odd technology is dropped, instead of failing the whole answer.
+    """
 
     title: str = Field(min_length=1, max_length=200)
     company_name: str | None = Field(default=None, max_length=200)
@@ -22,7 +46,43 @@ class ParsedOffer(AIAnswer):
     experience_level: ExperienceLevel | None = None
     employment_type: EmploymentType | None = None
     deadline: date | None = None
-    technologies: list[str] = Field(default=[], max_length=30)
+    technologies: list[TechnologyName] = Field(default=[], max_length=30)
+
+    @field_validator('experience_level', mode='before')
+    @classmethod
+    def known_level(cls, value: object) -> ExperienceLevel | None:
+        return known_or_none(value, ExperienceLevel)
+
+    @field_validator('employment_type', mode='before')
+    @classmethod
+    def known_employment_type(cls, value: object) -> EmploymentType | None:
+        return known_or_none(value, EmploymentType)
+
+    @field_validator('deadline', mode='before')
+    @classmethod
+    def date_or_none(cls, value: object) -> date | None:
+        """'2026-12-15' or '2026-12-15T23:59' -> a date; 'ASAP', 'not given' -> None."""
+        if isinstance(value, date):
+            return value
+        if not isinstance(value, str):
+            return None
+        try:
+            return date.fromisoformat(value.strip()[:10])
+        except ValueError:
+            return None
+
+    @field_validator('technologies', mode='before')
+    @classmethod
+    def drop_odd_names(cls, names: object) -> object:
+        """Drop names that aren't text, are empty or are too long to be one technology."""
+        if not isinstance(names, list):
+            return names
+        return [n for n in names if isinstance(n, str) and 0 < len(n.strip()) <= 50]
+
+    @field_validator('technologies')
+    @classmethod
+    def remove_duplicates(cls, names: list[str]) -> list[str]:
+        return unique_ignoring_case(names)
 
 
 class ResumeExtracted(AIAnswer):
@@ -61,3 +121,24 @@ class AIProviderStatus(BaseModel):
     model: str
     base_url: str | None
     ok: bool
+
+
+class JobOfferParseRequest(BaseModel):
+    """A posting pasted by the user, and its link if they have one."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    text: str = Field(min_length=50, max_length=MAX_POSTING_TEXT)
+    url: Annotated[HttpUrl, UrlConstraints(max_length=2048)] | None = None
+
+
+class JobOfferParseResponse(ParsedOffer):
+    """A draft offer to check and correct, then save with POST /job-offers. Nothing is saved.
+
+    The description is the pasted text; parsed_with names the provider and model, e.g.
+    'ollama/qwen2.5:3b'.
+    """
+
+    url: str | None
+    description: str
+    parsed_with: str

@@ -1,3 +1,5 @@
+from datetime import date
+
 import pytest
 from pydantic import BaseModel, ValidationError
 
@@ -14,6 +16,49 @@ def test_parsed_offer_needs_only_a_title() -> None:
 def test_extra_fields_from_the_model_are_ignored() -> None:
     offer = ParsedOffer.model_validate({'title': 'Tester', 'salary': '10k', 'mood': 'happy'})
     assert offer.model_dump().keys() == ParsedOffer.model_fields.keys()
+
+
+@pytest.mark.parametrize(
+    ('word', 'expected'),
+    [
+        ('junior', 'junior'),
+        (' Senior ', 'senior'),
+        ('expert', None),  # not one of our levels: dropped, not an error
+        (None, None),
+    ],
+)
+def test_unknown_level_becomes_none(word: str | None, expected: str | None) -> None:
+    offer = ParsedOffer.model_validate({'title': 'T', 'experience_level': word})
+    assert offer.experience_level == expected
+
+
+@pytest.mark.parametrize(
+    ('word', 'expected'),
+    [('B2B', 'b2b'), ('Full-time', 'full_time'), ('full time', 'full_time'), ('freelance', None)],
+)
+def test_employment_type_is_read_loosely(word: str, expected: str | None) -> None:
+    offer = ParsedOffer.model_validate({'title': 'T', 'employment_type': word})
+    assert offer.employment_type == expected
+
+
+@pytest.mark.parametrize(
+    ('value', 'expected'),
+    [
+        ('2026-12-15', date(2026, 12, 15)),
+        ('2026-12-15T23:59:00', date(2026, 12, 15)),
+        ('ASAP', None),
+        ('15 December', None),
+        (20261215, None),
+    ],
+)
+def test_deadline_that_isnt_a_date_becomes_none(value: object, expected: date | None) -> None:
+    assert ParsedOffer.model_validate({'title': 'T', 'deadline': value}).deadline == expected
+
+
+def test_odd_technologies_are_dropped_and_repeats_removed() -> None:
+    names = ['Python', ' python ', '', 42, 'x' * 51, 'FastAPI']
+    offer = ParsedOffer.model_validate({'title': 'T', 'technologies': names})
+    assert offer.technologies == ['Python', 'FastAPI']
 
 
 def test_resume_extracted_can_be_empty() -> None:
@@ -40,7 +85,6 @@ def test_analysis_output_reads_requirements() -> None:
     ('schema', 'data'),
     [
         (ParsedOffer, {}),
-        (ParsedOffer, {'title': 'T', 'experience_level': 'expert'}),
         (ParsedOffer, {'title': 'T', 'technologies': [f't{n}' for n in range(31)]}),
         (OfferAnalysisOutput, {'role_fit': 11, 'summary': 's'}),
         (OfferAnalysisOutput, {'role_fit': 5, 'summary': 's', 'reasons': ['r'] * 6}),
