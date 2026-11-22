@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -41,3 +42,6 @@ class ResumeApply(BaseModel):
     skills: list[Skill] | None = Field(default=None, max_length=50)
     locations: list[Location] | None = Field(default=None, max_length=10)
     employment_types: list[EmploymentType] | None = None
+    # 'add': the CV's skills join the profile's (the default). 'replace': the profile keeps
+    # only the CV's skills, e.g. when the old list was typed for another kind of job.
+    skills_mode: Literal['add', 'replace'] = 'add'

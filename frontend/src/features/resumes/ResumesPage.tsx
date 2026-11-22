@@ -175,7 +175,9 @@ function ReviewCard({
     {
       field: 'experience_level',
       label: 'Experience level',
-      fromCv: x.experience_level ? experienceLabel[x.experience_level] : '',
+      fromCv: x.experience_level
+        ? experienceLabel[x.experience_level] + yearsNote(x.experience_years)
+        : '',
       inProfile: profile.experience_level ? experienceLabel[profile.experience_level] : '',
       differs: !!x.experience_level && x.experience_level !== profile.experience_level,
     },
@@ -207,27 +209,50 @@ function ReviewCard({
     () => new Set(rows.filter((r) => r.differs).map((r) => r.field)),
   )
   const [busy, setBusy] = useState(false)
-  const [done, setDone] = useState(false)
+  const [done, setDone] = useState<string>()
   const [error, setError] = useState<string>()
+  // Every field the CV has a value for: what "Apply everything" copies
+  const filled = rows.filter((r) => r.fromCv).map((r) => r.field)
+  const lostSkills = profile.skills.filter(
+    (p) => !x.skills.some((s) => s.toLowerCase() === p.toLowerCase()),
+  )
 
-  async function apply() {
+  /** The request for these fields. Skills are added to the profile's unless replacing. */
+  function body(fields: Iterable<Field>): ResumeApply {
     const data: ResumeApply = {}
-    if (picked.has('desired_position')) data.desired_position = x.desired_position
-    if (picked.has('experience_level')) data.experience_level = x.experience_level
-    // Skills are added to the profile, not replaced: nothing the user typed is lost.
-    if (picked.has('skills')) data.skills = [...profile.skills, ...newSkills].slice(0, 50)
-    if (picked.has('locations')) data.locations = x.locations
-    if (picked.has('employment_types')) data.employment_types = x.employment_types
+    for (const field of fields) {
+      if (field === 'desired_position') data.desired_position = x.desired_position
+      if (field === 'experience_level') data.experience_level = x.experience_level
+      if (field === 'skills') data.skills = [...profile.skills, ...newSkills].slice(0, 50)
+      if (field === 'locations') data.locations = x.locations
+      if (field === 'employment_types') data.employment_types = x.employment_types
+    }
+    return data
+  }
+
+  async function send(data: ResumeApply, message: string) {
     setBusy(true)
     setError(undefined)
+    setDone(undefined)
     try {
       onApplied(await applyResume(resume.id, data))
-      setDone(true)
+      setDone(message)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not update the profile')
     } finally {
       setBusy(false)
     }
+  }
+
+  const applyPicked = () => send(body(picked), 'Profile updated.')
+  const applyAll = () => send(body(filled), 'Everything from the CV is in your profile.')
+
+  function replaceSkills() {
+    const removed = lostSkills.length
+      ? `\n\nRemoved from your profile: ${lostSkills.join(', ')}.`
+      : ''
+    if (!window.confirm(`Use only the ${x.skills.length} skills from this CV?${removed}`)) return
+    void send({ skills: x.skills.slice(0, 50), skills_mode: 'replace' }, 'Skills replaced.')
   }
 
   async function remove() {
@@ -306,15 +331,46 @@ function ReviewCard({
         </p>
       )}
       <div className="row" style={{ marginTop: 20 }}>
-        <button className="btn btn-primary" onClick={apply} disabled={busy || picked.size === 0}>
+        <button
+          className="btn btn-primary"
+          onClick={applyPicked}
+          disabled={busy || picked.size === 0}
+        >
           {busy ? 'Updating…' : `Apply ${picked.size} to profile`}
+        </button>
+        <button
+          className="btn"
+          onClick={applyAll}
+          disabled={busy || filled.length === 0}
+          title="Copy every field the CV has. Skills, locations and employment types are added to yours."
+        >
+          Apply everything
+        </button>
+        <button
+          className="btn btn-ghost"
+          onClick={replaceSkills}
+          disabled={busy || x.skills.length === 0}
+          title="Your profile keeps only the skills from this CV."
+        >
+          Replace my skills with the CV&apos;s
         </button>
         {done && (
           <span className="small muted">
-            <Icon name="check" size={14} /> Profile updated.
+            <Icon name="check" size={14} /> {done}
           </span>
         )}
       </div>
+      <p className="hint" style={{ marginTop: 8 }}>
+        &ldquo;Apply everything&rdquo; adds the CV&apos;s skills, locations and employment types to
+        yours and replaces the position and level.
+      </p>
     </section>
   )
+}
+
+/** ' (0.8 years of work)' after the level, when the backend counted the years. */
+function yearsNote(years: number | null | undefined): string {
+  if (years === null || years === undefined) return ''
+  const shown = years < 1 ? `${Math.round(years * 12)} months` : `${+years.toFixed(1)} years`
+  return ` (${shown} of work)`
 }
