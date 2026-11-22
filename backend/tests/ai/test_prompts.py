@@ -168,3 +168,22 @@ def test_offer_without_details_says_not_given() -> None:
 def test_every_prompt_has_its_own_version() -> None:
     versions = {OFFER_PARSE_VERSION, RESUME_EXTRACT_VERSION, OFFER_ANALYSIS_VERSION}
     assert len(versions) == 3
+
+
+def test_analysis_lists_the_allowed_skill_names_before_the_posting() -> None:
+    user = offer_analysis_messages(OFFER, PROFILE)[1].content
+    line = 'Candidate skills (the only allowed values for "skill"): Python, SQL'
+    assert line in user
+    assert user.index(line) < user.index('<job_posting>')
+
+
+def test_analysis_says_none_when_the_profile_has_no_skills() -> None:
+    profile = PROFILE.model_copy(update={'skills': []})
+    user = offer_analysis_messages(OFFER, profile)[1].content
+    assert 'Candidate skills (the only allowed values for "skill"): none' in user
+
+
+def test_analysis_task_explains_required_and_role_fit() -> None:
+    system = offer_analysis_messages(OFFER, PROFILE)[0].content
+    assert 'required=true unless the posting says it is optional' in system
+    assert '9-10 the same role and level' in system
