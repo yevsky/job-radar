@@ -1,6 +1,10 @@
 """The match analysis of one offer against the user: score, reasons and the points behind it."""
 
-from pydantic import BaseModel, Field
+from datetime import datetime
+
+from pydantic import BaseModel, ConfigDict, Field
+
+from app.schemas.search import SearchResult
 
 
 class ScoreBreakdown(BaseModel):
@@ -27,7 +31,7 @@ class ScoreBreakdown(BaseModel):
 
 
 class AnalysisResult(BaseModel):
-    """What the "How you match" card shows; issue 11 stores it per offer."""
+    """What the "How you match" card shows. POST /search/analysis returns it as it is."""
 
     score: int = Field(ge=0, le=100)
     breakdown: ScoreBreakdown
@@ -39,3 +43,26 @@ class AnalysisResult(BaseModel):
     provider: str
     model: str
     prompt_version: str
+
+
+class AiAnalysisRead(AnalysisResult):
+    """A stored analysis: the frontend's AiAnalysis."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    job_offer_id: int
+    resume_id: int | None
+    created_at: datetime
+
+
+class AnalysisRequest(BaseModel):
+    """Body of POST /job-offers/{id}/analysis: which CV the model may read, if any."""
+
+    resume_id: int | None = None
+
+
+class SearchAnalysisRequest(AnalysisRequest):
+    """Body of POST /search/analysis: a search result, which isn't in the database."""
+
+    result: SearchResult

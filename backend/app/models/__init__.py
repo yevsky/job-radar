@@ -1,5 +1,6 @@
 """SQLAlchemy models: the shape of the database tables."""
 
+from app.models.ai_analysis import AiAnalysis
 from app.models.application import Application, ApplicationStatusChange
 from app.models.job_offer import JobOffer
 from app.models.resume import Resume
@@ -23,4 +24,5 @@ __all__ = [
     'Application',
     'ApplicationStatusChange',
     'Resume',
+    'AiAnalysis',
 ]

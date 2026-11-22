@@ -1,9 +1,12 @@
 from fastapi import APIRouter, HTTPException, Response, status
 
+from app.ai.base import AIProviderError
+from app.ai.structured import AIOutputError
 from app.core.config import settings
 from app.db.dependencies import DbSession
 from app.dependencies import AI, CurrentUser, Pages, SearchSources
 from app.models.enums import SourceKind
+from app.schemas.analysis import AnalysisResult, SearchAnalysisRequest
 from app.schemas.search import (
     SavedSearchResult,
     SearchQuery,
@@ -13,9 +16,11 @@ from app.schemas.search import (
     SearchSourcesUpdate,
     SearchUsage,
 )
+from app.services.ai_analysis import EmptyProfileError, analyse_search_result
 from app.services.job_offer import to_read
 from app.services.job_offer_import import add_private_offer
 from app.services.offer_parsing import enrich_saved_offer
+from app.services.resume import ResumeNotFoundError
 from app.services.search import (
     EmptyQueryError,
     SearchLimitError,
@@ -107,3 +112,28 @@ def save_search_result(
     elif settings.ai_enrich_saved_results:
         enriched = enrich_saved_offer(db, offer, ai, pages)
     return SavedSearchResult(**to_read(offer).model_dump(), enriched=enriched)
+
+
+@router.post('/analysis', response_model=AnalysisResult)
+def analyse_search_result_route(
+    data: SearchAnalysisRequest, db: DbSession, user: CurrentUser, ai: AI
+) -> AnalysisResult:
+    """Match a search result against your profile (and a CV of yours, if given).
+
+    Nothing is stored, like the search itself. Save the result and use
+    POST /job-offers/{id}/analysis to keep an analysis.
+    """
+    try:
+        return analyse_search_result(db, ai, user, data.result, data.resume_id)
+    except ResumeNotFoundError as err:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='CV not found') from err
+    except EmptyProfileError as err:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail='Fill your profile first: add a desired position or a skill',
+        ) from err
+    except (AIProviderError, AIOutputError) as err:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="The AI provider didn't answer, try again",
+        ) from err
