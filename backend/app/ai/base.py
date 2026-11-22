@@ -28,6 +28,7 @@ class AIProvider(ABC):
 
     name: str  # short id saved with every result, e.g. 'ollama'
     model: str  # e.g. 'qwen2.5:3b'
+    base_url: str | None = None  # where requests go; None for providers without a server
 
     @abstractmethod
     def chat(self, messages: list[ChatMessage], json_mode: bool = True) -> str:
