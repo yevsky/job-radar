@@ -170,16 +170,18 @@ def merged[T: str](current: list[T], added: list[T]) -> list[T]:
 def apply_resume(db: Session, user: User, resume_id: int, data: ResumeApply) -> ProfileRead:
     """Copy the fields the user sent into their profile.
 
-    Position and level are replaced. Skills, locations and employment types are added to what
-    the profile has, so nothing typed by hand is lost. Every limit is checked before anything
+    Position and level are replaced. Locations and employment types are added to what the
+    profile has, so nothing typed by hand is lost. Skills are added too, or replace the
+    profile's when skills_mode is 'replace'. Every limit is checked before anything
     changes, and everything is committed once: either all of it is applied, or none.
     """
     resume = get_resume(db, user.id, resume_id)
     sent = data.model_dump(exclude_unset=True)
 
     try:
+        kept = [] if data.skills_mode == 'replace' else [t.name for t in user.technologies]
         skills = (
-            SkillsUpdate(skills=merged([t.name for t in user.technologies], data.skills)).skills
+            SkillsUpdate(skills=merged(kept, data.skills)).skills
             if data.skills is not None
             else None
         )

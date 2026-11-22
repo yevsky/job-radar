@@ -190,3 +190,83 @@ def test_invalid_values_return_422(
         {'desired_position': 'p' * 121},
     ):
         assert apply(api, access_token, resume_id, body).status_code == 422
+
+
+def test_replace_mode_keeps_only_the_cvs_skills(
+    api: TestClient, access_token: str, provider: FakeAIProvider
+) -> None:
+    del provider
+    fill_profile(api, access_token)  # SQL, python
+    resume_id = cv_id(api, access_token)
+
+    response = apply(
+        api,
+        access_token,
+        resume_id,
+        {'skills': ['Python', 'FastAPI', 'fastapi'], 'skills_mode': 'replace'},
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    # SQL is gone; 'python' keeps the spelling the technologies table already has
+    assert sorted(response.json()['skills']) == ['FastAPI', 'python']
+    assert sorted(profile(api, access_token)['skills']) == ['FastAPI', 'python']
+
+
+def test_replace_mode_leaves_the_other_lists_merged(
+    api: TestClient, access_token: str, provider: FakeAIProvider
+) -> None:
+    del provider
+    fill_profile(api, access_token)  # Warsaw, b2b
+    resume_id = cv_id(api, access_token)
+
+    result = apply(
+        api,
+        access_token,
+        resume_id,
+        {'skills': ['Go'], 'locations': ['Wroclaw'], 'skills_mode': 'replace'},
+    ).json()
+
+    assert result['skills'] == ['Go']
+    assert result['preferred_locations'] == ['Warsaw', 'Wroclaw']
+
+
+def test_replace_mode_without_skills_changes_no_skills(
+    api: TestClient, access_token: str, provider: FakeAIProvider
+) -> None:
+    del provider
+    fill_profile(api, access_token)
+    resume_id = cv_id(api, access_token)
+
+    result = apply(
+        api, access_token, resume_id, {'desired_position': 'Go dev', 'skills_mode': 'replace'}
+    ).json()
+
+    assert sorted(result['skills']) == ['SQL', 'python']
+
+
+def test_replace_mode_still_checks_the_limit(
+    api: TestClient, access_token: str, provider: FakeAIProvider
+) -> None:
+    """Replacing with 51 skills fails like adding would: nothing changes."""
+    del provider
+    fill_profile(api, access_token)
+    resume_id = cv_id(api, access_token)
+
+    response = apply(
+        api,
+        access_token,
+        resume_id,
+        {'skills': [f'Skill {n}' for n in range(51)], 'skills_mode': 'replace'},
+    )
+
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+    assert sorted(profile(api, access_token)['skills']) == ['SQL', 'python']
+
+
+def test_unknown_skills_mode_returns_422(
+    api: TestClient, access_token: str, provider: FakeAIProvider
+) -> None:
+    del provider
+    resume_id = cv_id(api, access_token)
+    response = apply(api, access_token, resume_id, {'skills': ['Go'], 'skills_mode': 'swap'})
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
