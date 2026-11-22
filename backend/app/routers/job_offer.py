@@ -8,7 +8,9 @@ from app.db.dependencies import DbSession
 from app.dependencies import AI, CurrentUser, get_current_user
 from app.models.enums import EmploymentType, ExperienceLevel
 from app.schemas.ai import JobOfferParseRequest, JobOfferParseResponse
+from app.schemas.analysis import AiAnalysisRead, AnalysisRequest
 from app.schemas.job_offer import JobOfferFilters, JobOfferImport, JobOfferPage, JobOfferRead
+from app.services.ai_analysis import EmptyProfileError, analyse_offer, latest_analysis
 from app.services.job_offer import (
     NotOfferOwnerError,
     OfferNotFoundError,
@@ -19,9 +21,20 @@ from app.services.job_offer import (
 )
 from app.services.job_offer_import import add_private_offer
 from app.services.offer_parsing import draft_offer
+from app.services.resume import ResumeNotFoundError
 
 router = APIRouter(
     prefix='/job-offers', tags=['job-offers'], dependencies=[Depends(get_current_user)]
+)
+
+OFFER_NOT_FOUND = HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Job offer not found')
+CV_NOT_FOUND = HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='CV not found')
+EMPTY_PROFILE = HTTPException(
+    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+    detail='Fill your profile first: add a desired position or a skill',
+)
+AI_FAILED = HTTPException(
+    status_code=status.HTTP_502_BAD_GATEWAY, detail="The AI provider didn't answer, try again"
 )
 
 
@@ -91,3 +104,38 @@ def delete_my_job_offer(offer_id: int, db: DbSession, user: CurrentUser) -> None
             status_code=status.HTTP_403_FORBIDDEN,
             detail='You can only delete offers you added yourself',
         ) from err
+
+
+@router.post(
+    '/{offer_id}/analysis', response_model=AiAnalysisRead, status_code=status.HTTP_201_CREATED
+)
+def run_offer_analysis(
+    offer_id: int, data: AnalysisRequest, db: DbSession, user: CurrentUser, ai: AI
+) -> AiAnalysisRead:
+    """Match the offer against your profile (and a CV of yours, if given) and keep the result.
+
+    Every run adds a new analysis; GET returns the newest.
+    """
+    try:
+        row = analyse_offer(db, ai, user, offer_id, data.resume_id)
+    except OfferNotFoundError as err:
+        raise OFFER_NOT_FOUND from err
+    except ResumeNotFoundError as err:
+        raise CV_NOT_FOUND from err
+    except EmptyProfileError as err:
+        raise EMPTY_PROFILE from err
+    except (AIProviderError, AIOutputError) as err:
+        raise AI_FAILED from err
+    return AiAnalysisRead.model_validate(row)
+
+
+@router.get('/{offer_id}/analysis', response_model=AiAnalysisRead)
+def read_offer_analysis(offer_id: int, db: DbSession, user: CurrentUser) -> AiAnalysisRead:
+    """Your newest analysis of the offer."""
+    try:
+        row = latest_analysis(db, user.id, offer_id)
+    except OfferNotFoundError as err:
+        raise OFFER_NOT_FOUND from err
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='No analysis yet')
+    return AiAnalysisRead.model_validate(row)
