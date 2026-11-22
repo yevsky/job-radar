@@ -1,7 +1,9 @@
 """Read job postings with the AI: a pasted posting, or the page behind a saved search result."""
 
 import logging
+import re
 from datetime import UTC, datetime, time
+from urllib.parse import urlsplit
 
 from sqlalchemy.orm import Session
 
@@ -20,6 +22,12 @@ from app.services.technology import get_or_create_technologies
 
 logger = logging.getLogger(__name__)
 
+# A web link inside pasted text: up to the first space, quote or bracket.
+LINK_PATTERN = re.compile(r'https?://[^\s<>"\'()\[\]{}]+', re.IGNORECASE)
+# Punctuation that ends a sentence, not the link: "Apply at https://x.pl/job."
+LINK_TRAILING = '.,;:!?'
+MAX_LINK_LENGTH = 2048
+
 
 def parse_offer(provider: AIProvider, text: str) -> ParsedOffer:
     """The posting's fields, read by the model. Raises AIProviderError or AIOutputError."""
@@ -31,12 +39,28 @@ def provider_label(provider: AIProvider) -> str:
     return f'{provider.name}/{provider.model}'
 
 
+def find_link(text: str) -> str | None:
+    """The first web link in the text, or None. Found by code, not by the AI.
+
+    A pasted posting often ends with "Apply: https://...", and a small model can invent or
+    cut a link, so we never ask it for one.
+    """
+    for match in LINK_PATTERN.finditer(text):
+        link = match.group().rstrip(LINK_TRAILING)
+        if len(link) <= MAX_LINK_LENGTH and '.' in (urlsplit(link).hostname or ''):
+            return link
+    return None
+
+
 def draft_offer(provider: AIProvider, data: JobOfferParseRequest) -> JobOfferParseResponse:
-    """A pasted posting turned into a draft offer for the user to check. Saves nothing."""
+    """A pasted posting turned into a draft offer for the user to check. Saves nothing.
+
+    The link is the one the user gave; without one, the first link in the text.
+    """
     parsed = parse_offer(provider, data.text)
     return JobOfferParseResponse(
         **parsed.model_dump(),
-        url=str(data.url) if data.url else None,
+        url=str(data.url) if data.url else find_link(data.text),
         description=data.text,
         parsed_with=provider_label(provider),
     )

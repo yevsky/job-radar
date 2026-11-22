@@ -69,6 +69,34 @@ def test_link_is_optional(api: TestClient, access_token: str, use_provider: UseP
     assert parse(api, access_token).json()['url'] is None
 
 
+def test_a_link_in_the_posting_fills_the_url(
+    api: TestClient, access_token: str, use_provider: UseProvider
+) -> None:
+    use_provider(fake(ANSWER))
+    text = f'{POSTING}\nApply here: https://codesky.pl/careers/junior-python.'
+
+    response = parse(api, access_token, text=text)
+
+    body = response.json()
+    assert body['url'] == 'https://codesky.pl/careers/junior-python'
+    assert body['description'] == text
+
+
+def test_the_given_link_wins_over_one_in_the_posting(
+    api: TestClient, access_token: str, use_provider: UseProvider
+) -> None:
+    use_provider(fake(ANSWER))
+
+    response = parse(
+        api,
+        access_token,
+        text=f'{POSTING} More: https://codesky.pl/about',
+        url='https://justjoin.it/job-offer/codesky-python',
+    )
+
+    assert response.json()['url'] == 'https://justjoin.it/job-offer/codesky-python'
+
+
 def test_the_model_gets_the_posting_inside_the_untrusted_block(
     api: TestClient, access_token: str, use_provider: UseProvider
 ) -> None:
