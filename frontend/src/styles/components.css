@@ -1229,6 +1229,35 @@ table.data td {
   cursor: not-allowed;
 }
 
+/* Add an offer: the paste box beside the form on wide screens, above it on narrow ones */
+.new-offer-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+.paste-card {
+  gap: 12px;
+}
+.paste-card .card-head {
+  margin-bottom: 0;
+}
+.paste-text {
+  min-height: 140px;
+}
+@media (min-width: 1100px) {
+  .new-offer-grid {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  }
+  .paste-card {
+    position: sticky;
+    top: 24px;
+  }
+  .paste-text {
+    min-height: 420px;
+  }
+}
+
 /* Big screens: everything grows a little, so a 4K monitor (or a zoomed-out browser) doesn't
    show a small page in a corner. rem sizes follow html, text follows body. */
 @media (min-width: 1800px) {

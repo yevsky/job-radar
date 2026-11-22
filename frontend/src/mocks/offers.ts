@@ -1,5 +1,6 @@
 import type {
   JobOfferCreate,
+  JobOfferDraft,
   JobOfferFilters,
   JobOfferListItem,
   JobOfferPage,
@@ -15,6 +16,8 @@ type Seed = Omit<
 > & {
   age: number
 }
+
+const KNOWN_TECHS = ['Python', 'FastAPI', 'Django', 'PostgreSQL', 'Docker', 'React', 'TypeScript']
 
 const seeds: Seed[] = [
   {
@@ -256,6 +259,24 @@ export const mockOffers = {
     }
     offers.unshift(offer)
     return offer
+  },
+  /** A rough stand-in for the AI: first line as the title, known technologies, first link. */
+  parse(text: string): JobOfferDraft {
+    const lower = text.toLowerCase()
+    const title = text.trim().split('\n')[0].trim().slice(0, 200)
+    return {
+      title,
+      company_name: null,
+      location: null,
+      experience_level:
+        (['junior', 'senior', 'lead'] as const).find((l) => lower.includes(l)) ?? null,
+      employment_type: lower.includes('b2b') ? 'b2b' : null,
+      deadline: null,
+      technologies: KNOWN_TECHS.filter((t) => lower.includes(t.toLowerCase())),
+      url: /https?:\/\/[^\s<>"'()]+/i.exec(text)?.[0].replace(/[.,;:!?]+$/, '') ?? null,
+      description: text,
+      parsed_with: 'demo',
+    }
   },
   remove(id: number): void {
     const index = offers.findIndex((o) => o.id === id)
