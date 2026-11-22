@@ -4,10 +4,11 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from sqlalchemy import select
 
 from app.db.dependencies import DbSession
-from app.dependencies import SearchSources, require_role
+from app.dependencies import AI, SearchSources, require_role
 from app.models import User
 from app.models.enums import SourceKind
 from app.models.role import RoleName
+from app.schemas.ai import AIProviderStatus
 from app.schemas.job_offer import ImportReport, JobOfferRead, JobOfferStatusUpdate
 from app.schemas.search import SearchLimitRead, SearchLimitUpdate, SourceStatus
 from app.schemas.user import AdminUserRead
@@ -74,6 +75,14 @@ def remove_job_offer(offer_id: int, db: DbSession) -> None:
 def check_search_sources(sources: SearchSources) -> list[SourceStatus]:
     """Show each enabled search source and whether it works (API key valid, API reachable)."""
     return [SourceStatus(name=source.name, ok=source.test()) for source in sources]
+
+
+@router.get('/ai-provider', response_model=AIProviderStatus)
+def check_ai_provider(provider: AI) -> AIProviderStatus:
+    """Show which AI provider and model the app uses, and whether it answers."""
+    return AIProviderStatus(
+        provider=provider.name, model=provider.model, base_url=provider.base_url, ok=provider.test()
+    )
 
 
 @router.put('/users/{user_id}/search-limit', response_model=SearchLimitRead)
