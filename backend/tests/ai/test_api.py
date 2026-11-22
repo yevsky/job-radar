@@ -1,32 +1,11 @@
-from collections.abc import Callable
-
-import pytest
 from fastapi import status
 from fastapi.testclient import TestClient
 
-from app.ai.base import AIProvider
 from app.ai.fake import FakeAIProvider
-from app.dependencies import get_ai_provider
-from app.main import app
+from tests.conftest import UseProvider
 from tests.helpers import auth_header
 
 URL = '/admin/ai-provider'
-
-UseProvider = Callable[[AIProvider], None]
-
-
-@pytest.fixture
-def use_provider(api: TestClient) -> UseProvider:
-    """Make the app use the given AI provider instead of the one from settings.
-
-    Depends on `api`, whose teardown clears app.dependency_overrides after the test.
-    """
-    del api  # requested only for its cleanup
-
-    def use(provider: AIProvider) -> None:
-        app.dependency_overrides[get_ai_provider] = lambda: provider
-
-    return use
 
 
 def test_admin_sees_provider_model_and_that_it_works(
