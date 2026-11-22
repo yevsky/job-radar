@@ -76,6 +76,22 @@ class SearchResult(JobOfferImport):
     found_via: str = Field(min_length=1, max_length=50)
 
 
+class HiddenReason(StrEnum):
+    """Why a found offer is not among the results."""
+
+    LIST_PAGE = 'list_page'  # a page that lists many offers, not one
+    CLOSED = 'closed'  # the page says it no longer takes applications
+    EXPIRED = 'expired'  # an expired link the job board sends to a search page
+    OTHER_CITY = 'other_city'  # in a city the user didn't ask for
+    OTHER_LEVEL = 'other_level'  # more than one level away from the level in the position
+
+
+class HiddenResult(SearchResult):
+    """A found offer left out of the results, and why. The user can still open or save it."""
+
+    hidden_because: HiddenReason
+
+
 class SourceError(BaseModel):
     """A source that failed during a search; the other sources' results are still returned."""
 
@@ -91,6 +107,8 @@ class SearchResponse(BaseModel):
     page: int
     has_more: bool  # True if a source may have another page ("Next" in the frontend)
     hidden: int = 0  # results left out: list pages, other cities, levels far from the position
+    # the left-out offers we could read, with the reason; `hidden` also counts broken rows
+    hidden_results: list[HiddenResult] = []
 
 
 class SourceStatus(BaseModel):

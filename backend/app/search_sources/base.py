@@ -2,11 +2,19 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 
 from app.schemas.job_offer import JobOfferImport
-from app.schemas.search import SearchQuery, SourceFeature
+from app.schemas.search import HiddenReason, SearchQuery, SourceFeature
 
 
 class SearchSourceError(Exception):
     """A search API failed: timeout, wrong key, or a response we can't read."""
+
+
+@dataclass
+class HiddenOffer:
+    """An offer the source read but left out, and why."""
+
+    offer: JobOfferImport
+    reason: HiddenReason
 
 
 @dataclass
@@ -15,7 +23,8 @@ class SourcePage:
 
     offers: list[JobOfferImport] = field(default_factory=list)
     has_more: bool = False
-    skipped: int = 0  # rows the source got but left out (e.g. pages that list many offers)
+    hidden: list[HiddenOffer] = field(default_factory=list)  # read, but left out on purpose
+    skipped: int = 0  # rows the source got but couldn't read (no title, a broken link)
 
 
 class SearchSource(ABC):

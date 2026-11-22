@@ -8,8 +8,8 @@ from pydantic import ValidationError
 from app.core.levels import guess_level
 from app.core.locations import CITIES, COUNTRIES, REMOTE_WORDS, guess_location, normalize
 from app.schemas.job_offer import JobOfferImport
-from app.schemas.search import SearchQuery, SourceFeature
-from app.search_sources.base import SearchSource, SearchSourceError, SourcePage
+from app.schemas.search import HiddenReason, SearchQuery, SourceFeature
+from app.search_sources.base import HiddenOffer, SearchSource, SearchSourceError, SourcePage
 
 TAVILY_URL = 'https://api.tavily.com/search'
 TIMEOUT_SECONDS = 15
@@ -192,25 +192,24 @@ def location_from_url(url: object, page_title: str, wanted: list[str] | None = N
     return guess_location(slug, page_title, wanted=wanted)
 
 
-def to_offer(row: object, wanted: list[str] | None = None) -> JobOfferImport | None:
-    """Turn one Tavily result into an offer, best effort; None if it isn't a single open
-    offer: a list page, a closed offer, or an expired one the board redirects to a list.
+def read_row(
+    row: object, wanted: list[str] | None = None
+) -> tuple[JobOfferImport | None, HiddenReason | None]:
+    """One Tavily result as an offer, best effort, and why it should be hidden, if it should:
+    a list page, a closed offer, or an expired one the board redirects to a list.
+    (None, None) if it can't be read at all.
 
     `wanted` are the cities the user asked for, so a city we don't list is found too.
     """
     if not isinstance(row, dict):
-        return None
+        return None, None
     url = row.get('url')
     page_title = str(row.get('title') or '')
-    if not is_offer_page(url, page_title):
-        return None
     title, company = split_title(page_title)
     snippet = str(row.get('content') or '')
     full_text = page_text(row.get('raw_content'))
-    if is_only_a_place(title) or is_closed(snippet, full_text or ''):
-        return None
     try:
-        return JobOfferImport.model_validate(
+        offer = JobOfferImport.model_validate(
             {
                 'title': title[:200],
                 'company_name': company or company_from_url(url, title) or host_of(url),
@@ -223,7 +222,20 @@ def to_offer(row: object, wanted: list[str] | None = None) -> JobOfferImport | N
             }
         )
     except ValidationError:
-        return None
+        return None, None
+    if not is_offer_page(url, page_title):
+        return offer, HiddenReason.LIST_PAGE
+    if is_only_a_place(title):
+        return offer, HiddenReason.EXPIRED
+    if is_closed(snippet, full_text or ''):
+        return offer, HiddenReason.CLOSED
+    return offer, None
+
+
+def to_offer(row: object, wanted: list[str] | None = None) -> JobOfferImport | None:
+    """The result as an offer, or None if it isn't one open offer (see read_row)."""
+    offer, reason = read_row(row, wanted)
+    return offer if reason is None else None
 
 
 class TavilySource(SearchSource):
@@ -289,10 +301,16 @@ class TavilySource(SearchSource):
         if query.page > 1:
             return SourcePage()
         rows = self.send(self.build_body(query))
-        wanted = query.cities()
-        offers = [offer for row in rows if (offer := to_offer(row, wanted)) is not None]
-        # rows that weren't one offer (list pages, broken rows) count as hidden too
-        return SourcePage(offers=offers, has_more=False, skipped=len(rows) - len(offers))
+        page = SourcePage()
+        for row in rows:
+            offer, reason = read_row(row, query.cities())
+            if offer is None:
+                page.skipped += 1  # broken rows count as hidden, but can't be shown
+            elif reason is None:
+                page.offers.append(offer)
+            else:
+                page.hidden.append(HiddenOffer(offer, reason))
+        return page
 
     def test(self) -> bool:
         try:

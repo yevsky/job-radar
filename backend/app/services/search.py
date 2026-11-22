@@ -1,3 +1,4 @@
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
 from sqlalchemy import func, select
@@ -8,8 +9,11 @@ from app.core.levels import fits_level, levels_in
 from app.core.locations import location_fits
 from app.models import SearchRun, User
 from app.models.enums import ExperienceLevel
+from app.schemas.job_offer import JobOfferImport
 from app.schemas.search import (
     MAX_LOCATIONS,
+    HiddenReason,
+    HiddenResult,
     SearchLimitRead,
     SearchQuery,
     SearchResponse,
@@ -132,48 +136,71 @@ def get_usage(db: Session, user: User) -> SearchUsage:
     return SearchUsage(daily_limit=limit, used_today=used, left_today=max(limit - used, 0))
 
 
-def collect_results(
-    query: SearchQuery, sources: list[SearchSource], limit: int
-) -> tuple[list[SearchResult], list[SourceError], bool, int]:
+@dataclass
+class Collected:
+    """What all sources found for one page of a search."""
+
+    results: list[SearchResult] = field(default_factory=list)
+    hidden: list[HiddenResult] = field(default_factory=list)
+    errors: list[SourceError] = field(default_factory=list)
+    has_more: bool = False  # True if any source may have another page
+    unreadable: int = 0  # rows a source couldn't read: hidden, but nothing to show
+
+    @property
+    def hidden_count(self) -> int:
+        return len(self.hidden) + self.unreadable
+
+
+def hidden_reason(
+    offer: JobOfferImport, wanted: ExperienceLevel | None, cities: list[str]
+) -> HiddenReason | None:
+    """Why our own filters leave this offer out, or None if it stays."""
+    if not location_fits(offer.location, cities):
+        return HiddenReason.OTHER_CITY
+    if wanted and not fits_level(offer.title, offer.experience_level, wanted):
+        return HiddenReason.OTHER_LEVEL
+    return None
+
+
+def collect_results(query: SearchQuery, sources: list[SearchSource], limit: int) -> Collected:
     """Ask every source for the query's page and merge the answers.
 
     A source that fails is listed in errors and the others still count. A link found by
     two sources (same normalized URL) is returned once, from the first source. Offers more
-    than one level away from a level in the position are left out, and so are offers in a
-    city the user didn't ask for. The bool is True if any source may have another page; the
-    int counts what was left out: by the city and level filters, or by the source itself
-    (Tavily's list pages).
+    than one level away from a level in the position, or in a city the user didn't ask for,
+    go to `hidden` with the reason, next to what the sources left out themselves (Tavily's
+    list pages, closed and expired offers).
     """
     wanted = query.wanted_level()
     cities = query.cities()
-    results: list[SearchResult] = []
-    errors: list[SourceError] = []
+    found = Collected()
     seen_urls: set[str] = set()
-    has_more = False
-    hidden = 0
 
     for source in sources:
         try:
             page = source.search(query, limit)
         except SearchSourceError as err:
-            errors.append(SourceError(source=source.name, message=str(err)))
+            found.errors.append(SourceError(source=source.name, message=str(err)))
             continue
-        has_more = has_more or page.has_more
-        hidden += page.skipped
+        found.has_more = found.has_more or page.has_more
+        found.unreadable += page.skipped
 
-        for offer in page.offers:
-            if (wanted and not fits_level(offer.title, offer.experience_level, wanted)) or (
-                not location_fits(offer.location, cities)
-            ):
-                hidden += 1
-                continue
+        candidates = [(offer, hidden_reason(offer, wanted, cities)) for offer in page.offers]
+        candidates += [(hidden.offer, hidden.reason) for hidden in page.hidden]
+        for offer, reason in candidates:
             url = normalize_url(str(offer.url))
             if url in seen_urls:
                 continue
             seen_urls.add(url)
-            results.append(SearchResult(**offer.model_dump(), found_via=source.name))
+            data = offer.model_dump()
+            if reason is None:
+                found.results.append(SearchResult(**data, found_via=source.name))
+            else:
+                found.hidden.append(
+                    HiddenResult(**data, found_via=source.name, hidden_because=reason)
+                )
 
-    return results, errors, has_more, hidden
+    return found
 
 
 def run_search(
@@ -192,22 +219,23 @@ def run_search(
     if first_page and usage.left_today == 0:
         raise SearchLimitError  # checked before any source is called, so it costs nothing
 
-    results, errors, has_more, hidden = collect_results(query, chosen_sources(user, sources), limit)
+    found = collect_results(query, chosen_sources(user, sources), limit)
 
     left = usage.left_today
     if first_page:
-        db.add(SearchRun(user_id=user.id, result_count=len(results)))
+        db.add(SearchRun(user_id=user.id, result_count=len(found.results)))
         db.commit()
         left -= 1
 
     return SearchResponse(
         query=query.text(),
-        results=results,
-        errors=errors,
+        results=found.results,
+        errors=found.errors,
         searches_left_today=left,
         page=query.page,
-        has_more=has_more,
-        hidden=hidden,
+        has_more=found.has_more,
+        hidden=found.hidden_count,
+        hidden_results=found.hidden,
     )
 
 
