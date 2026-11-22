@@ -1,10 +1,10 @@
 import type { CSSProperties } from 'react'
 
-import type { SearchResult } from '@/api/search'
+import type { HiddenReason, SearchResult } from '@/api/search'
 import { Icon } from '@/components/Icon'
 import { employmentLabel, experienceLabel } from '@/lib/labels'
 
-import { formatSalary, isNew, isRemote, monogram, tileColor } from './searchUtils'
+import { formatSalary, hiddenLabel, isNew, isRemote, monogram, tileColor } from './searchUtils'
 
 export function CompanyTile({ company, size = 64 }: { company: string; size?: number }) {
   return (
@@ -33,8 +33,11 @@ export function ResultCard({
   now,
   onOpen,
   onSave,
+  hiddenBecause,
 }: {
   result: SearchResult
+  /** Set for a hidden result: shown as a tag, so the user sees why it was left out. */
+  hiddenBecause?: HiddenReason
   selected: boolean
   compact: boolean
   savedId: number | undefined
@@ -57,6 +60,7 @@ export function ResultCard({
         <div className="result-top">
           <div className="result-heading">
             <h3 className="result-title">{result.title}</h3>
+            {hiddenBecause && <span className="tag tag-warn">{hiddenLabel[hiddenBecause]}</span>}
             {isNew(result, now) && <span className="tag tag-info">new</span>}
             {savedId && <span className="tag tag-new">saved</span>}
           </div>

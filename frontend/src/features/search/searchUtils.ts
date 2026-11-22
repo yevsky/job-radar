@@ -1,6 +1,4 @@
-import type { SearchResult, SearchSources, SourceFeature } from '@/api/search'
-
-export type SortKey = 'relevant' | 'salary' | 'newest'
+import type { HiddenReason, SearchResult, SearchSources, SourceFeature } from '@/api/search'
 
 const DAY = 86_400_000
 const grouped = new Intl.NumberFormat('en-GB', { maximumFractionDigits: 0 })
@@ -19,19 +17,13 @@ export function formatSalary(r: SearchResult): string | null {
   return `${range} ${r.salary_currency ?? ''}${period}`.replace(/\s+/g, ' ').trim()
 }
 
-/** Monthly equivalent, only for sorting (160 h per month, 12 months per year). */
-function monthly(r: SearchResult): number {
-  const top = r.salary_max ?? r.salary_min ?? 0
-  if (r.salary_period === 'hour') return top * 160
-  if (r.salary_period === 'year') return top / 12
-  return top
-}
-
-export function sortResults(results: SearchResult[], key: SortKey): SearchResult[] {
-  if (key === 'relevant') return results
-  const copy = [...results]
-  if (key === 'salary') return copy.sort((a, b) => monthly(b) - monthly(a))
-  return copy.sort((a, b) => (b.posted_at ?? '').localeCompare(a.posted_at ?? ''))
+/** Why a result is hidden, in the user's words. */
+export const hiddenLabel: Record<HiddenReason, string> = {
+  list_page: 'list of offers',
+  closed: 'closed',
+  expired: 'expired link',
+  other_city: 'other city',
+  other_level: 'other level',
 }
 
 export function isNew(r: SearchResult, now: number): boolean {

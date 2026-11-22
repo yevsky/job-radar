@@ -710,6 +710,12 @@ table.data td {
   background: var(--tag-info);
   color: var(--tag-info-text);
 }
+/* Why a search result was hidden */
+.tag-warn {
+  background: transparent;
+  border: 1px solid var(--danger);
+  color: var(--danger);
+}
 .tag-dark {
   background: var(--ink);
   color: var(--ink-text);

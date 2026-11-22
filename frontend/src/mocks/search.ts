@@ -262,14 +262,16 @@ export const mockSearch = {
       ? Date.now() - POSTED_DAYS[query.posted_within] * 86_400_000
       : 0
 
-    const found = pool.filter(
+    const matches = pool.filter(
       (r) =>
         (chosen === null || chosen.includes(r.found_via)) &&
-        fitsCities(r.location, cities) &&
         (!since || new Date(r.posted_at ?? 0).getTime() >= since) &&
         (words.length === 0 ||
           words.some((w) => fold(`${r.title} ${(r.technologies ?? []).join(' ')}`).includes(w))),
     )
+    const found = matches.filter((r) => fitsCities(r.location, cities))
+    // like the backend: offers in other cities are hidden, with the reason
+    const hidden = matches.filter((r) => !fitsCities(r.location, cities))
     const start = (page - 1) * PAGE_SIZE
     if (page === 1) usedToday = Math.min(DAILY_LIMIT, usedToday + 1)
     return {
@@ -279,6 +281,9 @@ export const mockSearch = {
       errors: [],
       page,
       has_more: start + PAGE_SIZE < found.length,
+      hidden: page === 1 ? hidden.length : 0,
+      hidden_results:
+        page === 1 ? hidden.map((r) => ({ ...r, hidden_because: 'other_city' as const })) : [],
     }
   },
   save(result: SearchResult): JobOfferRead {
