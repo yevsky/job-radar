@@ -6,7 +6,7 @@ This document describes the relational database schema for the job offer discove
 
 Job offers are **not bulk-scraped** from job boards. They reach the application in three ways: a Tavily web search built from the user's profile, the "Send to JobRadar" browser button, or a manual import of a link. For those offers only the basic facts (link, title, company, location, deadline and source) are stored. The full text is stored only for offers posted on JobRadar itself (`source = posted`, for now the demo offers loaded by `just seed`).
 
-> **Note:** The AI module's tables are added together with the features that use them. So far that's `resumes` (the user's CVs). Match results are still to come.
+> **Note:** The AI module's tables are added together with the features that use them: `resumes` (the user's CVs) and `ai_analyses` (match results).
 
 ## Overview
 
@@ -16,7 +16,7 @@ The schema is organized around five functional areas:
 2. **User preferences** — skills and standing filter preferences used for search and matching
 3. **Job offer data** — job offers and technologies
 4. **User activity** — applications (saved offers included), their status history and search runs
-5. **AI assistant module** — CVs (`resumes`); match results to be added later
+5. **AI assistant module** — CVs (`resumes`) and match results (`ai_analyses`)
 
 ## Enums
 
@@ -226,6 +226,29 @@ One of a user's CVs ("Backend CV", "Data CV"): the text read from the uploaded P
 
 Unique on (`user_id`, `label`). At most 10 CVs per user (checked by the app).
 
+### `ai_analyses`
+One match analysis of an offer for a user ("How you match"). **Every run adds a row**, so earlier results stay comparable (for example after a prompt change); the app shows the newest. Analyses of search results are not stored, like the results themselves.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | integer | Primary key |
+| `user_id` | integer | FK → `users.id`, not null, ON DELETE CASCADE |
+| `job_offer_id` | integer | FK → `job_offers.id`, not null, ON DELETE CASCADE, indexed |
+| `resume_id` | integer | FK → `resumes.id`, ON DELETE SET NULL; the CV the model read, null if none (or deleted since) |
+| `score` | smallint | Not null, 0-100 (check constraint); computed by code from a fixed rubric |
+| `breakdown` | jsonb | Not null; the points of each rubric part (required skills, nice-to-have, level, location, employment type, role fit), so every point can be explained |
+| `summary` | text | Not null; the model's one or two sentences |
+| `reasons` | jsonb | Not null; list of strings |
+| `red_flags` | jsonb | Not null; list of strings |
+| `matched_skills` | jsonb | Not null; the user's skills the offer asks for, in the user's spelling (checked by code) |
+| `missing_skills` | jsonb | Not null; required things none of the user's skills covers |
+| `provider` | varchar(50) | Not null, e.g. `ollama` |
+| `model` | varchar(100) | Not null, e.g. `qwen2.5:3b` |
+| `prompt_version` | varchar(50) | Not null, e.g. `offer-analysis-v2` |
+| `created_at` | timestamp | |
+
+Indexed on (`user_id`, `job_offer_id`, `created_at`) for "this user's newest analysis of this offer".
+
 ## Relationships Summary
 
 - `users.role_id` → `roles.id`
@@ -238,8 +261,9 @@ Unique on (`user_id`, `label`). At most 10 CVs per user (checked by the app).
 - `application_status_changes` belongs to `applications` (1:N)
 - `search_runs.user_id` → `users.id` (1:N)
 - `resumes.user_id` → `users.id` (1:N)
+- `ai_analyses` links `users` ↔ `job_offers` (N rows per user–offer pair), optionally → `resumes`
 
-Deleting a user deletes their profile, preferences, skills links, applications (with their status history), search runs and CVs. Deleting a job offer deletes the applications to it. Deleting a user never deletes rows in `technologies`.
+Deleting a user deletes their profile, preferences, skills links, applications (with their status history), search runs, CVs and analyses. Deleting a job offer deletes the applications to it and its analyses. Deleting a CV keeps the analyses made with it (`resume_id` becomes null). Deleting a user never deletes rows in `technologies`.
 
 ## Design Notes
 
@@ -250,11 +274,12 @@ Deleting a user deletes their profile, preferences, skills links, applications (
 - **Location and preference matching** use free-text fields rather than a normalized `locations` table. Location strings vary significantly between job boards (e.g. "Warszawa" vs "Warsaw, PL" vs "Remote/Warsaw"), so normalization/geocoding is left as a possible future improvement.
 - **Search results are not stored.** A search returns its results to the user and keeps only a `search_runs` row (who, when, how many results). A result is saved only when the user keeps it, as their private offer (`source = search`, `found_via` set). The daily limit counts `search_runs` rows since midnight UTC; an admin can give a user their own limit (`users.search_daily_limit`). Each user can choose which enabled sources their searches ask (`users.search_sources`); a choice that no longer matches any enabled source falls back to all of them.
 - **CV text, not the file.** Only the text of a CV is kept, plus the AI's reading of it as JSON (`extracted`): a JSON column fits because the app always reads and writes it as one object and never filters by it. Nothing is copied into the profile until the user picks fields to apply; skills, locations and employment types are then added to the profile's, never replacing what the user typed. `applications.resume_id` is still a plain integer; it becomes a foreign key to `resumes` when applications start recording which CV was sent.
+- **Analyses: the model reads, code scores.** The model only maps the offer's requirements to the user's skills and gives a 0-10 role fit, a summary, reasons and red flags; the score is computed by code from a fixed rubric and stored with its `breakdown`. `provider`, `model` and `prompt_version` are stored with every row, so a result can always be traced to what produced it. Lists are JSON columns because they are always read and written whole with the row and never filtered.
 - **`technologies` and `roles`** are treated as lookup tables. `created_at` was intentionally omitted from `technologies` since no current feature depends on knowing when a technology entry was created.
 
 ## Planned Additions (Future Work)
 
 The following will be added together with the features that need them:
 
-- **AI assistant module (rest):** a table storing AI query history (per user, per job offer: query type, prompt version, the anonymised context sent to the model and the validated response), and a table storing match results per user and offer (match label, score, "why it fits" and "watch out").
+- **AI assistant module (rest):** a table storing AI query history for the chat about an offer (per user, per job offer: prompt version, the anonymised context sent to the model and the validated response).
 - Possible extensions to `job_offer_technologies` (e.g. required vs. nice-to-have flags) if AI-driven matching requires finer-grained weighting.
