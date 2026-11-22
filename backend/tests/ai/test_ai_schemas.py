@@ -3,7 +3,14 @@ from datetime import date
 import pytest
 from pydantic import BaseModel, ValidationError
 
-from app.schemas.ai import OfferAnalysisOutput, ParsedOffer, ResumeExtracted
+from app.schemas.ai import (
+    OfferAnalysisOutput,
+    ParsedOffer,
+    ResumeExtracted,
+    WorkPeriod,
+    month_of,
+    years_of_work,
+)
 
 
 def test_parsed_offer_needs_only_a_title() -> None:
@@ -79,6 +86,93 @@ def test_resume_extracted_cleans_lists_instead_of_failing() -> None:
     assert extracted.locations == ['Wrocław', 'Remote']
     assert extracted.employment_types == ['b2b', 'full_time']
     assert extracted.experience_level is None
+
+
+def test_resume_extracted_level_is_capped_by_the_years() -> None:
+    """The real v1 run: a student with under a year of work, read as senior."""
+    extracted = ResumeExtracted.model_validate(
+        {'experience_level': 'Senior', 'experience_years': 0.75}
+    )
+    assert extracted.experience_level == 'junior'
+    assert extracted.experience_years == 0.75
+
+
+def test_resume_extracted_counts_the_years_from_the_jobs() -> None:
+    """The real v2 run: the same student came out as middle. The model's own years and
+    level lose to the dates it copied."""
+    today = date.today()
+    months = today.year * 12 + today.month - 1 - 4  # four months ago, counted from 0
+    four_months_ago = date(months // 12, months % 12 + 1, 1)
+    extracted = ResumeExtracted.model_validate(
+        {
+            'experience_level': 'middle',
+            'experience_years': 3,
+            'jobs': [
+                {'title': 'Python intern', 'start': four_months_ago.isoformat(), 'end': 'present'},
+                {'title': 'Tutor', 'start': '2019', 'end': '2018'},  # ends before it starts
+                {'title': 'Something', 'start': 'once'},  # no readable start
+            ],
+        }
+    )
+    assert [job.title for job in extracted.jobs or []] == ['Python intern']
+    assert extracted.experience_years == round(5 / 12, 2)  # four months ago up to this one
+    assert extracted.experience_level == 'junior'
+
+
+def test_no_jobs_means_no_years_of_work() -> None:
+    extracted = ResumeExtracted.model_validate({'experience_level': 'senior', 'jobs': []})
+    assert (extracted.experience_years, extracted.experience_level) == (0, 'junior')
+
+
+def test_without_jobs_the_models_years_stay() -> None:
+    extracted = ResumeExtracted.model_validate({'experience_years': 3, 'jobs': 'none'})
+    assert (extracted.jobs, extracted.experience_years) == (None, 3)
+
+
+@pytest.mark.parametrize(
+    ('value', 'expected'),
+    [
+        ('2026-03', date(2026, 3, 1)),
+        ('2026-03-15', date(2026, 3, 1)),
+        ('03/2026', date(2026, 3, 1)),
+        ('3.2026', date(2026, 3, 1)),
+        ('2026', date(2026, 1, 1)),
+        (date(2026, 3, 15), date(2026, 3, 1)),
+        ('present', None),
+        ('obecnie', None),
+        ('2026-13', None),
+        ('march', None),
+        (None, None),
+        (2026, None),
+    ],
+)
+def test_month_of(value: object, expected: date | None) -> None:
+    assert month_of(value) == expected
+
+
+def job(start: str, end: str | None) -> WorkPeriod:
+    return WorkPeriod.model_validate({'start': start, 'end': end})
+
+
+def test_years_of_work_counts_overlapping_months_once() -> None:
+    today = date(2026, 11, 1)
+    jobs = [job('2025-01', '2025-12'), job('2025-07', '2026-06'), job('2026-10', None)]
+    # 2025-01..2026-06 is 18 months, plus October and November 2026
+    assert years_of_work(jobs, today) == round(20 / 12, 2)
+
+
+def test_years_of_work_stops_at_today() -> None:
+    assert years_of_work([job('2026-09', '2030-01')], date(2026, 11, 1)) == round(3 / 12, 2)
+    assert years_of_work([], date(2026, 11, 1)) == 0
+
+
+@pytest.mark.parametrize('years', ['a few', -1, 99, True, None, [1]])
+def test_resume_extracted_drops_impossible_years(years: object) -> None:
+    extracted = ResumeExtracted.model_validate(
+        {'experience_level': 'senior', 'experience_years': years}
+    )
+    assert extracted.experience_years is None
+    assert extracted.experience_level == 'senior'  # without years the model's level stays
 
 
 def test_resume_extracted_cuts_long_texts() -> None:

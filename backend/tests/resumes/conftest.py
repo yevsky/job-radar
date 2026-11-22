@@ -16,6 +16,8 @@ CV_PDF = make_pdf(CV_TEXT)
 EXTRACTED = {
     'desired_position': 'Python developer',
     'experience_level': 'junior',
+    'jobs': None,  # no dates: experience_years stays the model's
+    'experience_years': 2.0,
     'skills': ['Python', 'FastAPI', 'Docker'],
     'locations': ['Wroclaw', 'Remote'],
     'employment_types': ['b2b', 'full_time'],

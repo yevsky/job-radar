@@ -17,8 +17,8 @@ from app.schemas.job_offer import JobOfferImport
 from app.schemas.profile import ProfileRead
 
 OFFER_PARSE_VERSION = 'offer-parse-v2'
-RESUME_EXTRACT_VERSION = 'resume-extract-v1'
-OFFER_ANALYSIS_VERSION = 'offer-analysis-v2'
+RESUME_EXTRACT_VERSION = 'resume-extract-v3'
+OFFER_ANALYSIS_VERSION = 'offer-analysis-v3'
 
 # Sizes that fit an 8k-token context together with the instructions and the schema
 # (about 4 characters per token).
@@ -83,10 +83,23 @@ def offer_parse_messages(text: str) -> list[ChatMessage]:
 
 def resume_extract_messages(text: str) -> list[ChatMessage]:
     """Read a CV's skills and job wishes. Personal details are not asked for."""
+    # v2, after a real run of v1 with qwen2.5:3b: a student with under a year of work came out
+    # as "senior" (the model judged the long skills list, not the experience).
+    # v3, after a real run of v2: the same CV came out as "middle". The model can't count
+    # "2026-03 - present" without today's date, so it now only copies the dates (jobs) and
+    # code counts the years (schemas/ai.py).
     task = (
         "You read a CV and list what it says about the person's work: the position they "
         'want or have, their experience level, skills, preferred locations and employment '
         'types, and a short summary of their experience. '
+        'jobs: every job and internship in IT, with start and end copied from the CV as '
+        '"YYYY-MM" (or "YYYY" if there is no month); end is null if it is the current job. '
+        'Studies and personal projects are not jobs. An empty list if there are none. '
+        'experience_years: null, it is counted from jobs. '
+        'experience_level: judge it by the length of the jobs and their titles, never by the '
+        'number of skills: no work or under 1 year is trainee or junior, under 2 years junior, '
+        '2-5 years middle, 5 or more senior. null if unsure. '
+        'locations: city names as written in Polish or English, e.g. "Wrocław". '
         'Leave out personal details such as name, email, phone and address.'
     )
     return [
@@ -135,10 +148,15 @@ def offer_analysis_messages(
     # v2, after a real run of v1 with qwen2.5:3b: FastAPI was left out of the requirements,
     # PostgreSQL (listed as required) became nice to have, the reasons only repeated the
     # summary and role_fit was 6 for the candidate's own job title.
+    # v3, after a v2 run on a Django offer: a section heading ('Poszukiwane cechy i
+    # umiejętności') became a requirement, and Django, Git and SQL were left out. Code now also
+    # adds the offer's listed technologies (services/analysis.py).
     task = (
         'You help a job seeker judge one job offer. '
         'requirements: one entry for EVERY technology, tool, language and skill the posting '
         'names, and for other demands such as years of experience or languages. '
+        'text is the skill or demand itself, short, e.g. "Django" or "2 years of Python", '
+        'never a section heading such as "Requirements" or "Wymagania". '
         'required=true unless the posting says it is optional ("nice to have", "a plus", '
         '"mile widziane"). '
         "skill: the candidate's skill that covers the requirement, written exactly as in the "
