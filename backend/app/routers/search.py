@@ -2,10 +2,10 @@ from fastapi import APIRouter, HTTPException, Response, status
 
 from app.core.config import settings
 from app.db.dependencies import DbSession
-from app.dependencies import CurrentUser, SearchSources
+from app.dependencies import AI, CurrentUser, Pages, SearchSources
 from app.models.enums import SourceKind
-from app.schemas.job_offer import JobOfferRead
 from app.schemas.search import (
+    SavedSearchResult,
     SearchQuery,
     SearchResponse,
     SearchResult,
@@ -15,6 +15,7 @@ from app.schemas.search import (
 )
 from app.services.job_offer import to_read
 from app.services.job_offer_import import add_private_offer
+from app.services.offer_parsing import enrich_saved_offer
 from app.services.search import (
     EmptyQueryError,
     SearchLimitError,
@@ -83,14 +84,26 @@ def search_jobs(
         ) from err
 
 
-@router.post('/results', response_model=JobOfferRead, status_code=status.HTTP_201_CREATED)
+@router.post('/results', response_model=SavedSearchResult, status_code=status.HTTP_201_CREATED)
 def save_search_result(
-    data: SearchResult, db: DbSession, user: CurrentUser, response: Response
-) -> JobOfferRead:
-    """Keep a search result as an offer only you can see; a known link returns that offer."""
+    data: SearchResult,
+    db: DbSession,
+    user: CurrentUser,
+    response: Response,
+    ai: AI,
+    pages: Pages,
+) -> SavedSearchResult:
+    """Keep a search result as an offer only you can see; a known link returns that offer.
+
+    A new offer's empty fields (location, level, technologies, ...) are filled by the AI
+    from the full posting page. If that fails, the offer is still saved, with enriched false.
+    """
     offer, created = add_private_offer(
         db, data, user.id, source=SourceKind.SEARCH, found_via=data.found_via
     )
+    enriched = False
     if not created:
         response.status_code = status.HTTP_200_OK
-    return to_read(offer)
+    elif settings.ai_enrich_saved_results:
+        enriched = enrich_saved_offer(db, offer, ai, pages)
+    return SavedSearchResult(**to_read(offer).model_dump(), enriched=enriched)

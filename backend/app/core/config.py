@@ -35,6 +35,8 @@ class Settings(BaseSettings):
     ai_base_url: str | None = None
     # A local model on a CPU can take minutes; cloud APIs answer in seconds
     ai_timeout_seconds: float = 300
+    # Fill a saved search result's empty fields from its full page (Tavily Extract + AI)
+    ai_enrich_saved_results: bool = True
 
     model_config = SettingsConfigDict(
         env_file=[
