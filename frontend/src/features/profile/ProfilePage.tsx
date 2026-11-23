@@ -11,6 +11,8 @@ import { SourcePicker } from '@/features/search/SourcePicker'
 import { employmentLabel, experienceLabel } from '@/lib/labels'
 import { useAsync } from '@/lib/useAsync'
 
+import { searchPosition } from './searchPosition'
+
 export function ProfilePage() {
   const profile = useAsync(() => profileApi.getProfile(), [])
 
@@ -46,7 +48,7 @@ export function ProfilePage() {
 function SearchSettings({ profile }: { profile: ProfileRead }) {
   const sources = useAsync(() => getSearchSources(), [])
   const usage = useAsync(() => getSearchUsage(), [])
-  const position = [profile.experience_level, profile.desired_position].filter(Boolean).join(' ')
+  const position = searchPosition(profile)
   const prefill: [string, string][] = [
     ['Position', position || 'not set'],
     ['Skills', profile.skills.slice(0, 10).join(', ') || 'none'],

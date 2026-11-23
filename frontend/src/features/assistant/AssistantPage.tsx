@@ -20,7 +20,7 @@ import { Icon } from '@/components/Icon'
 import { MatchDetails } from '@/features/match/MatchDetails'
 import { DemoBadge, ErrorBox, Loading, PageHeader } from '@/components/ui'
 import { relativeDays } from '@/lib/format'
-import { reloadSaved } from '@/lib/savedStore'
+import { reloadTracked } from '@/lib/savedStore'
 import { useAsync } from '@/lib/useAsync'
 
 import { ActionCard } from './ActionCard'
@@ -137,7 +137,7 @@ export function AssistantPage() {
         messages: [...c.messages, reply.message],
         actions: c.actions.map((a) => (a.id === reply.action.id ? reply.action : a)),
       }))
-      if (reply.action.status === 'confirmed' && reply.action.tool === 'save_offer') reloadSaved()
+      if (reply.action.status === 'confirmed' && reply.action.tool === 'save_offer') reloadTracked()
     } catch (err) {
       setError(err instanceof Error ? err : new Error(String(err)))
       detail.reload()

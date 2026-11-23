@@ -90,6 +90,7 @@ def to_saved(application: Application) -> SavedJobRead:
     return SavedJobRead(
         id=application.id,
         job_offer=to_list_item(application.job_offer),
+        status=application.status,
         created_at=application.created_at,
     )
 

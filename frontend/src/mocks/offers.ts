@@ -12,7 +12,7 @@ import { daysFromNow, newId, notFound } from './util'
 
 type Seed = Omit<
   JobOfferRead,
-  'id' | 'is_active' | 'last_seen_at' | 'created_at' | 'is_private'
+  'id' | 'is_active' | 'last_seen_at' | 'created_at' | 'is_private' | 'found_via'
 > & {
   age: number
 }
@@ -188,6 +188,7 @@ const seeds: Seed[] = [
 const offers: JobOfferRead[] = seeds.map(({ age, ...seed }, index) => ({
   ...seed,
   id: index + 1,
+  found_via: null,
   is_active: true,
   is_private: false,
   last_seen_at: daysFromNow(-age),
@@ -223,8 +224,9 @@ function matches(offer: JobOfferRead, f: JobOfferFilters): boolean {
 
 export const mockOffers = {
   list(filters: JobOfferFilters, limit: number, offset: number): JobOfferPage {
+    // the job board: offers the user added live in My offers instead
     const found = offers
-      .filter((o) => matches(o, filters))
+      .filter((o) => !o.is_private && matches(o, filters))
       .sort((a, b) => b.created_at.localeCompare(a.created_at))
     return {
       items: found.slice(offset, offset + limit).map(toListItem),
@@ -236,7 +238,7 @@ export const mockOffers = {
   get(id: number): JobOfferRead {
     return offers.find((o) => o.id === id) ?? notFound('Job offer')
   },
-  create(data: JobOfferCreate, source: SourceKind): JobOfferRead {
+  create(data: JobOfferCreate, source: SourceKind, foundVia: string | null = null): JobOfferRead {
     const known = offers.find((o) => o.url === data.url)
     if (known) return known
     const now = new Date().toISOString()
@@ -252,6 +254,7 @@ export const mockOffers = {
       technologies: data.technologies ?? [],
       description: data.description ?? null,
       source,
+      found_via: foundVia,
       is_active: true,
       is_private: true,
       last_seen_at: now,

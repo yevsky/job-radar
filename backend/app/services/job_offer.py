@@ -10,6 +10,8 @@ from app.schemas.job_offer import (
     JobOfferListItem,
     JobOfferPage,
     JobOfferRead,
+    MyOfferApplication,
+    MyOfferItem,
 )
 
 
@@ -40,9 +42,20 @@ def to_list_item(offer: JobOffer) -> JobOfferListItem:
 
 
 def list_job_offers(
-    db: Session, user_id: int, limit: int, offset: int, filters: JobOfferFilters
+    db: Session,
+    user_id: int,
+    limit: int,
+    offset: int,
+    filters: JobOfferFilters,
+    public_only: bool = False,
 ) -> JobOfferPage:
-    query = select(JobOffer).where(JobOffer.is_active, visible_to(user_id))
+    """Active offers the user can see, newest first.
+
+    `public_only` leaves out the user's own private offers: the job board shows only the
+    offers posted on the site, and the private ones live on the "My offers" page.
+    """
+    shown = JobOffer.owner_id.is_(None) if public_only else visible_to(user_id)
+    query = select(JobOffer).where(JobOffer.is_active, shown)
 
     for name in filters.technologies:
         query = query.where(JobOffer.technologies.any(func.lower(Technology.name) == name.lower()))
@@ -89,6 +102,49 @@ def to_read(offer: JobOffer) -> JobOfferRead:
         last_seen_at=offer.last_seen_at,
         created_at=offer.created_at,
     )
+
+
+def list_my_offers(db: Session, user_id: int) -> list[MyOfferItem]:
+    """Every offer the user added (from search, the browser or by hand) or tracks.
+
+    A public offer shows up once the user saves it or applies to it. Hidden and expired
+    offers are kept, because the user still tracks them. Newest first.
+    """
+    applications = {
+        a.job_offer_id: a
+        for a in db.scalars(select(Application).where(Application.user_id == user_id))
+    }
+    offers = db.scalars(
+        select(JobOffer)
+        .where(or_(JobOffer.owner_id == user_id, JobOffer.id.in_(list(applications))))
+        .options(selectinload(JobOffer.technologies))
+    ).all()
+
+    items = []
+    for offer in offers:
+        application = applications.get(offer.id)
+        mine = offer.owner_id == user_id
+        added_at = offer.created_at if mine or application is None else application.created_at
+        items.append(
+            MyOfferItem(
+                **to_list_item(offer).model_dump(),
+                source=offer.source,
+                found_via=offer.found_via,
+                url=offer.url,
+                is_active=offer.is_active,
+                is_private=mine,
+                added_at=added_at,
+                application=None
+                if application is None
+                else MyOfferApplication(
+                    id=application.id,
+                    status=application.status,
+                    updated_at=application.updated_at,
+                ),
+            )
+        )
+    items.sort(key=lambda item: (item.added_at, item.id), reverse=True)
+    return items
 
 
 def get_job_offer(db: Session, offer_id: int, user_id: int) -> JobOfferRead | None:

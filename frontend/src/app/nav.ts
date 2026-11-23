@@ -34,8 +34,8 @@ export const navSections: NavSection[] = [
     title: 'Job search',
     items: [
       { to: '/search', label: 'Find jobs', icon: 'search' },
-      { to: '/offers', label: 'Job offers', icon: 'list', except: ['/offers/new'] },
-      { to: '/saved', label: 'Saved offers', icon: 'bookmark' },
+      { to: '/offers', label: 'Job board', icon: 'list', except: ['/offers/new'] },
+      { to: '/my-offers', label: 'My offers', icon: 'bookmark' },
       { to: '/applications', label: 'Applications', icon: 'board' },
       { to: '/calendar', label: 'Calendar', icon: 'calendar' },
     ],

@@ -2,6 +2,7 @@ import { useState, type MouseEvent } from 'react'
 
 import type { ApplicationStats } from '@/api/applications'
 import type { ApplicationStatus, FunnelStage } from '@/api/enums'
+import { tipPosition } from '@/lib/chartTip'
 import { pct } from '@/lib/format'
 import { useElementWidth } from '@/lib/useElementWidth'
 import { statusColor, statusLabel } from '@/lib/labels'
@@ -203,7 +204,7 @@ export function FunnelChart({ stats }: { stats: ApplicationStats }) {
           ))}
         </svg>
         {tip && (
-          <div className="chart-tip" style={{ left: tip.x, top: tip.y }}>
+          <div className="chart-tip" style={{ top: tip.y, ...tipPosition(tip.x / W) }}>
             {tip.text}
           </div>
         )}

@@ -64,6 +64,8 @@ class SavedJobRead(BaseModel):
 
     id: int
     job_offer: JobOfferListItem
+    # saved, or further on when the offer was already on the board before it was "saved"
+    status: ApplicationStatus
     created_at: datetime
 
 

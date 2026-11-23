@@ -9,7 +9,13 @@ from app.dependencies import AI, CurrentUser, get_current_user
 from app.models.enums import EmploymentType, ExperienceLevel
 from app.schemas.ai import JobOfferParseRequest, JobOfferParseResponse
 from app.schemas.analysis import AiAnalysisRead, AnalysisRequest
-from app.schemas.job_offer import JobOfferFilters, JobOfferImport, JobOfferPage, JobOfferRead
+from app.schemas.job_offer import (
+    JobOfferFilters,
+    JobOfferImport,
+    JobOfferPage,
+    JobOfferRead,
+    MyOfferItem,
+)
 from app.services.ai_analysis import EmptyProfileError, analyse_offer, latest_analysis
 from app.services.job_offer import (
     NotOfferOwnerError,
@@ -17,6 +23,7 @@ from app.services.job_offer import (
     delete_own_offer,
     get_job_offer,
     list_job_offers,
+    list_my_offers,
     to_read,
 )
 from app.services.job_offer_import import add_private_offer
@@ -55,7 +62,14 @@ def read_job_offers(
         experience_levels=experience_level or [],
         employment_types=employment_type or [],
     )
-    return list_job_offers(db, user.id, limit, offset, filters)
+    return list_job_offers(db, user.id, limit, offset, filters, public_only=True)
+
+
+@router.get('/mine', response_model=list[MyOfferItem])
+def read_my_offers(db: DbSession, user: CurrentUser) -> list[MyOfferItem]:
+    """Offers you added yourself (by hand, from search or from the browser) and public
+    offers you saved or applied to, newest first."""
+    return list_my_offers(db, user.id)
 
 
 @router.get('/{offer_id}', response_model=JobOfferRead)

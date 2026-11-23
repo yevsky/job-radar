@@ -1649,3 +1649,59 @@ table.data td {
     max-width: 90%;
   }
 }
+
+/* Save button: an error shows under it for a few seconds instead of a browser alert */
+.save-button {
+  position: relative;
+  display: inline-flex;
+}
+.save-error {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 5;
+  max-width: 260px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  color: var(--danger);
+  font-size: 0.8rem;
+  white-space: normal;
+  width: max-content;
+}
+
+/* My offers */
+.my-offers-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+.my-offers-bar .segmented {
+  flex-wrap: wrap;
+}
+.segmented .count {
+  margin-left: 6px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.origin {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+@media (max-width: 720px) {
+  .list-item .origin {
+    display: none;
+  }
+  .my-offers-bar .input {
+    max-width: none !important;
+    width: 100%;
+  }
+}

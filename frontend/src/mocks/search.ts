@@ -244,12 +244,11 @@ export const mockSearch = {
     const p = mockProfile.get()
     const level = p.experience_level ? LEVEL_WORD[p.experience_level] : ''
     const hasLevel = /\b(intern|trainee|junior|mid|senior|lead)\b/i.test(p.desired_position ?? '')
+    // first letter as a capital, like the backend: 'junior dev' -> 'Junior dev'
+    const own = p.desired_position?.trim()
+    const position = own ? own[0].toUpperCase() + own.slice(1) : null
     return {
-      position: p.desired_position
-        ? hasLevel || !level
-          ? p.desired_position
-          : `${level} ${p.desired_position}`
-        : null,
+      position: position ? (hasLevel || !level ? position : `${level} ${position}`) : null,
       locations: p.preferred_locations.slice(0, 5),
       country: 'pl',
       posted_within: null,
@@ -290,6 +289,6 @@ export const mockSearch = {
     }
   },
   save(result: SearchResult): JobOfferRead {
-    return mockOffers.create(result, 'search')
+    return mockOffers.create(result, 'search', result.found_via)
   },
 }

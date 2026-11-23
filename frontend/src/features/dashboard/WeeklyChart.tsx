@@ -1,6 +1,7 @@
 import { useState } from 'react'
 
 import type { ApplicationStats } from '@/api/applications'
+import { tipPosition } from '@/lib/chartTip'
 import { formatShort } from '@/lib/format'
 import { useElementWidth } from '@/lib/useElementWidth'
 
@@ -185,7 +186,7 @@ export function WeeklyChart({ weekly }: { weekly: ApplicationStats['weekly'] }) 
         {active !== null && (
           <div
             className="chart-tip"
-            style={{ left: `${((PAD_L + slot * active + slot / 2) / W) * 100}%`, top: 10 }}
+            style={{ top: 10, ...tipPosition((PAD_L + slot * active + slot / 2) / W) }}
           >
             Week of {formatShort(`${weekly[active].week_start}T12:00:00`)}: {weekly[active].saved}{' '}
             saved, {weekly[active].applied} applied, {replies(weekly[active].replied)}

@@ -12,6 +12,7 @@ def test_save_returns_201_and_lists_it(api: TestClient, access_token: str, offer
 
     assert response.status_code == status.HTTP_201_CREATED
     assert response.json()['job_offer']['id'] == offer.id
+    assert response.json()['status'] == 'saved'
     listed = api.get(URL, headers=auth_header(access_token)).json()
     assert [s['job_offer']['id'] for s in listed] == [offer.id]
 
@@ -87,3 +88,19 @@ def test_saved_offers_are_per_user(
     api.post(URL, json={'job_offer_id': offer.id}, headers=auth_header(other_token))
 
     assert api.get(URL, headers=auth_header(access_token)).json() == []
+
+
+def test_save_of_an_offer_already_applied_to_says_its_status(
+    api: TestClient, access_token: str, offer: JobOffer
+) -> None:
+    """The Save button uses the status to show "Applied" instead of a Saved it can't undo."""
+    api.post(
+        '/applications',
+        json={'job_offer_id': offer.id, 'status': 'interview'},
+        headers=auth_header(access_token),
+    )
+
+    response = api.post(URL, json={'job_offer_id': offer.id}, headers=auth_header(access_token))
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json()['status'] == 'interview'

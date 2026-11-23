@@ -1,4 +1,4 @@
-import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 
 import { AppLayout } from '@/components/AppLayout'
 import { Empty } from '@/components/ui'
@@ -14,12 +14,12 @@ import { LoginPage, RegisterPage } from '@/features/auth/AuthPages'
 import { RequireAuth } from '@/features/auth/RequireAuth'
 import { CalendarPage } from '@/features/calendar/CalendarPage'
 import { DashboardPage } from '@/features/dashboard/DashboardPage'
+import { MyOffersPage } from '@/features/my-offers/MyOffersPage'
 import { NewOfferPage } from '@/features/offers/NewOfferPage'
 import { OfferDetailPage } from '@/features/offers/OfferDetailPage'
 import { OffersPage } from '@/features/offers/OffersPage'
 import { ProfilePage } from '@/features/profile/ProfilePage'
 import { ResumesPage } from '@/features/resumes/ResumesPage'
-import { SavedPage } from '@/features/saved/SavedPage'
 import { SearchPage } from '@/features/search/SearchPage'
 
 export function App() {
@@ -39,7 +39,9 @@ export function App() {
               <Route path="offers" element={<OffersPage />} />
               <Route path="offers/new" element={<NewOfferPage />} />
               <Route path="offers/:id" element={<OfferDetailPage />} />
-              <Route path="saved" element={<SavedPage />} />
+              <Route path="my-offers" element={<MyOffersPage />} />
+              {/* the old name of My offers, so old links still work */}
+              <Route path="saved" element={<Navigate to="/my-offers" replace />} />
               <Route path="applications" element={<ApplicationsPage />} />
               <Route path="calendar" element={<CalendarPage />} />
               <Route path="assistant" element={<AssistantPage />} />

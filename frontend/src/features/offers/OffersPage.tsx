@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 
 import type { EmploymentType, ExperienceLevel } from '@/api/enums'
 import { listJobOffers, type JobOfferFilters } from '@/api/jobOffers'
+import { Icon } from '@/components/Icon'
 import { Empty, ErrorBox, Loading, PageHeader } from '@/components/ui'
 import { useAsync } from '@/lib/useAsync'
 
@@ -54,11 +55,12 @@ export function OffersPage() {
     <>
       <PageHeader
         icon="list"
-        title="Job offers"
-        lead="Public offers plus the ones you added yourself. Expired and hidden offers are left out."
+        title="Job board"
+        lead="Offers posted on the site for everyone. The ones you add yourself or keep from a search are in My offers."
         actions={
-          <Link to="/offers/new" className="btn">
-            Add an offer
+          <Link to="/my-offers" className="btn">
+            <Icon name="bookmark" size={16} />
+            My offers
           </Link>
         }
       />

@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom'
 import { createApplication, listApplications, updateApplication } from '@/api/applications'
 import { StatusBadge } from '@/components/ui'
 import { formatDate } from '@/lib/format'
-import { forgetSaved } from '@/lib/savedStore'
+import { setTracked } from '@/lib/savedStore'
 import { useAsync } from '@/lib/useAsync'
 
 import { SaveButton } from './SaveButton'
@@ -26,7 +26,7 @@ export function TrackPanel({ offerId }: { offerId: number }) {
         ? await updateApplication(current.id, { status: 'applied' })
         : await createApplication({ job_offer_id: offerId, status: 'applied' })
       apps.setData((prev) => [...(prev ?? []).filter((a) => a.id !== next.id), next])
-      forgetSaved(offerId)
+      setTracked(offerId, { applicationId: next.id, status: next.status })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save')
     } finally {

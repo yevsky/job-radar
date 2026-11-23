@@ -11,7 +11,7 @@ from pydantic import (
     field_validator,
 )
 
-from app.models.enums import EmploymentType, ExperienceLevel, SourceKind
+from app.models.enums import ApplicationStatus, EmploymentType, ExperienceLevel, SourceKind
 from app.schemas.profile import unique_ignoring_case
 
 TechnologyName = Annotated[
@@ -46,6 +46,26 @@ class JobOfferRead(JobOfferListItem):
     description: str | None
     last_seen_at: datetime | None
     created_at: datetime
+
+
+class MyOfferApplication(BaseModel):
+    """Where the user's application for the offer is now."""
+
+    id: int
+    status: ApplicationStatus
+    updated_at: datetime
+
+
+class MyOfferItem(JobOfferListItem):
+    """One offer on the "My offers" page: one the user added, or one they track."""
+
+    source: SourceKind
+    found_via: str | None
+    url: str
+    is_active: bool
+    is_private: bool
+    added_at: datetime  # when the user added the offer, or started tracking a public one
+    application: MyOfferApplication | None
 
 
 class AdminJobOfferItem(JobOfferListItem):

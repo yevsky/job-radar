@@ -152,10 +152,12 @@ def position_with_level(position: str | None, level: ExperienceLevel | None) -> 
     """The profile's position with its level in front, unless the position names one.
 
     ('Python developer', junior) -> 'Junior Python developer'; ('Senior dev', junior) stays.
+    The first letter is made a capital either way: 'junior Python dev' -> 'Junior Python dev'.
     """
     if not position or not position.strip():
         return None
     position = position.strip()
+    position = position[0].upper() + position[1:]
     if level is None or levels_in(position):
         return position
     return f'{LEVEL_WORD[level]} {position}'[:120]

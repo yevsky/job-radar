@@ -82,13 +82,15 @@ def test_user_adds_private_offer(
     assert offer.owner_id == registered_user_id
 
 
-def test_owner_sees_private_offer_in_list_and_details(api: TestClient, access_token: str) -> None:
+def test_owner_sees_private_offer_in_my_offers_and_details(
+    api: TestClient, access_token: str
+) -> None:
     created = add(api, access_token)
 
-    listed = api.get(URL, headers=auth_header(access_token)).json()
+    mine = api.get(f'{URL}/mine', headers=auth_header(access_token)).json()
     details = api.get(f'{URL}/{created["id"]}', headers=auth_header(access_token))
 
-    assert [item['id'] for item in listed['items']] == [created['id']]
+    assert [item['id'] for item in mine] == [created['id']]
     assert details.status_code == status.HTTP_200_OK
     assert details.json() == created
 
@@ -156,19 +158,20 @@ def test_two_users_get_their_own_copies_of_one_link(
 
     assert mine['id'] != theirs['id']
     assert count_offers(db) == 2
-    assert api.get(URL, headers=auth_header(access_token)).json()['items'][0]['title'] == 'My notes'
+    my_offers = api.get(f'{URL}/mine', headers=auth_header(access_token)).json()
+    assert [o['title'] for o in my_offers] == ['My notes']
 
 
-def test_list_mixes_public_and_own_offers(
+def test_job_board_lists_only_public_offers(
     api: TestClient, access_token: str, other_token: str, public_offer: JobOffer
 ) -> None:
-    mine = add(api, access_token, url='https://example.com/jobs/mine')
+    add(api, access_token, url='https://example.com/jobs/mine')
     add(api, other_token, url='https://example.com/jobs/theirs')
 
     listed = api.get(URL, headers=auth_header(access_token)).json()
 
-    assert {item['id'] for item in listed['items']} == {public_offer.id, mine['id']}
-    assert listed['total'] == 2
+    assert [item['id'] for item in listed['items']] == [public_offer.id]
+    assert listed['total'] == 1
 
 
 def test_only_required_fields_are_enough(api: TestClient, access_token: str) -> None:
