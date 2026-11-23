@@ -273,18 +273,49 @@ class ResumeExtracted(AIAnswer):
         return self
 
 
+class RequirementKind(StrEnum):
+    """What a requirement asks for. Only skills are matched and scored: a trait such as
+    "knowledge hungry" is not something to learn, and experience is judged by the level."""
+
+    SKILL = 'skill'  # a technology, tool, method or practice: Python, Git, REST, SOLID
+    EXPERIENCE = 'experience'  # time or commercial experience: "6-12 months with Python"
+    LANGUAGE = 'language'  # a spoken language: "English B2"
+    EDUCATION = 'education'  # a degree or studies
+    TRAIT = 'trait'  # a personal quality: "team player", "knowledge hungry"
+
+
 class Requirement(AIAnswer):
     """One requirement of a posting and which of the candidate's skills covers it."""
 
     text: str = Field(min_length=1, max_length=200)
     required: bool  # False for "nice to have"
+    kind: RequirementKind = RequirementKind.SKILL
     skill: str | None = Field(default=None, max_length=50)  # one of the candidate's skills, or None
 
+    @field_validator('kind', mode='before')
+    @classmethod
+    def known_kind(cls, value: object) -> object:
+        """'Soft skill' or a missing kind -> skill/trait guesses; unknown words -> skill."""
+        if isinstance(value, str) and 'soft' in value.lower():
+            return RequirementKind.TRAIT
+        return known_or_none(value, RequirementKind) or RequirementKind.SKILL
 
-class OfferAnalysisOutput(AIAnswer):
-    """The model's part of a match analysis. Code decides matched skills and the score."""
+
+class OfferRequirementsOutput(AIAnswer):
+    """Step 1 of a match analysis: what the posting asks for."""
 
     requirements: list[Requirement] = Field(default=[], max_length=30)
+
+    @field_validator('requirements', mode='before')
+    @classmethod
+    def first_thirty(cls, value: object) -> object:
+        """A long list is cut, not refused: asking again would give the same long list."""
+        return value[:30] if isinstance(value, list) else value
+
+
+class OfferJudgementOutput(AIAnswer):
+    """Step 2 of a match analysis: the model's judgement, given the facts code checked."""
+
     role_fit: int = Field(ge=0, le=10)
     summary: str = Field(max_length=300)
     reasons: list[str] = Field(default=[], max_length=5)
@@ -295,6 +326,10 @@ class OfferAnalysisOutput(AIAnswer):
     def no_repeats(cls, points: list[str]) -> list[str]:
         """A small model sometimes writes the same red flag twice."""
         return unique_ignoring_case([p for p in points if p])
+
+
+class OfferAnalysisOutput(OfferRequirementsOutput, OfferJudgementOutput):
+    """Both steps together: what code scores. Code decides matched skills and the score."""
 
 
 class AIProviderStatus(BaseModel):

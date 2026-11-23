@@ -75,10 +75,17 @@ def analyse_offer(
     profile = profile_for_analysis(user)
 
     result = analyse(provider, offer_as_import(offer), profile, cv_text)
+    return store_analysis(db, user.id, offer.id, resume_id, result)
 
+
+def store_analysis(
+    db: Session, user_id: int, offer_id: int, resume_id: int | None, result: AnalysisResult
+) -> AiAnalysis:
+    """Keep an analysis as a new row (also used when a search result analysed in the chat
+    is saved, so the offer page shows the same card)."""
     row = AiAnalysis(
-        user_id=user.id,
-        job_offer_id=offer.id,
+        user_id=user_id,
+        job_offer_id=offer_id,
         resume_id=resume_id,
         **result.model_dump(exclude={'breakdown'}),
         breakdown=result.breakdown.model_dump(),

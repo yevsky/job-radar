@@ -1,8 +1,10 @@
 """Match one offer against the user: the model reads the posting, code decides the score.
 
-The model only maps each requirement to one of the user's skills (or none) and gives a 0-10
-role fit, reasons and red flags. Everything else is a fixed rubric in code, so the same
-answer always gives the same score and every point can be explained:
+Two model calls. Step 1 lists the posting's requirements, each with its kind, and maps the
+skills to the user's skills. Code then decides which skills the user covers and which are
+missing. Step 2 gets those facts and writes the 0-10 role fit, summary, reasons and red
+flags, so it can't call a skill both covered and missing. The score is a fixed rubric in code,
+so the same answers always give the same score and every point can be explained:
 
     required skills 45 | nice-to-have 10 | level 20 | location 10 | employment type 5 | role fit 10
 """
@@ -10,12 +12,22 @@ answer always gives the same score and every point can be explained:
 import re
 
 from app.ai.base import AIProvider
-from app.ai.prompts import OFFER_ANALYSIS_VERSION, offer_analysis_messages
+from app.ai.prompts import (
+    OFFER_ANALYSIS_VERSION,
+    offer_judgement_messages,
+    offer_requirements_messages,
+)
 from app.ai.structured import generate
 from app.core.levels import LADDER, guess_level
 from app.core.locations import cities_in, city_key, is_remote, normalize
 from app.models.enums import EmploymentType, ExperienceLevel
-from app.schemas.ai import OfferAnalysisOutput, Requirement
+from app.schemas.ai import (
+    OfferAnalysisOutput,
+    OfferJudgementOutput,
+    OfferRequirementsOutput,
+    Requirement,
+    RequirementKind,
+)
 from app.schemas.analysis import AnalysisResult, ScoreBreakdown
 from app.schemas.job_offer import JobOfferImport
 from app.schemas.profile import ProfileRead, unique_ignoring_case
@@ -27,24 +39,41 @@ LOCATION_POINTS = 10
 EMPLOYMENT_TYPE_POINTS = 5
 
 
-def covering_skill(requirement: Requirement, skills_by_key: dict[str, str]) -> str | None:
+def mentions(text: str, name: str) -> bool:
+    """True if the text names it as a whole word: 'Python 3' mentions Python, 'Jython' not,
+    and 'C#' or 'C++' doesn't mention C."""
+    pattern = rf'(?<![\w#+.]){re.escape(name.casefold())}(?![\w#+])'
+    return re.search(pattern, text.casefold()) is not None
+
+
+def covering_skill(
+    requirement: Requirement, skills_by_key: dict[str, str], resume_text: str | None = None
+) -> str | None:
     """The user's skill that covers this requirement, if the user really has it.
 
-    The skill the model named, else the requirement itself when it is one of the user's skills
-    (a small model sometimes leaves `skill` empty for 'Django' even if the user has Django).
-    Compared ignoring case and spaces. A skill that isn't in the user's list (the model made
-    it up, or took it from the posting) counts as no match.
+    In this order: the skill the model named; the requirement itself when it is one of the
+    user's skills (a small model sometimes leaves `skill` empty for 'Django'); one of the
+    user's skills named inside it ('basic experience with Django' is covered by Django); the
+    requirement named in the CV the user chose (then shown as the posting words it).
+    Compared ignoring case. A skill that isn't in the user's list (the model made it up, or
+    took it from the posting) counts as no match. Only skills are covered: a trait or years
+    of experience are not something a skill list can show.
     """
+    if requirement.kind != RequirementKind.SKILL:
+        return None
     for name in (requirement.skill, requirement.text):
         if name is not None and (skill := skills_by_key.get(name.strip().lower())) is not None:
             return skill
+    for skill in skills_by_key.values():
+        if mentions(requirement.text, skill):
+            return skill
+    if resume_text and mentions(resume_text, requirement.text):
+        return requirement.text
     return None
 
 
-def mentions(text: str, name: str) -> bool:
-    """True if the text names it as a whole word: 'Python 3' mentions Python, 'Jython' not."""
-    pattern = rf'(?<!\w){re.escape(name.casefold())}(?!\w)'
-    return re.search(pattern, text.casefold()) is not None
+def skill_requirements(requirements: list[Requirement]) -> list[Requirement]:
+    return [r for r in requirements if r.kind == RequirementKind.SKILL]
 
 
 def with_offer_technologies(
@@ -64,15 +93,16 @@ def with_offer_technologies(
 
 
 def match_skills(
-    requirements: list[Requirement], user_skills: list[str]
+    requirements: list[Requirement], user_skills: list[str], resume_text: str | None = None
 ) -> tuple[list[str], list[str]]:
     """(matched, missing): the user's skills the posting asks for, in the user's spelling,
-    and the required requirements none of them covers, as the posting words them."""
+    and the required skills none of them covers, as the posting words them. Traits,
+    experience, languages and education are in neither list."""
     by_key = {skill.strip().lower(): skill for skill in user_skills}
     matched: list[str] = []
     missing: list[str] = []
-    for requirement in requirements:
-        skill = covering_skill(requirement, by_key)
+    for requirement in skill_requirements(requirements):
+        skill = covering_skill(requirement, by_key, resume_text)
         if skill is not None:
             matched.append(skill)
         elif requirement.required:
@@ -80,25 +110,36 @@ def match_skills(
     return unique_ignoring_case(matched), unique_ignoring_case(missing)
 
 
-def share_points(requirements: list[Requirement], by_key: dict[str, str], points: int) -> int:
+def share_points(
+    requirements: list[Requirement], by_key: dict[str, str], points: int, resume_text: str | None
+) -> int:
     """points x the share of these requirements the user covers, rounded."""
-    covered = sum(covering_skill(r, by_key) is not None for r in requirements)
+    covered = sum(covering_skill(r, by_key, resume_text) is not None for r in requirements)
     return round(points * covered / len(requirements))
 
 
-def skill_points(requirements: list[Requirement], user_skills: list[str]) -> tuple[int, int]:
-    """(required points, nice-to-have points).
+def skill_points(
+    requirements: list[Requirement], user_skills: list[str], resume_text: str | None = None
+) -> tuple[int, int]:
+    """(required points, nice-to-have points), counting only skills.
 
-    No required requirements found: half the points, we can't tell. No nice-to-haves: all
+    No required skills found: half the points, we can't tell. No nice-to-haves: all
     of them, since there is nothing to miss.
     """
     by_key = {skill.strip().lower(): skill for skill in user_skills}
-    required = [r for r in requirements if r.required]
-    nice = [r for r in requirements if not r.required]
+    skills = skill_requirements(requirements)
+    required = [r for r in skills if r.required]
+    nice = [r for r in skills if not r.required]
     required_points = (
-        share_points(required, by_key, REQUIRED_POINTS) if required else REQUIRED_POINTS // 2
+        share_points(required, by_key, REQUIRED_POINTS, resume_text)
+        if required
+        else REQUIRED_POINTS // 2
     )
-    nice_points = share_points(nice, by_key, NICE_TO_HAVE_POINTS) if nice else NICE_TO_HAVE_POINTS
+    nice_points = (
+        share_points(nice, by_key, NICE_TO_HAVE_POINTS, resume_text)
+        if nice
+        else NICE_TO_HAVE_POINTS
+    )
     return required_points, nice_points
 
 
@@ -139,15 +180,17 @@ def employment_type_points(
 
 
 def score_breakdown(
-    offer: JobOfferImport, profile: ProfileRead, output: OfferAnalysisOutput
+    offer: JobOfferImport,
+    profile: ProfileRead,
+    output: OfferAnalysisOutput,
+    resume_text: str | None = None,
 ) -> ScoreBreakdown:
     requirements = with_offer_technologies(output.requirements, offer.technologies)
-    required, nice = skill_points(requirements, profile.skills)
-    offer_level = offer.experience_level or guess_level(offer.title, offer.description)
+    required, nice = skill_points(requirements, profile.skills, resume_text)
     return ScoreBreakdown(
         required_skills=required,
         nice_to_have_skills=nice,
-        experience_level=level_points(offer_level, profile.experience_level),
+        experience_level=level_points(offer_level(offer), profile.experience_level),
         location=location_points(offer.location, profile.preferred_locations),
         employment_type=employment_type_points(
             offer.employment_type, profile.preferred_employment_types
@@ -161,29 +204,107 @@ def score(offer: JobOfferImport, profile: ProfileRead, output: OfferAnalysisOutp
     return score_breakdown(offer, profile, output).total
 
 
+def offer_level(offer: JobOfferImport) -> ExperienceLevel | None:
+    return offer.experience_level or guess_level(offer.title, offer.description)
+
+
+def facts_text(
+    offer: JobOfferImport,
+    profile: ProfileRead,
+    requirements: list[Requirement],
+    resume_text: str | None = None,
+) -> str:
+    """What code knows for sure, as plain lines for step 2: the model only judges it."""
+    by_key = {skill.strip().lower(): skill for skill in profile.skills}
+    covered: list[str] = []
+    lacks: list[str] = []
+    lacks_nice: list[str] = []
+    for r in skill_requirements(requirements):
+        skill = covering_skill(r, by_key, resume_text)
+        if skill is not None:
+            covered.append(r.text if skill.lower() == r.text.lower() else f'{r.text} ({skill})')
+        else:
+            (lacks if r.required else lacks_nice).append(r.text)
+    other = [
+        f'{r.text} ({r.kind}{"" if r.required else ", optional"})'
+        for r in requirements
+        if r.kind not in (RequirementKind.SKILL, RequirementKind.TRAIT)
+    ]
+
+    def listed(items: list[str]) -> str:
+        return ', '.join(unique_ignoring_case(items)) or 'none'
+
+    level = offer_level(offer)
+    lines = [
+        f'Skills the candidate covers: {listed(covered)}',
+        f'Required skills the candidate lacks: {listed(lacks)}',
+        f'Nice-to-have skills the candidate lacks: {listed(lacks_nice)}',
+        f'Other demands of the posting: {listed(other)}',
+        f'Offer level: {level or "not given"}; '
+        f'candidate level: {profile.experience_level or "not given"}',
+        f'Location: {offer.location or "not given"} '
+        f'({location_verdict(location_points(offer.location, profile.preferred_locations))})',
+        f'Employment type: {offer.employment_type or "not given"} ('
+        + employment_verdict(
+            employment_type_points(offer.employment_type, profile.preferred_employment_types)
+        )
+        + ')',
+    ]
+    return '\n'.join(lines)
+
+
+def location_verdict(points: int) -> str:
+    if points == LOCATION_POINTS:
+        return "fits the candidate's preferences"
+    return 'unknown fit' if points else "not one of the candidate's places"
+
+
+def employment_verdict(points: int) -> str:
+    if points == EMPLOYMENT_TYPE_POINTS:
+        return "one of the candidate's preferred types"
+    return 'unknown fit' if points else "not one of the candidate's preferred types"
+
+
+def consistent_red_flags(red_flags: list[str], reasons: list[str], covered: list[str]) -> list[str]:
+    """Red flags without contradictions: none that names a skill the user covers ('SQL might
+    be too much for a junior' while SQL is matched) or repeats a reason word for word."""
+    said = {reason.casefold() for reason in reasons}
+    return [
+        flag
+        for flag in red_flags
+        if flag.casefold() not in said and not any(mentions(flag, skill) for skill in covered)
+    ]
+
+
 def analyse(
     provider: AIProvider,
     offer: JobOfferImport,
     profile: ProfileRead,
     resume_text: str | None = None,
 ) -> AnalysisResult:
-    """Ask the model about the offer, then score it with the rubric.
+    """Ask the model about the offer in two steps, then score it with the rubric.
 
-    The CV text, when given, is extra evidence for the model (inside <resume> tags), but
-    only the profile's skills count as matched: copy CV skills into the profile to count them.
+    The CV text, when given, is extra evidence: step 2 reads it, and a skill the posting asks
+    for that the CV names counts as covered.
     Raises AIProviderError or AIOutputError like every AI call.
     """
-    messages = offer_analysis_messages(offer, profile, resume_text)
-    output = generate(provider, messages, OfferAnalysisOutput)
-    requirements = with_offer_technologies(output.requirements, offer.technologies)
-    matched, missing = match_skills(requirements, profile.skills)
-    breakdown = score_breakdown(offer, profile, output)
+    found = generate(provider, offer_requirements_messages(offer, profile), OfferRequirementsOutput)
+    requirements = with_offer_technologies(found.requirements, offer.technologies)
+    facts = facts_text(offer, profile, requirements, resume_text)
+    judgement = generate(
+        provider,
+        offer_judgement_messages(offer, profile, facts, resume_text),
+        OfferJudgementOutput,
+    )
+    output = OfferAnalysisOutput(requirements=requirements, **judgement.model_dump())
+    matched, missing = match_skills(requirements, profile.skills, resume_text)
+    breakdown = score_breakdown(offer, profile, output, resume_text)
     return AnalysisResult(
         score=breakdown.total,
         breakdown=breakdown,
-        summary=output.summary,
-        reasons=output.reasons,
-        red_flags=output.red_flags,
+        summary=judgement.summary,
+        reasons=judgement.reasons,
+        red_flags=consistent_red_flags(judgement.red_flags, judgement.reasons, matched),
         matched_skills=matched,
         missing_skills=missing,
         provider=provider.name,
