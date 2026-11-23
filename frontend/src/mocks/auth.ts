@@ -6,6 +6,7 @@ let user: UserRead = {
   id: 1,
   email: 'demo@jobradar.local',
   role_id: 2,
+  role: 'admin',
   created_at: daysFromNow(-90),
 }
 

@@ -1,20 +1,20 @@
 from collections.abc import Sequence
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
-from sqlalchemy import select
 
 from app.db.dependencies import DbSession
-from app.dependencies import AI, SearchSources, require_role
+from app.dependencies import AI, CurrentAdmin, SearchSources, require_role
 from app.models import User
 from app.models.enums import SourceKind
 from app.models.role import RoleName
 from app.schemas.ai import AIProviderStatus
 from app.schemas.job_offer import ImportReport, JobOfferRead, JobOfferStatusUpdate
 from app.schemas.search import SearchLimitRead, SearchLimitUpdate, SourceStatus
-from app.schemas.user import AdminUserRead
+from app.schemas.user import AdminUserRead, RoleUpdate
 from app.services.job_offer import delete_job_offer, set_job_offer_active
 from app.services.job_offer_import import ImportFileError, import_offers, parse_json_rows
 from app.services.search import UserNotFoundError, set_search_limit
+from app.services.user_admin import OwnAccountError, change_role, delete_user, list_users
 
 MAX_IMPORT_BYTES = 1_000_000
 MAX_IMPORT_ROWS = 500
@@ -26,8 +26,37 @@ router = APIRouter(
 
 @router.get('/users', response_model=list[AdminUserRead])
 def get_all_users(db: DbSession) -> Sequence[User]:
-    """Return the list of all users."""
-    return db.scalars(select(User).order_by(User.id)).all()
+    """Return the list of all users, with their role and own search limit."""
+    return list_users(db)
+
+
+USER_NOT_FOUND = HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='User not found')
+OWN_ACCOUNT = HTTPException(
+    status_code=status.HTTP_409_CONFLICT,
+    detail="You can't change your own role or delete your own account",
+)
+
+
+@router.patch('/users/{user_id}/role', response_model=AdminUserRead)
+def update_user_role(user_id: int, data: RoleUpdate, db: DbSession, admin: CurrentAdmin) -> User:
+    """Make a user an admin, or a normal user again. Not for your own account."""
+    try:
+        return change_role(db, user_id, data.role, admin)
+    except UserNotFoundError as err:
+        raise USER_NOT_FOUND from err
+    except OwnAccountError as err:
+        raise OWN_ACCOUNT from err
+
+
+@router.delete('/users/{user_id}', status_code=status.HTTP_204_NO_CONTENT)
+def remove_user(user_id: int, db: DbSession, admin: CurrentAdmin) -> None:
+    """Delete an account with its profile, private offers, applications, CVs and chats."""
+    try:
+        delete_user(db, user_id, admin)
+    except UserNotFoundError as err:
+        raise USER_NOT_FOUND from err
+    except OwnAccountError as err:
+        raise OWN_ACCOUNT from err
 
 
 @router.post('/job-offers/import', response_model=ImportReport)

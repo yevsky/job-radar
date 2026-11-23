@@ -43,6 +43,6 @@ export const navSections: NavSection[] = [
   {
     title: 'Admin',
     adminOnly: true,
-    items: [{ to: '/admin/users', label: 'Users and limits', icon: 'sliders' }],
+    items: [{ to: '/admin/users', label: 'Users', icon: 'user' }],
   },
 ]

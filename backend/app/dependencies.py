@@ -11,6 +11,7 @@ from app.core.config import settings
 from app.core.token import decode_access_token
 from app.db.dependencies import DbSession
 from app.models import User
+from app.models.role import RoleName
 from app.search_sources.base import SearchSource
 from app.search_sources.page_reader import PageReader, build_page_reader
 from app.search_sources.registry import build_sources
@@ -53,6 +54,10 @@ def require_role(*roles: str) -> Callable[[User], User]:
         return user
 
     return check_role
+
+
+# The logged-in user, who must be an admin (403 otherwise)
+CurrentAdmin = Annotated[User, Depends(require_role(RoleName.ADMIN))]
 
 
 search_sources = build_sources(settings.search_sources)
