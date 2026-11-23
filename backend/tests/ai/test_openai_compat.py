@@ -6,7 +6,7 @@ import httpx2
 import pytest
 
 from app.ai.base import AIProvider, AIProviderError, ChatMessage
-from app.ai.openai_compat import OpenAICompatProvider
+from app.ai.openai_compat import MAX_ANSWER_TOKENS, OpenAICompatProvider
 
 BASE_URL = 'http://ollama.test/v1'
 MESSAGES = [
@@ -18,7 +18,7 @@ MESSAGES = [
 Handler = Callable[[httpx2.Request], httpx2.Response]
 
 
-def completion(content: str | None) -> dict[str, Any]:
+def completion(content: str | None, finish_reason: str = 'stop') -> dict[str, Any]:
     """The body an OpenAI-compatible server sends back for one chat answer."""
     return {
         'id': 'chatcmpl-1',
@@ -29,7 +29,7 @@ def completion(content: str | None) -> dict[str, Any]:
             {
                 'index': 0,
                 'message': {'role': 'assistant', 'content': content},
-                'finish_reason': 'stop',
+                'finish_reason': finish_reason,
             }
         ],
     }
@@ -42,7 +42,9 @@ def model_list(*ids: str) -> dict[str, Any]:
     }
 
 
-def make_provider(handler: Handler, model: str = 'qwen2.5:3b') -> OpenAICompatProvider:
+def make_provider(
+    handler: Handler, model: str = 'qwen2.5:3b', max_tokens: int | None = None
+) -> OpenAICompatProvider:
     """A provider whose HTTP client never touches the network: handler answers instead."""
     client = httpx2.Client(transport=httpx2.MockTransport(handler))
     return OpenAICompatProvider(
@@ -52,6 +54,7 @@ def make_provider(handler: Handler, model: str = 'qwen2.5:3b') -> OpenAICompatPr
         model=model,
         timeout=5,
         http_client=client,
+        max_tokens=max_tokens,
     )
 
 
@@ -115,6 +118,14 @@ def test_chat_without_json_mode_sends_no_response_format(
 def test_error_status_becomes_provider_error(status: int) -> None:
     provider = make_provider(answer(status, {'error': {'message': 'nope'}}))
     with pytest.raises(AIProviderError, match=f'HTTP {status}'):
+        provider.chat(MESSAGES)
+
+
+def test_the_apis_reason_is_part_of_the_error() -> None:
+    """Gemini sends its errors as a list; the reason must still come through."""
+    body = [{'error': {'code': 400, 'message': 'Invalid JSON payload: "title"', 'status': 'X'}}]
+    provider = make_provider(answer(400, body))
+    with pytest.raises(AIProviderError, match='HTTP 400: .*Invalid JSON payload'):
         provider.chat(MESSAGES)
 
 
@@ -204,3 +215,29 @@ def test_test_is_false_when_the_server_is_down() -> None:
 def test_provider_keeps_name_model_and_address() -> None:
     provider: AIProvider = make_provider(answer(body=model_list()))  # mypy checks the type too
     assert (provider.name, provider.model, provider.base_url) == ('ollama', 'qwen2.5:3b', BASE_URL)
+
+
+def test_an_answer_cut_off_at_the_token_limit_is_an_error() -> None:
+    """A small model in JSON mode can repeat itself until the limit: say so, don't parse it."""
+    bodies: list[dict[str, Any]] = []
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        bodies.append(json.loads(request.content))
+        return httpx2.Response(200, json=completion('{"requirements": [', 'length'))
+
+    with pytest.raises(AIProviderError, match='stopped before finishing'):
+        make_provider(handler, max_tokens=MAX_ANSWER_TOKENS).chat(
+            [ChatMessage(role='user', content='hi')]
+        )
+    assert bodies[0]['max_tokens'] == MAX_ANSWER_TOKENS
+
+
+def test_without_a_limit_no_max_tokens_is_sent() -> None:
+    bodies: list[dict[str, Any]] = []
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        bodies.append(json.loads(request.content))
+        return httpx2.Response(200, json=completion('{}'))
+
+    make_provider(handler).chat([ChatMessage(role='user', content='hi')])
+    assert 'max_tokens' not in bodies[0]

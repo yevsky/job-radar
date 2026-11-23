@@ -5,13 +5,28 @@ required, there is no response_format and no temperature, and the answer is a li
 content blocks (thinking, text, ...) instead of one string.
 """
 
-from typing import Final, override
+from typing import Any, Final, cast, override
 
 import anthropic
 import httpx2
-from anthropic.types.beta import BetaMessage, BetaMessageParam
+from anthropic.types.beta import (
+    BetaContentBlockParam,
+    BetaMessage,
+    BetaMessageParam,
+    BetaToolParam,
+    BetaToolResultBlockParam,
+)
 
-from app.ai.base import AIProvider, AIProviderError, ChatMessage
+from app.ai.base import (
+    AIProvider,
+    AIProviderError,
+    ChatMessage,
+    ToolCall,
+    ToolMessage,
+    ToolResult,
+    ToolSpec,
+    ToolTurn,
+)
 
 # Room for the model's (always on) thinking plus our small JSON answers
 MAX_TOKENS = 16_000
@@ -33,6 +48,72 @@ def split_system(messages: list[ChatMessage]) -> tuple[str, list[BetaMessagePara
         elif message.role == 'assistant':
             rest.append({'role': 'assistant', 'content': message.content})
     return system, rest
+
+
+# Blocks of an answer that go back unchanged while a tool loop goes on
+KEPT_BLOCKS = ('thinking', 'redacted_thinking', 'text', 'tool_use')
+
+
+def assistant_blocks(turn: ToolTurn) -> list[BetaContentBlockParam]:
+    """The model's own tool turn, to send back: its raw blocks (thinking included) if we
+    have them, else text and tool_use blocks built from the turn."""
+    if isinstance(turn.raw, BetaMessage):
+        return [
+            cast(BetaContentBlockParam, block.model_dump(exclude_none=True))
+            for block in turn.raw.content
+            if block.type in KEPT_BLOCKS
+        ]
+    blocks: list[BetaContentBlockParam] = []
+    if turn.text:
+        blocks.append({'type': 'text', 'text': turn.text})
+    for call in turn.tool_calls:
+        blocks.append(
+            {'type': 'tool_use', 'id': call.id, 'name': call.name, 'input': call.arguments}
+        )
+    return blocks
+
+
+def split_tool_messages(messages: list[ToolMessage]) -> tuple[str, list[BetaMessageParam]]:
+    """The system prompt and the messages of a tool loop in Anthropic's shape.
+
+    Tool results that follow each other go into one user message, as the API asks.
+    """
+    system = '\n\n'.join(
+        m.content for m in messages if isinstance(m, ChatMessage) and m.role == 'system'
+    )
+    rest: list[BetaMessageParam] = []
+    results: list[BetaToolResultBlockParam] = []
+    for message in messages:
+        if isinstance(message, ToolResult):
+            results.append(
+                {
+                    'type': 'tool_result',
+                    'tool_use_id': message.call_id,
+                    'content': message.content,
+                    'is_error': message.is_error,
+                }
+            )
+            continue
+        if results:
+            rest.append({'role': 'user', 'content': list(results)})
+            results = []
+        if isinstance(message, ToolTurn):
+            rest.append({'role': 'assistant', 'content': assistant_blocks(message)})
+        elif message.role == 'user':
+            rest.append({'role': 'user', 'content': message.content})
+        elif message.role == 'assistant':
+            rest.append({'role': 'assistant', 'content': message.content})
+    if results:
+        rest.append({'role': 'user', 'content': list(results)})
+    return system, rest
+
+
+def tool_to_anthropic(tool: ToolSpec) -> BetaToolParam:
+    return {
+        'name': tool.name,
+        'description': tool.description,
+        'input_schema': cast(Any, tool.parameters),
+    }
 
 
 def answer_text(response: object, name: str) -> str:
@@ -79,12 +160,42 @@ class AnthropicProvider(AIProvider):
         system, rest = split_system(messages)
         if json_mode:  # no response_format here; generate() validates the answer anyway
             system = f'{system}\n\n{JSON_ONLY}' if system else JSON_ONLY
+        return answer_text(self._create(system, rest), self.name)
+
+    @override
+    def chat_tools(self, messages: list[ToolMessage], tools: list[ToolSpec]) -> ToolTurn:
+        system, rest = split_tool_messages(messages)
+        response = self._create(system, rest, [tool_to_anthropic(tool) for tool in tools])
+        if not isinstance(response, BetaMessage):
+            raise AIProviderError(f'{self.name} sent something that is not a message')
+        if response.stop_reason == 'refusal':
+            raise AIProviderError(f'{self.name} declined to answer')
+        if response.stop_reason == 'max_tokens':
+            raise AIProviderError(f'{self.name} stopped before finishing the answer')
+        text = ''.join(block.text for block in response.content if block.type == 'text')
+        calls = [
+            ToolCall(id=block.id, name=block.name, arguments=dict(block.input))
+            for block in response.content
+            if block.type == 'tool_use'
+        ]
+        if not text.strip() and not calls:
+            raise AIProviderError(f'{self.name} returned an empty answer')
+        return ToolTurn(text=text.strip(), tool_calls=calls, raw=response)
+
+    def _create(
+        self,
+        system: str,
+        messages: list[BetaMessageParam],
+        tools: list[BetaToolParam] | None = None,
+    ) -> object:
+        """One Messages API call; every failure becomes AIProviderError."""
         try:
-            response = self.client.beta.messages.create(
+            return self.client.beta.messages.create(
                 model=self.model,
                 max_tokens=MAX_TOKENS,
                 system=system or anthropic.omit,
-                messages=rest,
+                messages=messages,
+                tools=tools or anthropic.omit,
                 output_config={'effort': EFFORT},
                 betas=[FALLBACK_BETA],
                 fallbacks='default',
@@ -97,7 +208,6 @@ class AnthropicProvider(AIProvider):
             raise AIProviderError(f'{self.name} answered with HTTP {err.status_code}') from err
         except anthropic.AnthropicError as err:  # anything else the package can raise
             raise AIProviderError(f'{self.name} failed: {err}') from err
-        return answer_text(response, self.name)
 
     @override
     def test(self) -> bool:
