@@ -6,12 +6,14 @@ import type {
   AdminUser,
   ImportReport,
   SearchLimitRead,
+  SourceSwitch,
 } from '@/api/admin'
 import type { RoleName } from '@/api/auth'
 
 import { ApiError } from '@/api/client'
 
 import { mockAuth } from './auth'
+import { switchedOff } from './sources'
 import { daysFromNow, newId, notFound } from './util'
 
 const DEFAULT_LIMIT = 10
@@ -35,6 +37,7 @@ let others: AdminUser[] = [
   },
 ]
 let ownLimit: number | null = null
+const switchedAt: Record<string, string> = {}
 
 const offer = (
   title: string,
@@ -85,6 +88,21 @@ export const mockAdmin = {
     user.role = role
     user.role_id = role === 'admin' ? 2 : 1
     return user
+  },
+  sources(check: boolean): SourceSwitch[] {
+    return ['tavily', 'jsearch'].map((name) => ({
+      name,
+      enabled: !switchedOff.has(name),
+      ok: check ? true : null,
+      features: name === 'jsearch' ? ['country', 'posted_within', 'pages'] : [],
+      updated_at: switchedAt[name] ?? null,
+    }))
+  },
+  switchSource(name: string, enabled: boolean): SourceSwitch {
+    if (enabled) switchedOff.delete(name)
+    else switchedOff.add(name)
+    switchedAt[name] = new Date().toISOString()
+    return mockAdmin.sources(false).find((s) => s.name === name) ?? notFound('Search source')
   },
   stats(): AdminStats {
     const day = (n: number) => daysFromNow(n).slice(0, 10)

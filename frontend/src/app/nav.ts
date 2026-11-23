@@ -48,6 +48,7 @@ export const navSections: NavSection[] = [
       { to: '/admin/users', label: 'Users', icon: 'user' },
       { to: '/admin/offers', label: 'Imported offers', icon: 'layers' },
       { to: '/admin/import', label: 'Import offers', icon: 'upload' },
+      { to: '/admin/sources', label: 'Search sources', icon: 'globe' },
     ],
   },
 ]

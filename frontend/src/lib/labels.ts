@@ -36,3 +36,12 @@ export const statusLabel: Record<ApplicationStatus, string> = {
 
 /** CSS colour variable for a status, used by badges, the board and the charts. */
 export const statusColor = (status: ApplicationStatus) => `var(--st-${status})`
+
+const SEARCH_SOURCE_LABELS: Record<string, string> = {
+  tavily: 'Tavily (job boards)',
+  jsearch: 'JSearch (Google Jobs)',
+  fake: 'Demo source',
+}
+
+/** 'jsearch' -> 'JSearch (Google Jobs)'; an unknown name is shown as it is. */
+export const searchSourceLabel = (name: string) => SEARCH_SOURCE_LABELS[name] ?? name

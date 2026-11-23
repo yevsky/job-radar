@@ -288,6 +288,16 @@ A change the assistant asked for (save an offer, change an application's status)
 | `created_at` | timestamp | |
 | `resolved_at` | timestamp | When it was confirmed, cancelled or failed |
 
+### `search_source_switches`
+An admin's on/off switch for one search source, for every user at once. `SEARCH_SOURCES` in `.env` says which sources the server can use (they have API keys); this table says which of them are switched on right now. A source without a row is on.
+
+| Column | Type | Notes |
+|---|---|---|
+| `name` | varchar(50) | Primary key, e.g. `tavily`, `jsearch` |
+| `is_enabled` | boolean | Not null. False leaves the source out of every user's searches |
+| `updated_by_id` | integer | FK → `users.id`, nullable, ON DELETE SET NULL. The admin who switched it last |
+| `updated_at` | timestamp | |
+
 ## Relationships Summary
 
 - `users.role_id` → `roles.id`
@@ -302,6 +312,7 @@ A change the assistant asked for (save an offer, change an application's status)
 - `resumes.user_id` → `users.id` (1:N)
 - `ai_analyses` links `users` ↔ `job_offers` (N rows per user–offer pair), optionally → `resumes`
 - `users` → `chat_conversations` (1:N) → `chat_messages` and `chat_actions` (1:N each)
+- `search_source_switches.updated_by_id` → `users.id` (the admin who flipped it; kept as null when that account is deleted)
 
 Deleting a user deletes their profile, preferences, skills links, applications (with their status history), search runs, CVs, analyses and assistant conversations. Deleting a job offer deletes the applications to it and its analyses. Deleting a CV keeps the analyses made with it (`resume_id` becomes null). Deleting a user never deletes rows in `technologies`.
 
@@ -312,7 +323,7 @@ Deleting a user deletes their profile, preferences, skills links, applications (
 - **Deduplication of offers** relies on the `url` uniqueness constraint on `job_offers`. When an import finds an existing URL again, the row is updated (`last_seen_at`, `is_active`) rather than duplicated.
 - **Saved offers are applications with status `saved`.** Saving is the first step of the same life cycle, so one table holds it and the board shows saved offers as its first column. `/saved-jobs` is a shortcut over these rows for the Save button. Every status change is also written to `application_status_changes`, so the funnel can count how far each application got even after it was rejected.
 - **Location and preference matching** use free-text fields rather than a normalized `locations` table. Location strings vary significantly between job boards (e.g. "Warszawa" vs "Warsaw, PL" vs "Remote/Warsaw"), so normalization/geocoding is left as a possible future improvement.
-- **Search results are not stored.** A search returns its results to the user and keeps only a `search_runs` row (who, when, how many results). A result is saved only when the user keeps it, as their private offer (`source = search`, `found_via` set). The daily limit counts `search_runs` rows since midnight UTC; an admin can give a user their own limit (`users.search_daily_limit`). Each user can choose which enabled sources their searches ask (`users.search_sources`); a choice that no longer matches any enabled source falls back to all of them.
+- **Search results are not stored.** A search returns its results to the user and keeps only a `search_runs` row (who, when, how many results). A result is saved only when the user keeps it, as their private offer (`source = search`, `found_via` set). The daily limit counts `search_runs` rows since midnight UTC; an admin can give a user their own limit (`users.search_daily_limit`). Each user can choose which enabled sources their searches ask (`users.search_sources`); a choice that no longer matches any enabled source falls back to all of them. An admin can switch a source off for everyone (`search_source_switches`): it is then left out of every search, but users' own choices stay saved and work again once it is back on. If every source is off, search answers 503 and no search is counted.
 - **CV text, not the file.** Only the text of a CV is kept, plus the AI's reading of it as JSON (`extracted`): a JSON column fits because the app always reads and writes it as one object and never filters by it. Nothing is copied into the profile until the user picks fields to apply; skills, locations and employment types are then added to the profile's, never replacing what the user typed. `applications.resume_id` is still a plain integer; it becomes a foreign key to `resumes` when applications start recording which CV was sent.
 - **Analyses: the model reads, code scores.** The model only maps the offer's requirements to the user's skills and gives a 0-10 role fit, a summary, reasons and red flags; the score is computed by code from a fixed rubric and stored with its `breakdown`. `provider`, `model` and `prompt_version` are stored with every row, so a result can always be traced to what produced it. Lists are JSON columns because they are always read and written whole with the row and never filtered.
 - **`technologies` and `roles`** are treated as lookup tables. `created_at` was intentionally omitted from `technologies` since no current feature depends on knowing when a technology entry was created.

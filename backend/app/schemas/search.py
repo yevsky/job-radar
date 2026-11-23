@@ -1,3 +1,4 @@
+from datetime import datetime
 from enum import StrEnum
 from typing import Annotated
 
@@ -112,8 +113,17 @@ class SearchResponse(BaseModel):
 
 
 class SourceStatus(BaseModel):
+    """One source as the admin sees it: switched on or off, and (if checked) working."""
+
     name: str
-    ok: bool
+    enabled: bool  # the admin's switch; off means no user's search asks this source
+    ok: bool | None = None  # None until the admin asks for a check (it calls the real API)
+    features: list[SourceFeature] = []
+    updated_at: datetime | None = None  # when the switch was last flipped; None = never
+
+
+class SourceSwitchUpdate(BaseModel):
+    enabled: bool
 
 
 class SearchUsage(BaseModel):
@@ -140,10 +150,12 @@ SourceName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=
 
 
 class SearchSourcesRead(BaseModel):
-    available: list[str]  # the sources the app has turned on, in the order they're asked
+    available: list[str]  # the sources switched on for everyone, in the order they're asked
     chosen: list[str] | None  # the user's choice; None means all available ones
     # which form fields each source uses, e.g. {'jsearch': ['country', 'posted_within', ...]}
     features: dict[str, list[SourceFeature]] = {}
+    # sources the server has but an admin switched off for everyone
+    turned_off: list[str] = []
 
 
 class SearchSourcesUpdate(BaseModel):

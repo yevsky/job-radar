@@ -15,6 +15,7 @@ from app.models.role import RoleName
 from app.search_sources.base import SearchSource
 from app.search_sources.page_reader import PageReader, build_page_reader
 from app.search_sources.registry import build_sources
+from app.services.search import enabled_sources
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl='/auth/login')
 
@@ -69,6 +70,15 @@ def get_search_sources() -> list[SearchSource]:
 
 
 SearchSources = Annotated[list[SearchSource], Depends(get_search_sources)]
+
+
+def get_enabled_search_sources(sources: SearchSources, db: DbSession) -> list[SearchSource]:
+    """The server's sources minus the ones an admin switched off: what searches may ask."""
+    return enabled_sources(db, sources)
+
+
+# Use this for anything a user runs; SearchSources (all of them) is for the admin pages
+EnabledSearchSources = Annotated[list[SearchSource], Depends(get_enabled_search_sources)]
 
 
 ai_provider = build_provider(settings.ai_provider)

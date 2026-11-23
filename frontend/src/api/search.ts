@@ -74,6 +74,8 @@ export interface SearchSources {
   available: string[]
   chosen: string[] | null
   features?: Record<string, SourceFeature[]>
+  /** Sources the server has but an admin switched off for everyone. */
+  turned_off?: string[]
 }
 
 export const isEmptyQuery = (q: SearchQuery) => !q.position?.trim()

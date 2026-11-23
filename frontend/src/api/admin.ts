@@ -4,6 +4,8 @@
  *   PUT /admin/users/{id}/search-limit {search_daily_limit: int | null} -> SearchLimitRead
  *   PATCH /admin/users/{id}/role {role}          -> AdminUser
  *   DELETE /admin/users/{id}                      -> 204
+ *   GET /admin/search-sources ?check           -> SourceSwitch[]
+ *   PUT /admin/search-sources/{name} {enabled}  -> SourceSwitch
  *   GET /admin/stats                               -> AdminStats
  *   POST /admin/job-offers/import (file: JSON or CSV) -> ImportReport
  *   GET /admin/job-offers ?q&source&is_active&limit&offset -> AdminOfferPage
@@ -13,6 +15,7 @@ import type { RoleName, UserRead } from './auth'
 import { existing, request } from './client'
 import type { ApplicationStatus, SourceKind } from './enums'
 import type { JobOfferListItem } from './jobOffers'
+import type { SourceFeature } from './search'
 import { mockAdmin } from '@/mocks/admin'
 
 export interface AdminUser extends UserRead {
@@ -157,4 +160,33 @@ export const getAdminStats = () =>
   existing(
     () => request<AdminStats>('/admin/stats'),
     () => mockAdmin.stats(),
+  )
+
+/** One search source the server has, and the admin's switch for it. */
+export interface SourceSwitch {
+  name: string
+  /** Off = left out of every user's searches until switched on again. */
+  enabled: boolean
+  /** Only after a check: true if the API answered. null = not checked. */
+  ok: boolean | null
+  features: SourceFeature[]
+  /** When it was last switched; null = never (on by default). */
+  updated_at: string | null
+}
+
+/** `check` asks every source's real API once (it may use paid credits). */
+export const listSourceSwitches = (check = false) =>
+  existing(
+    () => request<SourceSwitch[]>('/admin/search-sources', { query: { check } }),
+    () => mockAdmin.sources(check),
+  )
+
+export const switchSource = (name: string, enabled: boolean) =>
+  existing(
+    () =>
+      request<SourceSwitch>(`/admin/search-sources/${encodeURIComponent(name)}`, {
+        method: 'PUT',
+        body: { enabled },
+      }),
+    () => mockAdmin.switchSource(name, enabled),
   )

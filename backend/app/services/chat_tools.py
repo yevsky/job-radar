@@ -45,7 +45,7 @@ from app.services.job_offer_import import add_private_offer, normalize_url
 from app.services.offer_parsing import enrich_saved_offer, find_link, parse_offer
 from app.services.profile import to_profile_read
 from app.services.resume import ResumeNotFoundError, list_resumes
-from app.services.search import EmptyQueryError, SearchLimitError, run_search
+from app.services.search import EmptyQueryError, NoSourcesError, SearchLimitError, run_search
 
 MAX_ROWS = 20  # rows in one list result: enough to answer, small enough for an 8k context
 MAX_DESCRIPTION_CHARS = 3_000
@@ -311,6 +311,8 @@ def search_jobs(ctx: ToolContext, args: SearchArgs) -> ToolOutput:
         raise ToolError('Give a position to search for') from err
     except SearchLimitError as err:
         raise ToolError('The daily search limit is reached, try again tomorrow') from err
+    except NoSourcesError as err:
+        raise ToolError('Search is switched off by an admin right now') from err
 
     ctx.last_search = list(response.results)
     rows = [
