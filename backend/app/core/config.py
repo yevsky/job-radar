@@ -11,6 +11,11 @@ class Settings(BaseSettings):
     jwt_secret_key: SecretStr
     jwt_algorithm: str
     jwt_access_token_expire_minutes: int
+    # How long a login lasts on a browser without using the app. Each visit renews it,
+    # so someone who opens the app at least once a month stays logged in until they log out.
+    refresh_token_expire_days: int = 30
+    # True in production (HTTPS only); False lets the cookie work on http://localhost
+    refresh_cookie_secure: bool = False
     # TODO: Delete None defaults for api keys
     gemini_api_key: SecretStr | None = None
     tavily_api_key: SecretStr | None = None

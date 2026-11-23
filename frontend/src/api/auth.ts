@@ -40,3 +40,11 @@ export function getMe(): Promise<UserRead> {
     () => mockAuth.me(),
   )
 }
+
+/** Ends the login on this browser: the backend revokes the refresh cookie. */
+export function logout(): Promise<void> {
+  return existing(
+    () => request<void>('/auth/logout', { method: 'POST' }),
+    () => undefined,
+  )
+}

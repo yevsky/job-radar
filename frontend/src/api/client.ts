@@ -75,7 +75,41 @@ export function setUnauthorizedHandler(handler: (() => void) | null) {
   onUnauthorized = handler
 }
 
-export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+/**
+ * Staying logged in: the access token lasts 30 minutes, the HttpOnly refresh cookie 30 days.
+ * When the backend answers 401, we ask POST /auth/refresh for a new access token (the browser
+ * sends the cookie by itself) and repeat the request once. Requests that fail together share
+ * one refresh, because each refresh token works only once.
+ */
+let refreshing: Promise<string | null> | null = null
+
+export function refreshAccessToken(): Promise<string | null> {
+  if (API_MODE === 'mock') return Promise.resolve(null)
+  refreshing ??= fetch(`${API_BASE}/auth/refresh`, {
+    method: 'POST',
+    headers: { Accept: 'application/json' },
+  })
+    .then(async (response) => {
+      if (!response.ok) return null
+      const data = (await response.json()) as { access_token: string }
+      tokenStore.set(data.access_token)
+      return data.access_token
+    })
+    .catch(() => null)
+    .finally(() => {
+      refreshing = null
+    })
+  return refreshing
+}
+
+/** Login, refresh and logout answer 401 for their own reasons: never refresh for them. */
+const NO_REFRESH = ['/auth/login', '/auth/refresh', '/auth/logout']
+
+export async function request<T>(
+  path: string,
+  options: RequestOptions = {},
+  retried = false,
+): Promise<T> {
   const headers: Record<string, string> = { Accept: 'application/json' }
   const token = tokenStore.get()
   if (token) headers.Authorization = `Bearer ${token}`
@@ -98,6 +132,9 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   if (response.status === 204) return undefined as T
 
   const data: unknown = await response.json().catch(() => null)
+  if (response.status === 401 && token && !retried && !NO_REFRESH.includes(path)) {
+    if (await refreshAccessToken()) return request<T>(path, options, true)
+  }
   if (!response.ok) {
     if (response.status === 401 && token) onUnauthorized?.()
     const detail = data && typeof data === 'object' && 'detail' in data ? data.detail : data
