@@ -249,6 +249,45 @@ One match analysis of an offer for a user ("How you match"). **Every run adds a 
 
 Indexed on (`user_id`, `job_offer_id`, `created_at`) for "this user's newest analysis of this offer".
 
+### `chat_conversations`
+One conversation with the AI assistant. The title is the user's first message, cut to 80 characters.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | integer | Primary key |
+| `user_id` | integer | FK → `users.id`, not null, ON DELETE CASCADE, indexed |
+| `title` | varchar(80) | Null until the first message |
+| `created_at` | timestamp | |
+| `updated_at` | timestamp | Last message or action; the list is sorted by it |
+
+### `chat_messages`
+One line of a conversation. `role` is `user`, `assistant` or `tool`. A `tool` row is one tool call the assistant made: `content` is the short line the user sees ("Searched jobs: 8 results"), and `data` keeps the call id, the arguments, the result the model read and, for a search, the found results (so "save result 3" works later). These search results are the one place where found offers are kept, and they go away with the conversation.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | integer | Primary key |
+| `conversation_id` | integer | FK → `chat_conversations.id`, not null, ON DELETE CASCADE, indexed |
+| `role` | varchar(20) | Not null: `user`, `assistant` or `tool` |
+| `content` | text | Not null |
+| `tool_name` | varchar(50) | Tool rows only, e.g. `search_jobs` |
+| `data` | jsonb | Tool rows only |
+| `created_at` | timestamp | |
+
+### `chat_actions`
+A change the assistant asked for (save an offer, change an application's status). It runs only when the user confirms it; a new message cancels a pending one.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | integer | Primary key |
+| `conversation_id` | integer | FK → `chat_conversations.id`, not null, ON DELETE CASCADE, indexed |
+| `tool` | varchar(50) | Not null, e.g. `set_application_status` |
+| `arguments` | jsonb | Not null; checked again when the user confirms |
+| `summary` | text | Not null; written by code, e.g. 'Move "Backend Developer" at Codesky from applied to interview' |
+| `status` | varchar(20) | Not null: `pending`, `confirmed`, `cancelled` or `failed` |
+| `result` | text | What happened, or why it failed |
+| `created_at` | timestamp | |
+| `resolved_at` | timestamp | When it was confirmed, cancelled or failed |
+
 ## Relationships Summary
 
 - `users.role_id` → `roles.id`
@@ -262,8 +301,9 @@ Indexed on (`user_id`, `job_offer_id`, `created_at`) for "this user's newest ana
 - `search_runs.user_id` → `users.id` (1:N)
 - `resumes.user_id` → `users.id` (1:N)
 - `ai_analyses` links `users` ↔ `job_offers` (N rows per user–offer pair), optionally → `resumes`
+- `users` → `chat_conversations` (1:N) → `chat_messages` and `chat_actions` (1:N each)
 
-Deleting a user deletes their profile, preferences, skills links, applications (with their status history), search runs, CVs and analyses. Deleting a job offer deletes the applications to it and its analyses. Deleting a CV keeps the analyses made with it (`resume_id` becomes null). Deleting a user never deletes rows in `technologies`.
+Deleting a user deletes their profile, preferences, skills links, applications (with their status history), search runs, CVs, analyses and assistant conversations. Deleting a job offer deletes the applications to it and its analyses. Deleting a CV keeps the analyses made with it (`resume_id` becomes null). Deleting a user never deletes rows in `technologies`.
 
 ## Design Notes
 
