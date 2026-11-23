@@ -3,7 +3,7 @@ from pydantic import SecretStr
 
 from app.ai.anthropic_provider import AnthropicProvider
 from app.ai.fake import FakeAIProvider
-from app.ai.openai_compat import OpenAICompatProvider
+from app.ai.openai_compat import MAX_ANSWER_TOKENS, OpenAICompatProvider
 from app.ai.registry import build_provider
 
 SETTINGS = 'app.ai.registry.settings'
@@ -32,6 +32,7 @@ def test_ollama_uses_the_local_address_and_settings() -> None:
     assert provider.base_url == 'http://localhost:11434/v1'
     assert provider.client.timeout == 300
     assert provider.client.max_retries == 0
+    assert provider.max_tokens == MAX_ANSWER_TOKENS  # a local model can't run on forever
 
 
 def test_base_url_setting_replaces_the_default(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -49,6 +50,8 @@ def test_gemini_uses_its_key_and_address(monkeypatch: pytest.MonkeyPatch) -> Non
     assert provider.base_url == 'https://generativelanguage.googleapis.com/v1beta/openai/'
     assert provider.client.api_key == 'gem-key'
     assert provider.model == 'gemini-2.5-flash'
+    assert provider.max_tokens is None  # its thinking would use up a limit
+    assert provider.client.max_retries == 3  # a busy cloud API (503) is asked again
 
 
 def test_openai_uses_its_key_and_address(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -5,7 +5,7 @@ from pydantic import SecretStr
 from app.ai.anthropic_provider import AnthropicProvider
 from app.ai.base import AIProvider
 from app.ai.fake import FakeAIProvider
-from app.ai.openai_compat import OpenAICompatProvider
+from app.ai.openai_compat import MAX_ANSWER_TOKENS, OpenAICompatProvider
 from app.core.config import settings
 
 # Where each provider's OpenAI-compatible API lives; AI_BASE_URL replaces it when set
@@ -30,6 +30,8 @@ def build_openai_compat(name: str, api_key: str) -> AIProvider:
         api_key=api_key,
         model=settings.ai_model,
         timeout=settings.ai_timeout_seconds,
+        max_tokens=MAX_ANSWER_TOKENS if name == 'ollama' else None,
+        max_retries=0 if name == 'ollama' else 3,
     )
 
 
