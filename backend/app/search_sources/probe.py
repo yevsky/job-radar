@@ -8,11 +8,11 @@ It uses the API key from .env and costs one request of that source.
 import sys
 
 from app.core.levels import fits_level
-from app.core.locations import location_fits
+from app.core.locations import location_fits, normalize
 from app.schemas.search import SearchQuery
 from app.search_sources.base import SourcePage
 from app.search_sources.registry import SOURCE_FACTORIES
-from app.search_sources.tavily import TavilySource, is_offer_page, to_offer
+from app.search_sources.tavily import CLOSED_PHRASES, TavilySource, read_row
 
 
 def main(args: list[str]) -> None:
@@ -29,10 +29,17 @@ def main(args: list[str]) -> None:
         print(f'Body: {body}')
         rows = source.send(body)
         print(f'Tavily sent {len(rows)} rows:')
+        offers = []
         for row in rows:
             title, url = str(row.get('title')), row.get('url')
-            print(f'  [{"offer" if is_offer_page(url, title) else "LIST "}] {title}  <{url}>')
-        offers = [o for row in rows if (o := to_offer(row, query.cities())) is not None]
+            offer, reason = read_row(row, query.cities())
+            verdict = 'offer' if offer and reason is None else (reason or 'unreadable')
+            print(f'  [{verdict}] {title}  <{url}>')
+            if reason == 'closed':  # which words looked like "closed", to check them
+                text = normalize(f'{row.get("content")} {str(row.get("raw_content"))[:3000]}')
+                print(f'      closed because of: {[p for p in CLOSED_PHRASES if p in text]}')
+            if offer and reason is None:
+                offers.append(offer)
         page = SourcePage(offers=offers, skipped=len(rows) - len(offers))
     else:
         page = source.search(query, 10)

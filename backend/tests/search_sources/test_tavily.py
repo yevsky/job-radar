@@ -212,7 +212,7 @@ def test_request_sends_query_domains_and_key(
     assert request.headers['Authorization'] == 'Bearer tvly-test-key'
     body = sent_body(requests)
     assert body['query'] == 'Python developer'
-    assert body['max_results'] == 20  # always the most: 1 credit whatever the count
+    assert body['max_results'] == 100  # always the most Tavily gives, in one request
     assert body['include_raw_content'] == 'text'  # the full page, still 1 credit
     assert body['include_domains'] == DOMAINS
     assert 'country' not in body  # include_domains already picks the boards
@@ -295,10 +295,10 @@ def test_list_pages_are_hidden_with_the_reason_and_broken_rows_skipped() -> None
     assert page.skipped == 1  # the row with 'not a link' can't even be shown
 
 
-def test_max_results_is_at_most_20(recording: TavilySource, requests: list[httpx.Request]) -> None:
-    recording.search(QUERY, 50)
+def test_max_results_is_at_most_100(recording: TavilySource, requests: list[httpx.Request]) -> None:
+    recording.search(QUERY, 500)
 
-    assert sent_body(requests)['max_results'] == 20
+    assert sent_body(requests)['max_results'] == 100
 
 
 def test_no_domains_sends_no_include_domains(requests: list[httpx.Request]) -> None:
@@ -526,3 +526,68 @@ def test_closed_offers_are_in_the_hidden_list() -> None:
 
     assert page.offers == []
     assert [(str(h.offer.url), h.reason) for h in page.hidden] == [(LINKEDIN_OFFER, 'closed')]
+
+
+# --- real titles from a Wrocław search (2026-11-23) ----------------------------------
+
+
+@pytest.mark.parametrize(
+    ('page_title', 'expected'),
+    [
+        (
+            'Praca Junior Python Developer | Backend | MasterBorn | Wrocław | No Fluff Jobs.',
+            ('Junior Python Developer', 'MasterBorn'),
+        ),
+        (
+            'Oferta pracy Junior Python Developer, Capgemini Polska, Wrocław',
+            ('Junior Python Developer', 'Capgemini Polska'),
+        ),
+        (
+            'Oferta pracy Junior Python Developer, Hays Poland',
+            ('Junior Python Developer', 'Hays Poland'),
+        ),
+    ],
+)
+def test_split_title_reads_no_fluff_jobs_and_pracuj_titles(
+    page_title: str, expected: tuple[str, str | None]
+) -> None:
+    assert split_title(page_title) == expected
+
+
+@pytest.mark.parametrize(
+    ('page_title', 'url'),
+    [
+        (
+            'Python Jobs | IT jobs | Wroclaw | Fresh offers with salary ranges | No Fluff Jobs.',
+            'https://nofluffjobs.com/job/junior-mid-python-developer-antal-Wroc%C5%82aw',
+        ),
+        (
+            'Praca Python | Praca IT | Wrocław | Najnowsze oferty z widełkami wynagrodzeń'
+            ' | No Fluff Jobs.',
+            'https://nofluffjobs.com/pl/job/senior-python-developer-digis-wroclaw',
+        ),
+    ],
+)
+def test_an_offer_link_that_shows_a_list_page_has_expired(page_title: str, url: str) -> None:
+    """No Fluff Jobs answers an expired offer's link with its category page."""
+    offer, reason = read_row(row(page_title, url))
+    assert offer is not None
+    assert reason == 'expired'
+
+
+def test_a_no_fluff_jobs_category_page_is_a_list_page() -> None:
+    title = 'Praca Python | Praca IT | Wrocław | Najnowsze oferty | No Fluff Jobs.'
+    _, reason = read_row(row(title, 'https://nofluffjobs.com/pl/wroclaw/python'))
+    assert reason == 'list_page'
+
+
+def test_a_real_no_fluff_jobs_offer_is_kept_with_its_company() -> None:
+    offer, reason = read_row(
+        row(
+            'Praca Junior Python Developer | Backend | MasterBorn | Wrocław | No Fluff Jobs.',
+            'https://nofluffjobs.com/pl/job/junior-python-developer-masterborn-wroclaw',
+        )
+    )
+    assert reason is None
+    assert offer is not None
+    assert (offer.title, offer.company_name) == ('Junior Python Developer', 'MasterBorn')

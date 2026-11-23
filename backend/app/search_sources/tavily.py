@@ -13,7 +13,7 @@ from app.search_sources.base import HiddenOffer, SearchSource, SearchSourceError
 
 TAVILY_URL = 'https://api.tavily.com/search'
 TIMEOUT_SECONDS = 15
-MAX_RESULTS = 20  # the most Tavily returns for one search; it has no pages of its own
+MAX_RESULTS = 100  # the most Tavily returns for one search; it has no pages of its own
 MAX_DESCRIPTION = 20_000  # JobOfferImport.description's limit
 
 # "Python Developer - Codesky" or "Python Developer – Codesky"
@@ -83,12 +83,27 @@ def board_of(host: str) -> str | None:
     return next((b for b in OFFER_PATHS if host == b or host.endswith(f'.{b}')), None)
 
 
-# Titles of pages that list many offers: 'Python Jobs in Warsaw', '11,000+ Open Roles'
+# Titles of pages that list many offers: 'Python Jobs in Warsaw', '11,000+ Open Roles', and
+# No Fluff Jobs' category pages: 'Python Jobs | IT jobs | Wroclaw | Fresh offers with salary
+# ranges' or 'Praca Python | Praca IT | Wrocław | Najnowsze oferty z widełkami wynagrodzeń'
 LIST_TITLE = re.compile(
     r'\b(?:\d[\d,.]*\+?\s+(?:new\s+|open\s+)?(?:jobs|roles|positions|offers|ofert)'
-    r'|jobs\s+in|job\s+offers\s+in|oferty\s+pracy)\b',
+    r'|jobs\s+in|job\s+offers\s+in|oferty\s+pracy)\b'
+    r'|\|\s*(?:it\s+jobs|praca\s+it)\s*\|'
+    r'|\bfresh\s+offers\b|\bnajnowsze\s+oferty\b',
     re.IGNORECASE,
 )
+
+# Words some boards put before the job title: 'Praca Junior Python Developer | ...' on
+# No Fluff Jobs, 'Oferta pracy Junior Python Developer, Capgemini, Wrocław' on Pracuj.pl
+TITLE_PREFIX = re.compile(r'^(?:oferta\s+pracy|praca)\s+', re.IGNORECASE)
+
+
+def is_offer_link(url: object) -> bool:
+    """True if the link has the shape of one offer on a job board we know."""
+    host = host_of(url)
+    board = board_of(host) if host else None
+    return board is not None and bool(OFFER_PATHS[board].match(urlsplit(str(url)).path))
 
 
 def is_offer_page(url: object, page_title: str = '') -> bool:
@@ -128,15 +143,28 @@ def page_text(raw: object) -> str | None:
 def split_title(page_title: str) -> tuple[str, str | None]:
     """Guess (job title, company) from a page title; company is None if there is no pattern.
 
+    'Praca Python Developer | Backend | Codesky | Wrocław | No Fluff Jobs.'
+        -> ('Python Developer', 'Codesky')
+    'Oferta pracy Python Developer, Codesky, Wrocław' -> ('Python Developer', 'Codesky')
+
     'Python Developer at Codesky | LinkedIn' -> ('Python Developer', 'Codesky')
     'Python Developer - Codesky - Just Join IT' -> ('Python Developer', 'Codesky')
     'Python Developer - Just Join IT' -> ('Python Developer', None)
     'Python Developer at Codesky — Wrocław - LinkedIn' -> ('Python Developer', 'Codesky')
     'Python Developer w firmie Codesky - Wrocław' -> ('Python Developer', 'Codesky')
     """
-    text = page_title.split(' | ')[0].strip().removesuffix('...').removesuffix('…').strip()
+    segments = [s.strip() for s in page_title.split(' | ')]
+    text = segments[0].removesuffix('...').removesuffix('…').strip()
+    prefixed = TITLE_PREFIX.match(text)
+    text = TITLE_PREFIX.sub('', text)
     title, company = text, None
-    if ' at ' in text:
+    # No Fluff Jobs: 'Praca <title> | <category> | <company> | <city> | No Fluff Jobs.'
+    if len(segments) >= 5 and 'no fluff jobs' in segments[-1].lower():
+        title, company = text, segments[2]
+    # Pracuj.pl: 'Oferta pracy <title>, <company>, <city>'
+    elif prefixed and text.count(', ') >= 1:
+        title, company = text.split(', ')[:2]
+    elif ' at ' in text:
         title, company = text.rsplit(' at ', 1)
     elif ' w firmie ' in text:  # Polish: 'at the company'
         title, company = text.rsplit(' w firmie ', 1)
@@ -223,6 +251,9 @@ def read_row(
         )
     except ValidationError:
         return None, None
+    if is_offer_link(url) and LIST_TITLE.search(page_title):
+        # an offer's link, but the board answered with a list page: the offer expired
+        return offer, HiddenReason.EXPIRED
     if not is_offer_page(url, page_title):
         return offer, HiddenReason.LIST_PAGE
     if is_only_a_place(title):
