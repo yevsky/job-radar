@@ -2,10 +2,14 @@
 import { existing, request } from './client'
 import { mockAuth } from '@/mocks/auth'
 
+export type RoleName = 'user' | 'admin'
+
 export interface UserRead {
   id: number
   email: string
   role_id: number
+  /** 'admin' can open the admin pages. */
+  role: RoleName
   created_at: string
 }
 
