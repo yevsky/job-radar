@@ -80,7 +80,7 @@ def test_run_stores_the_analysis_and_returns_it(
     assert row is not None
     assert row.score == SCORE
     assert row.prompt_version == OFFER_ANALYSIS_VERSION
-    assert len(provider.calls) == 1
+    assert len(provider.calls) == 2  # step 1 reads the requirements, step 2 judges
 
 
 def test_an_empty_body_means_no_cv(
@@ -90,7 +90,7 @@ def test_an_empty_body_means_no_cv(
 
     assert response.status_code == status.HTTP_201_CREATED
     assert response.json()['resume_id'] is None
-    assert '<resume>' not in provider.calls[0][1].content
+    assert '<resume>' not in provider.calls[1][1].content
 
 
 def test_the_model_reads_the_offer_from_the_database(
@@ -174,7 +174,7 @@ def test_run_with_a_cv_stores_it_and_shows_it_to_the_model(
 
     assert response.status_code == status.HTTP_201_CREATED
     assert response.json()['resume_id'] == resume.id
-    assert '<resume>\nBuilt 3 FastAPI services\n</resume>' in provider.calls[0][1].content
+    assert '<resume>\nBuilt 3 FastAPI services\n</resume>' in provider.calls[1][1].content
 
 
 def test_another_users_cv_returns_404(
@@ -272,7 +272,9 @@ def test_each_user_only_sees_their_own_analyses(
     use_provider: UseProvider,
 ) -> None:
     _, other_token = other
-    use_provider(FakeAIProvider(responses=[answer(summary='Mine'), answer(summary='Theirs')]))
+    use_provider(
+        FakeAIProvider(responses=[answer(summary='Mine')] * 2 + [answer(summary='Theirs')])
+    )
     run(api, token, offer.id)
 
     assert api.get(url(offer.id), headers=auth_header(other_token)).status_code == 404
@@ -316,7 +318,7 @@ def test_two_bad_answers_return_502(
     response = run(api, token, offer.id)
 
     assert response.status_code == status.HTTP_502_BAD_GATEWAY
-    assert len(fake.calls) == 2  # the first answer was retried once
+    assert len(fake.calls) == 3  # step 1, then step 2 and its one retry
     assert count_analyses(db) == 0
 
 

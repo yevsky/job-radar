@@ -58,7 +58,7 @@ def test_returns_the_analysis_and_stores_nothing(
     assert 'created_at' not in body
     assert count(db, AiAnalysis) == 0
     assert count(db, JobOffer) == 0  # the result isn't saved as an offer either
-    assert 'Required: Python, FastAPI, PostgreSQL' in provider.calls[0][1].content
+    assert 'Required: Python, FastAPI, PostgreSQL' in provider.calls[1][1].content
 
 
 def test_the_result_must_be_a_valid_search_result(
@@ -83,7 +83,7 @@ def test_a_cv_goes_to_the_model(
     response = analyse(api, token, resume.id)
 
     assert response.status_code == status.HTTP_200_OK
-    assert '<resume>\nBuilt 3 FastAPI services\n</resume>' in provider.calls[0][1].content
+    assert '<resume>\nBuilt 3 FastAPI services\n</resume>' in provider.calls[1][1].content
 
 
 def test_another_users_cv_returns_404(

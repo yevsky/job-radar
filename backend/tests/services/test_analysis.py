@@ -16,6 +16,7 @@ from app.schemas.profile import ProfileRead
 from app.services.analysis import (
     analyse,
     employment_type_points,
+    facts_text,
     level_points,
     location_points,
     match_skills,
@@ -277,12 +278,12 @@ def test_same_answer_gives_the_same_score_every_time() -> None:
 
 
 def test_role_fit_over_10_is_retried() -> None:
-    provider = fake({**ANSWER, 'role_fit': 11}, ANSWER)
+    provider = fake(ANSWER, {**ANSWER, 'role_fit': 11}, ANSWER)
 
     result = analyse(provider, make_offer(), make_profile())
 
-    assert len(provider.calls) == 2
-    assert 'role_fit' in provider.calls[1][-1].content
+    assert len(provider.calls) == 3  # step 1, step 2, step 2 again
+    assert 'role_fit' in provider.calls[2][-1].content
     assert result.breakdown.role_fit == 8
 
 
@@ -301,7 +302,7 @@ def test_the_cv_goes_into_the_prompt_when_given() -> None:
 
     analyse(provider, make_offer(), make_profile(), resume_text='Built 3 FastAPI services')
 
-    user_message = provider.calls[0][1].content
+    user_message = provider.calls[1][1].content  # step 2
     assert '<resume>\nBuilt 3 FastAPI services\n</resume>' in user_message
 
 
@@ -310,7 +311,7 @@ def test_the_prompt_has_the_users_skills_but_not_their_name() -> None:
 
     analyse(provider, make_offer(), make_profile())
 
-    user_message = provider.calls[0][1].content
+    user_message = provider.calls[1][1].content
     assert '"skills": ["Python", "FastAPI", "PostgreSQL"]' in user_message
     assert 'Anna' not in user_message
     assert 'Kowalska' not in user_message
@@ -364,3 +365,92 @@ def test_repeated_reasons_and_red_flags_are_shown_once() -> None:
     flag = 'The posting does not say the level.'
     answer = output(reasons=['Python', 'python', ''], red_flags=[flag, flag.upper()])
     assert (answer.reasons, answer.red_flags) == (['Python'], [flag])
+
+
+# --- offer-analysis-v4: kinds, looser matching, facts for step 2, no contradictions ----------
+
+
+def kind_req(text: str, kind: str, skill: str | None = None, required: bool = True) -> Requirement:
+    return Requirement.model_validate(
+        {'text': text, 'required': required, 'kind': kind, 'skill': skill}
+    )
+
+
+def test_traits_and_experience_are_neither_matched_nor_missing() -> None:
+    """The real v3 run showed 'Knowledge hungry' as a skill to learn."""
+    requirements = [
+        kind_req('Python', 'skill', 'Python'),
+        kind_req('knowledge hungry', 'trait'),
+        kind_req('6-12 months of commercial experience with Python', 'experience'),
+        kind_req('English B2', 'language'),
+    ]
+    assert match_skills(requirements, ['Python']) == (['Python'], [])
+    assert skill_points(requirements, ['Python']) == (45, 10)
+
+
+@pytest.mark.parametrize(
+    ('value', 'expected'),
+    [('Trait', 'trait'), ('soft skill', 'trait'), (None, 'skill'), ('tool', 'skill')],
+)
+def test_an_unknown_kind_is_read_leniently(value: str | None, expected: str) -> None:
+    assert kind_req('x', value).kind == expected  # type: ignore[arg-type]
+
+
+def test_a_skill_named_inside_a_requirement_covers_it() -> None:
+    """'basic experience with Django' is covered by Django, without the model's help."""
+    matched, missing = match_skills(
+        [req('basic experience with Django'), req('C#'), req('C++')], ['Django', 'C']
+    )
+    assert (matched, missing) == (['Django'], ['C#', 'C++'])
+
+
+def test_a_skill_named_in_the_chosen_cv_counts_as_covered() -> None:
+    cv = 'I apply SOLID principles and write unit tests.'
+    matched, missing = match_skills([req('SOLID'), req('DRY')], ['Python'], resume_text=cv)
+    assert (matched, missing) == (['SOLID'], ['DRY'])
+
+
+def test_the_facts_for_step_2_say_what_is_covered_and_what_is_not() -> None:
+    requirements = [
+        kind_req('Python', 'skill', 'Python'),
+        kind_req('basic experience with Django', 'skill'),
+        kind_req('Docker', 'skill', required=False),
+        kind_req('knowledge hungry', 'trait'),
+        kind_req('6-12 months of commercial experience', 'experience'),
+    ]
+    facts = facts_text(make_offer(), make_profile(), requirements)
+    assert 'Skills the candidate covers: Python' in facts
+    assert 'Required skills the candidate lacks: basic experience with Django' in facts
+    assert 'Nice-to-have skills the candidate lacks: Docker' in facts
+    assert 'Other demands of the posting: 6-12 months of commercial experience (experience)' in (
+        facts
+    )
+    assert 'knowledge hungry' not in facts
+    assert 'Offer level: junior; candidate level: junior' in facts
+    assert "Location: Wroclaw (fits the candidate's preferences)" in facts
+
+
+def test_step_2_gets_the_facts_from_step_1() -> None:
+    provider = fake(ANSWER)
+    analyse(provider, make_offer(), make_profile())
+    assert '<facts>\nSkills the candidate covers: Python, FastAPI' in provider.calls[1][1].content
+
+
+def test_red_flags_about_a_covered_skill_or_repeating_a_reason_are_dropped() -> None:
+    """The real v3 run: 'SQL ... which you have' as a reason and as a red flag."""
+    step_1 = {'requirements': [{'text': 'SQL', 'required': True, 'skill': 'SQL'}]}
+    step_2 = {
+        'role_fit': 9,
+        'summary': 'A good fit.',
+        'reasons': ['Small team, mentoring offered'],
+        'red_flags': [
+            'Hands-on experience with SQL might be a bit high for a junior',
+            'small team, mentoring offered',
+            'No salary given',
+        ],
+    }
+    provider = fake(step_1, step_2)
+
+    result = analyse(provider, make_offer(technologies=[]), make_profile(skills=['SQL']))
+
+    assert result.red_flags == ['No salary given']
