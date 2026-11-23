@@ -2,6 +2,7 @@
 
 from app.models.ai_analysis import AiAnalysis
 from app.models.application import Application, ApplicationStatusChange
+from app.models.chat import ChatAction, Conversation, ConversationMessage
 from app.models.job_offer import JobOffer
 from app.models.resume import Resume
 from app.models.role import Role
@@ -25,4 +26,7 @@ __all__ = [
     'ApplicationStatusChange',
     'Resume',
     'AiAnalysis',
+    'Conversation',
+    'ConversationMessage',
+    'ChatAction',
 ]
