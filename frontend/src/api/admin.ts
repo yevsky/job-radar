@@ -4,13 +4,14 @@
  *   PUT /admin/users/{id}/search-limit {search_daily_limit: int | null} -> SearchLimitRead
  *   PATCH /admin/users/{id}/role {role}          -> AdminUser
  *   DELETE /admin/users/{id}                      -> 204
+ *   GET /admin/stats                               -> AdminStats
  *   POST /admin/job-offers/import (file: JSON or CSV) -> ImportReport
  *   GET /admin/job-offers ?q&source&is_active&limit&offset -> AdminOfferPage
  *   PATCH /admin/job-offers/{id} {is_active} / DELETE /admin/job-offers/{id}
  */
 import type { RoleName, UserRead } from './auth'
 import { existing, request } from './client'
-import type { SourceKind } from './enums'
+import type { ApplicationStatus, SourceKind } from './enums'
 import type { JobOfferListItem } from './jobOffers'
 import { mockAdmin } from '@/mocks/admin'
 
@@ -125,4 +126,35 @@ export const deleteOffer = (offerId: number) =>
   existing(
     () => request<void>(`/admin/job-offers/${offerId}`, { method: 'DELETE' }),
     () => mockAdmin.deleteOffer(offerId),
+  )
+
+export interface DayCount {
+  /** 'YYYY-MM-DD': a day, or the Monday a week starts on. */
+  day: string
+  count: number
+}
+
+export interface AdminStats {
+  users: number
+  admins: number
+  new_users_last_7_days: number
+  public_offers: number
+  hidden_offers: number
+  private_offers: number
+  applications: number
+  applications_by_status: Record<ApplicationStatus, number>
+  searches_today: number
+  searches_last_7_days: number
+  analyses: number
+  conversations: number
+  /** The last 14 days, oldest first. */
+  searches_by_day: DayCount[]
+  /** The last 8 weeks, oldest first. */
+  signups_by_week: DayCount[]
+}
+
+export const getAdminStats = () =>
+  existing(
+    () => request<AdminStats>('/admin/stats'),
+    () => mockAdmin.stats(),
   )

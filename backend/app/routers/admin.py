@@ -8,6 +8,7 @@ from app.dependencies import AI, CurrentAdmin, SearchSources, require_role
 from app.models import User
 from app.models.enums import SourceKind
 from app.models.role import RoleName
+from app.schemas.admin import AdminStats
 from app.schemas.ai import AIProviderStatus
 from app.schemas.job_offer import (
     AdminJobOfferFilters,
@@ -18,6 +19,7 @@ from app.schemas.job_offer import (
 )
 from app.schemas.search import SearchLimitRead, SearchLimitUpdate, SourceStatus
 from app.schemas.user import AdminUserRead, RoleUpdate
+from app.services.admin_stats import get_admin_stats
 from app.services.job_offer import delete_job_offer, list_public_offers, set_job_offer_active
 from app.services.job_offer_import import ImportFileError, import_offers, parse_rows
 from app.services.search import UserNotFoundError, set_search_limit
@@ -29,6 +31,12 @@ MAX_IMPORT_ROWS = 500
 router = APIRouter(
     prefix='/admin', tags=['admin'], dependencies=[Depends(require_role(RoleName.ADMIN))]
 )
+
+
+@router.get('/stats', response_model=AdminStats)
+def read_admin_stats(db: DbSession) -> AdminStats:
+    """Numbers for the admin dashboard: users, offers, applications, searches, AI use."""
+    return get_admin_stats(db)
 
 
 @router.get('/users', response_model=list[AdminUserRead])

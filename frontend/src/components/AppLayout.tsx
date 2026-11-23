@@ -85,7 +85,7 @@ export function AppLayout() {
                   <NavLink
                     key={item.to}
                     to={item.to}
-                    end={item.to === '/'}
+                    end={item.to === '/' || item.to === '/admin'}
                     // NavLink marks every page under `to` as active, but /offers/new is the
                     // "Add an offer" button's page, not "Job offers"
                     className={({ isActive }) =>

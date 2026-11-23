@@ -1,5 +1,6 @@
 import type {
   AdminOffer,
+  AdminStats,
   AdminOfferPage,
   AdminOfferQuery,
   AdminUser,
@@ -84,6 +85,36 @@ export const mockAdmin = {
     user.role = role
     user.role_id = role === 'admin' ? 2 : 1
     return user
+  },
+  stats(): AdminStats {
+    const day = (n: number) => daysFromNow(n).slice(0, 10)
+    const searches = [3, 5, 2, 0, 7, 9, 4, 6, 8, 1, 0, 5, 11, 6]
+    const signups = [1, 0, 2, 1, 3, 1, 0, 2]
+    return {
+      users: others.length + 1,
+      admins: 1 + others.filter((u) => u.role === 'admin').length,
+      new_users_last_7_days: 1,
+      public_offers: offers.filter((o) => o.is_active).length,
+      hidden_offers: offers.filter((o) => !o.is_active).length,
+      private_offers: 12,
+      applications: 19,
+      applications_by_status: {
+        saved: 7,
+        applied: 5,
+        screening: 2,
+        interview: 2,
+        offer: 1,
+        accepted: 0,
+        rejected: 2,
+        declined: 0,
+      },
+      searches_today: 6,
+      searches_last_7_days: 37,
+      analyses: 14,
+      conversations: 5,
+      searches_by_day: searches.map((count, i) => ({ day: day(i - 13), count })),
+      signups_by_week: signups.map((count, i) => ({ day: day((i - 7) * 7), count })),
+    }
   },
   async importFile(file: File): Promise<ImportReport> {
     const text = await file.text()
