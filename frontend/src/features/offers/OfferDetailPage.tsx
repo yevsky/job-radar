@@ -5,6 +5,7 @@ import { Icon } from '@/components/Icon'
 import { ErrorBox, Loading } from '@/components/ui'
 import { MatchCard } from '@/features/match/MatchCard'
 import { formatDate, relativeDays } from '@/lib/format'
+import { hasOriginal } from '@/lib/originalLink'
 import { employmentLabel, experienceLabel, sourceLabel } from '@/lib/labels'
 import { useAsync } from '@/lib/useAsync'
 
@@ -61,9 +62,11 @@ export function OfferDetailPage() {
           )}
         </div>
         <div className="row">
-          <a className="btn" href={o.url} target="_blank" rel="noreferrer noopener">
-            Open original <Icon name="external" size={16} />
-          </a>
+          {hasOriginal(o.url) && (
+            <a className="btn" href={o.url} target="_blank" rel="noreferrer noopener">
+              Open original <Icon name="external" size={16} />
+            </a>
+          )}
           {o.is_private && (
             <button className="btn btn-danger" onClick={remove}>
               <Icon name="trash" size={16} /> Delete

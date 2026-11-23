@@ -41,7 +41,7 @@ function Dashboard({ s }: { s: AdminStats }) {
           <Num value={s.admins} label="admins" />
           <Num value={s.new_users_last_7_days} label="new this week" />
         </Tile>
-        <Tile title="Offers" to="/admin/offers" link="Imported offers">
+        <Tile title="Offers" to="/admin/offers" link="Posted offers">
           <Num value={s.public_offers} label="shown to everyone" />
           <Num value={s.hidden_offers} label="hidden" />
           <Num value={s.private_offers} label="private (saved by users)" />

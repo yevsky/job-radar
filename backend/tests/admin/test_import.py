@@ -68,7 +68,7 @@ def test_admin_imports_valid_file(api: TestClient, admin_token: str) -> None:
 def test_imported_offers_have_manual_source(api: TestClient, admin_token: str, db: Session) -> None:
     upload(api, admin_token, as_json([offer_row(1)]))
 
-    assert db.scalars(select(JobOffer.source)).all() == [SourceKind.MANUAL]
+    assert db.scalars(select(JobOffer.source)).all() == [SourceKind.POSTED]
 
 
 def test_uploading_same_file_twice_updates(api: TestClient, admin_token: str, db: Session) -> None:

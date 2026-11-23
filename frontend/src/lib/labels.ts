@@ -19,7 +19,7 @@ export const employmentLabel: Record<EmploymentType, string> = {
 export const sourceLabel: Record<SourceKind, string> = {
   search: 'Found by search',
   browser: 'Sent from browser',
-  manual: 'Imported',
+  manual: 'Added by you',
   posted: 'Posted',
 }
 

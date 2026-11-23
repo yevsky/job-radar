@@ -51,7 +51,7 @@ export function AdminImportPage() {
         lead="Add public offers for every user from a JSON or CSV file. An offer whose link is already in the app is updated instead of copied."
         actions={
           <Link className="btn" to="/admin/offers">
-            Imported offers
+            Posted offers
           </Link>
         }
       />
