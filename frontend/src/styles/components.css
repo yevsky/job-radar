@@ -1545,6 +1545,29 @@ table.data td {
   min-height: 420px;
   padding: 20px;
 }
+/* On a wide screen the assistant fills exactly the rest of the page under its header, so
+   only the messages scroll, never the page (the header's height depends on the font). */
+@media (min-width: 901px) {
+  .page:has(> .assistant) {
+    height: calc(100vh - 24px);
+    display: flex;
+    flex-direction: column;
+  }
+  .page:has(> .assistant) > .assistant {
+    flex: 1;
+    min-height: 0;
+    align-items: stretch;
+  }
+  .assistant-chat {
+    height: auto;
+    min-height: 0;
+  }
+  .assistant-list {
+    position: static;
+    min-height: 0;
+    overflow-y: auto; /* many chats scroll inside the list */
+  }
+}
 .assistant-messages {
   flex: 1;
   overflow-y: auto;
