@@ -1,6 +1,7 @@
 from collections.abc import Sequence
+from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, status
 
 from app.db.dependencies import DbSession
 from app.dependencies import AI, CurrentAdmin, SearchSources, require_role
@@ -8,11 +9,17 @@ from app.models import User
 from app.models.enums import SourceKind
 from app.models.role import RoleName
 from app.schemas.ai import AIProviderStatus
-from app.schemas.job_offer import ImportReport, JobOfferRead, JobOfferStatusUpdate
+from app.schemas.job_offer import (
+    AdminJobOfferFilters,
+    AdminJobOfferPage,
+    ImportReport,
+    JobOfferRead,
+    JobOfferStatusUpdate,
+)
 from app.schemas.search import SearchLimitRead, SearchLimitUpdate, SourceStatus
 from app.schemas.user import AdminUserRead, RoleUpdate
-from app.services.job_offer import delete_job_offer, set_job_offer_active
-from app.services.job_offer_import import ImportFileError, import_offers, parse_json_rows
+from app.services.job_offer import delete_job_offer, list_public_offers, set_job_offer_active
+from app.services.job_offer_import import ImportFileError, import_offers, parse_rows
 from app.services.search import UserNotFoundError, set_search_limit
 from app.services.user_admin import OwnAccountError, change_role, delete_user, list_users
 
@@ -61,7 +68,12 @@ def remove_user(user_id: int, db: DbSession, admin: CurrentAdmin) -> None:
 
 @router.post('/job-offers/import', response_model=ImportReport)
 def import_job_offers(file: UploadFile, db: DbSession) -> ImportReport:
-    """Import job offers from an uploaded JSON file (a list of offer objects)."""
+    """Import public job offers from an uploaded JSON or CSV file.
+
+    JSON: a list of offer objects. CSV: a header row (title, company_name, url, and any of
+    location, experience_level, employment_type, deadline, technologies, description), then
+    one offer per line. The report says how many were created, updated, skipped, or invalid.
+    """
     content = file.file.read(MAX_IMPORT_BYTES + 1)
     if len(content) > MAX_IMPORT_BYTES:
         raise HTTPException(
@@ -69,7 +81,7 @@ def import_job_offers(file: UploadFile, db: DbSession) -> ImportReport:
         )
 
     try:
-        rows = parse_json_rows(content)
+        rows = parse_rows(file.filename, content)
     except ImportFileError as err:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(err)) from err
 
@@ -80,6 +92,23 @@ def import_job_offers(file: UploadFile, db: DbSession) -> ImportReport:
         )
 
     return import_offers(db, rows, SourceKind.MANUAL)
+
+
+@router.get('/job-offers', response_model=AdminJobOfferPage)
+def list_imported_offers(
+    db: DbSession,
+    q: Annotated[str | None, Query(max_length=100)] = None,
+    source: SourceKind | None = None,
+    is_active: bool | None = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 25,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> AdminJobOfferPage:
+    """Every public offer (imported or seeded), hidden ones too, newest first.
+
+    `q` looks in the title and company name; `is_active=false` shows only hidden offers.
+    """
+    filters = AdminJobOfferFilters(q=q, source=source, is_active=is_active)
+    return list_public_offers(db, limit, offset, filters)
 
 
 @router.patch('/job-offers/{offer_id}', response_model=JobOfferRead)

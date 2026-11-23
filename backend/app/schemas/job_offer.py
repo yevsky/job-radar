@@ -48,6 +48,31 @@ class JobOfferRead(JobOfferListItem):
     created_at: datetime
 
 
+class AdminJobOfferItem(JobOfferListItem):
+    """One public offer in the admin overview, hidden ones included."""
+
+    source: SourceKind
+    found_via: str | None
+    url: str
+    is_active: bool
+    last_seen_at: datetime | None
+    created_at: datetime
+    saved_by: int  # how many users track it (saved or applied)
+
+
+class AdminJobOfferPage(BaseModel):
+    items: list[AdminJobOfferItem]
+    total: int
+    limit: int
+    offset: int
+
+
+class AdminJobOfferFilters(BaseModel):
+    q: str | None = None  # in the title or the company name
+    source: SourceKind | None = None
+    is_active: bool | None = None  # None = both shown and hidden
+
+
 class JobOfferStatusUpdate(BaseModel):
     is_active: bool
 

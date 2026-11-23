@@ -1,4 +1,7 @@
+import csv
+import io
 import json
+import re
 from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
@@ -147,3 +150,59 @@ def parse_json_rows(content: bytes) -> list[dict[str, Any]]:
     if not isinstance(data, list) or not all(isinstance(row, dict) for row in data):
         raise ImportFileError('The file must contain a JSON list of objects.')
     return data
+
+
+# Columns a CSV file must have; the others (location, experience_level, ...) are optional
+REQUIRED_CSV_COLUMNS = ('title', 'company_name', 'url')
+# Technologies in one CSV cell: "Python, FastAPI" or "Python;FastAPI" or "Python | FastAPI"
+TECHNOLOGY_SEPARATORS = re.compile(r'[,;|]')
+
+
+def parse_csv_rows(content: bytes) -> list[dict[str, Any]]:
+    """Read a CSV file with a header row, one offer per line.
+
+    Commas and semicolons both work as the column separator (Excel in Poland saves with ';').
+    Empty cells count as missing, and the technologies cell is split into a list. Each row
+    is still validated on its own later, like a JSON row.
+    """
+    try:
+        text = content.decode('utf-8-sig')  # -sig: Excel puts a BOM at the start
+    except UnicodeDecodeError as err:
+        raise ImportFileError('The CSV file must be saved as UTF-8 text.') from err
+
+    header_line = text.split('\n', 1)[0]
+    delimiter = ';' if header_line.count(';') > header_line.count(',') else ','
+    reader = csv.DictReader(io.StringIO(text), delimiter=delimiter)
+    columns = [name.strip().lower() for name in reader.fieldnames or []]
+    missing = [name for name in REQUIRED_CSV_COLUMNS if name not in columns]
+    if missing:
+        raise ImportFileError(
+            f'The CSV header must have the columns {", ".join(REQUIRED_CSV_COLUMNS)} '
+            f'(missing: {", ".join(missing)}).'
+        )
+
+    rows: list[dict[str, Any]] = []
+    for raw in reader:
+        row: dict[str, Any] = {}
+        for name, value in raw.items():
+            if name is None or not isinstance(value, str) or not value.strip():
+                continue  # extra cells without a header, or an empty cell
+            row[name.strip().lower()] = value.strip()
+        if not row:
+            continue  # a blank line
+        if 'technologies' in row:
+            row['technologies'] = [
+                t.strip() for t in TECHNOLOGY_SEPARATORS.split(row['technologies'])
+            ]
+        rows.append(row)
+    return rows
+
+
+def parse_rows(filename: str | None, content: bytes) -> list[dict[str, Any]]:
+    """Read an uploaded file as JSON or CSV: by its extension, or by its first character."""
+    name = (filename or '').lower()
+    if name.endswith('.csv'):
+        return parse_csv_rows(content)
+    if name.endswith('.json') or content.lstrip()[:1] in (b'[', b'{'):
+        return parse_json_rows(content)
+    return parse_csv_rows(content)
