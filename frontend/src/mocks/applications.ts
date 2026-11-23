@@ -6,6 +6,7 @@ import type {
   Application,
   ApplicationCreate,
   ApplicationStats,
+  StaleStage,
   ApplicationUpdate,
   CalendarEvent,
   StatsRange,
@@ -107,6 +108,33 @@ const seeds: [number, [ApplicationStatus, number][], number?][] = [
   [4, [['saved', 1]]],
   [10, [['saved', 9]]],
 ]
+
+/** Same rules as the backend: stale after this many days in one status. */
+const STALE_RULES: [StaleStage['stage'], number][] = [
+  ['saved', 7],
+  ['applied', 10],
+  ['screening', 10],
+  ['interview', 7],
+  ['offer', 3],
+]
+
+const REPLY_STATUSES: ApplicationStatus[] = [
+  'screening',
+  'interview',
+  'offer',
+  'accepted',
+  'rejected',
+]
+
+/** When the company first answered (good or bad), or null if it hasn't. */
+function firstReplyAt(r: Row): string | null {
+  if (!r.applied_at) return null
+  const applied = r.applied_at
+  return (
+    r.history.find((h) => REPLY_STATUSES.includes(h.status) && h.changed_at >= applied)
+      ?.changed_at ?? null
+  )
+}
 
 const seeded = (): Row[] =>
   seeds.map(([offerId, steps, interviewIn], index) => {
@@ -226,6 +254,34 @@ export const mockApplications = {
 
   forOffer: (offerId: number) => rows.find((r) => r.job_offer.id === offerId),
 
+  stale(): StaleStage[] {
+    const now = Date.now()
+    return STALE_RULES.map(([stage, afterDays]) => {
+      const inStage = rows.filter((r) => r.status === stage)
+      const items: StaleStage['items'] = []
+      inStage.forEach((r) => {
+        const last = [...r.history].reverse().find((h) => h.status === stage)
+        let since = last?.changed_at ?? r.updated_at
+        if (stage === 'interview' && r.interview_at) {
+          if (new Date(r.interview_at).getTime() > now) return
+          if (r.interview_at > since) since = r.interview_at
+        }
+        const days = Math.floor((now - new Date(since).getTime()) / DAY)
+        if (days >= afterDays)
+          items.push({
+            application_id: r.id,
+            job_offer_id: r.job_offer.id,
+            title: r.job_offer.title,
+            company_name: r.job_offer.company_name,
+            since,
+            days,
+          })
+      })
+      items.sort((a, b) => b.days - a.days)
+      return { stage, after_days: afterDays, total: inStage.length, items }
+    })
+  },
+
   stats(range: StatsRange): ApplicationStats {
     const since = range === 'all' ? 0 : Date.now() - (range === '30d' ? 30 : 90) * DAY
     // Saved-only rows never entered the funnel.
@@ -269,10 +325,12 @@ export const mockApplications = {
           r.history.some((h) => h.status === 'saved' && within(h.changed_at)),
         ).length,
         applied: rows.filter((r) => within(r.applied_at)).length,
+        replied: rows.filter((r) => within(firstReplyAt(r))).length,
       })
     }
 
-    return { range, funnel, outcomes, weekly }
+    const replied = inRange.filter((r) => firstReplyAt(r) !== null).length
+    return { range, funnel, outcomes, weekly, replied }
   },
 
   calendar(from: string, to: string): CalendarEvent[] {

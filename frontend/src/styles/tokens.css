@@ -1,56 +1,63 @@
 /*
  * Design tokens.
- * Light: warm paper, serif headings (the original look).
+ * Light ("Lilac"): cool violet greys, white cards, violet accent, Plus Jakarta Sans headings.
  * Dark: near-black sidebar, charcoal cards, pastel accents, sans headings.
  * Funnel stage colours (applied → offer) were checked with a colour-blindness validator in
  * both themes, and every chart mark also has a text label.
  */
 :root {
   --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-serif: 'Newsreader', Georgia, 'Times New Roman', serif;
-  --font-heading: var(--font-serif);
+  --font-heading: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
   --font-mono: ui-monospace, 'JetBrains Mono', 'Cascadia Code', Consolas, monospace;
-  --heading-weight: 400;
+  --heading-weight: 600;
 
-  --bg: #f3f1ec;
-  --page: #faf9f6;
-  --card: #f7f5f1;
-  --surface: #faf9f6;
-  --surface-2: #ece9e2;
-  --border: #e3dfd6;
-  --border-strong: #cfc9bd;
-  --divider: #d9d4ca;
-  --text: #1f1d1a;
-  --text-muted: #6b665e;
-  --text-faint: #9a948a;
-  --ink: #1f1d1a;
-  --ink-text: #f8f6f1;
-  --focus: #4a7cc4;
-  --danger: #a5483d;
-  --success: #4f7f4a;
+  --bg: #f3f2fa;
+  --page: #fbfaff;
+  --card: #ffffff;
+  --surface: #ffffff;
+  --surface-2: #f0eefa;
+  --border: #e6e2f3;
+  --border-strong: #d3cde8;
+  --divider: #ddd8ee;
+  --text: #1b1830;
+  --text-muted: #625d7a;
+  --text-faint: #9a95b0;
+  --accent: #5b4fd6;
+  --ink: #5b4fd6;
+  --ink-text: #ffffff;
+  --focus: #5b4fd6;
+  --danger: #b4463a;
+  --success: #2e8b57;
+
+  /* Sidebar: the active page is a white pill with violet text. */
+  --nav-active-bg: #ffffff;
+  --nav-active-text: #3b30b8;
+  --nav-active-shadow: 0 1px 2px rgb(27 24 48 / 8%);
 
   /* Board tags and the "next interview" highlight. */
   --tag-new: #f6dbe6;
   --tag-new-text: #8a2f57;
-  --tag-info: #e1e4f5;
-  --tag-info-text: #34479a;
-  --priority-bg: #fbf3e4;
-  --priority-border: #c08a2a;
+  --tag-info: #e6e3fb;
+  --tag-info-text: #3b30b8;
+  --priority-bg: #efecff;
+  --priority-border: #8b80ea;
   --priority-text: var(--text);
+  --priority-tag-bg: var(--accent);
+  --priority-tag-text: #ffffff;
 
   /* Status colours (funnel, board, calendar). */
-  --st-saved: #9a948a;
+  --st-saved: #9a95b0;
   --st-applied: #4a7cc4;
   --st-screening: #21a08f;
   --st-interview: #8a6fc4;
   --st-offer: #c08a2a;
   --st-accepted: #5f8f5a;
   --st-rejected: #b8655a;
-  --st-declined: #6e6a64;
+  --st-declined: #6e6a7a;
 
-  --radius: 12px;
-  --radius-sm: 8px;
-  --shadow: 0 1px 2px rgb(31 29 26 / 6%), 0 4px 16px rgb(31 29 26 / 4%);
+  --radius: 16px;
+  --radius-sm: 10px;
+  --shadow: 0 1px 2px rgb(27 24 48 / 5%), 0 4px 16px rgb(27 24 48 / 4%);
   --sidebar-w: 264px;
   color-scheme: light;
 }
@@ -73,9 +80,14 @@
   --text-faint: #6f6c78;
   --ink: #ffffff;
   --ink-text: #141318;
+  --accent: #9c9cf6;
   --focus: #9c9cf6;
   --danger: #f07a6a;
   --success: #5fc27c;
+
+  --nav-active-bg: var(--surface-2);
+  --nav-active-text: var(--text);
+  --nav-active-shadow: none;
 
   --tag-new: #f7a6cf;
   --tag-new-text: #3d1229;
@@ -84,6 +96,8 @@
   --priority-bg: linear-gradient(140deg, #f2a07b 0%, #e78bb6 45%, #8d84f0 100%);
   --priority-border: transparent;
   --priority-text: #1b1420;
+  --priority-tag-bg: #19151d;
+  --priority-tag-text: #ffffff;
 
   --st-saved: #bd8f2a;
   --st-applied: #6a84ee;

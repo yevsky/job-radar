@@ -68,8 +68,25 @@ export interface ApplicationStats {
   funnel: { stage: FunnelStage; reached: number }[]
   /** Where the ones that stopped at a stage are now, e.g. {stage:'screening', status:'rejected'}. */
   outcomes: { stage: FunnelStage; status: ApplicationStatus; count: number }[]
-  /** Per ISO week (Monday): offers saved and applications sent. */
-  weekly: { week_start: string; saved: number; applied: number }[]
+  /** Per ISO week (Monday): offers saved, applications sent, and first replies that came in. */
+  weekly: { week_start: string; saved: number; applied: number; replied: number }[]
+  /** Applications sent in the range that got any reply from the company, good or bad. */
+  replied: number
+}
+
+/** One open status: how many applications are in it, and which waited longer than the rule. */
+export interface StaleStage {
+  stage: 'saved' | 'applied' | 'screening' | 'interview' | 'offer'
+  after_days: number
+  total: number
+  items: {
+    application_id: number
+    job_offer_id: number
+    title: string
+    company_name: string
+    since: string
+    days: number
+  }[]
 }
 
 export const listApplications = () =>
@@ -119,4 +136,11 @@ export const getStats = (range: StatsRange) =>
     'stats',
     () => request<ApplicationStats>('/applications/stats', { query: { range } }),
     () => mockApplications.stats(range),
+  )
+
+export const getStale = () =>
+  planned(
+    'stats',
+    () => request<StaleStage[]>('/applications/stale'),
+    () => mockApplications.stale(),
   )

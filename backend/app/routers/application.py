@@ -12,6 +12,7 @@ from app.schemas.application import (
     ApplicationStats,
     ApplicationUpdate,
     CalendarEvent,
+    StaleStage,
     StatsRange,
     StatusChangeRead,
 )
@@ -23,6 +24,7 @@ from app.services.application import (
     delete_application,
     get_history,
     list_applications,
+    stale,
     stats,
     to_read,
     update_application,
@@ -91,6 +93,12 @@ def read_stats(
 ) -> ApplicationStats:
     """Dashboard numbers: the funnel, where applications stopped, and weekly activity."""
     return stats(db, user.id, range_)
+
+
+@router.get('/stale', response_model=list[StaleStage])
+def read_stale(db: DbSession, user: CurrentUser) -> list[StaleStage]:
+    """Per status: how many applications are in it and which haven't moved for too long."""
+    return stale(db, user.id)
 
 
 @router.patch('/{application_id}', response_model=ApplicationRead)
