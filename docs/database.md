@@ -298,6 +298,18 @@ An admin's on/off switch for one search source, for every user at once. `SEARCH_
 | `updated_by_id` | integer | FK → `users.id`, nullable, ON DELETE SET NULL. The admin who switched it last |
 | `updated_at` | timestamp | |
 
+### `refresh_tokens`
+Keeps a user logged in on one browser until they log out. The browser holds the token in an HttpOnly cookie and trades it for a new 30-minute access token; each use replaces it with a new one. Only a SHA-256 hash is stored, so a copy of the database can't be used to log in.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | integer | Primary key |
+| `user_id` | integer | FK → `users.id`, not null, ON DELETE CASCADE, indexed |
+| `token_hash` | varchar(64) | Unique, not null. SHA-256 of the token |
+| `expires_at` | timestamp | Not null. 30 days (`REFRESH_TOKEN_EXPIRE_DAYS`) after it was given out |
+| `revoked_at` | timestamp | Set when it is used (replaced) or on logout; a revoked token coming back revokes all of the user's tokens |
+| `created_at` | timestamp | |
+
 ## Relationships Summary
 
 - `users.role_id` → `roles.id`
@@ -312,9 +324,10 @@ An admin's on/off switch for one search source, for every user at once. `SEARCH_
 - `resumes.user_id` → `users.id` (1:N)
 - `ai_analyses` links `users` ↔ `job_offers` (N rows per user–offer pair), optionally → `resumes`
 - `users` → `chat_conversations` (1:N) → `chat_messages` and `chat_actions` (1:N each)
+- `refresh_tokens.user_id` → `users.id` (1:N, one per browser the user is logged in on)
 - `search_source_switches.updated_by_id` → `users.id` (the admin who flipped it; kept as null when that account is deleted)
 
-Deleting a user deletes their profile, preferences, skills links, applications (with their status history), search runs, CVs, analyses and assistant conversations. Deleting a job offer deletes the applications to it and its analyses. Deleting a CV keeps the analyses made with it (`resume_id` becomes null). Deleting a user never deletes rows in `technologies`.
+Deleting a user deletes their profile, preferences, skills links, applications (with their status history), search runs, CVs, analyses, assistant conversations and refresh tokens (so every login of theirs ends). Deleting a job offer deletes the applications to it and its analyses. Deleting a CV keeps the analyses made with it (`resume_id` becomes null). Deleting a user never deletes rows in `technologies`.
 
 ## Design Notes
 

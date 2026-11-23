@@ -124,7 +124,11 @@ export function AppLayout() {
             >
               {user?.email}
             </span>
-            <button className="btn btn-ghost btn-icon" onClick={logout} aria-label="Sign out">
+            <button
+              className="btn btn-ghost btn-icon"
+              onClick={() => void logout()}
+              aria-label="Sign out"
+            >
               <Icon name="logout" size={18} />
             </button>
           </div>

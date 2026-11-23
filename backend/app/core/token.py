@@ -1,3 +1,5 @@
+import hashlib
+import secrets
 from datetime import UTC, datetime, timedelta
 
 import jwt
@@ -24,3 +26,17 @@ def decode_access_token(token: str) -> str:
         token, settings.jwt_secret_key.get_secret_value(), algorithms=[settings.jwt_algorithm]
     )
     return str(payload['sub'])
+
+
+def new_refresh_token() -> str:
+    """A random, unguessable token (43 characters). It is not a JWT: the database knows it."""
+    return secrets.token_urlsafe(32)
+
+
+def hash_refresh_token(token: str) -> str:
+    """What the database stores instead of the token itself.
+
+    SHA-256 is enough here (unlike for passwords) because the token is random, not chosen
+    by a person, so there is nothing to guess.
+    """
+    return hashlib.sha256(token.encode()).hexdigest()
