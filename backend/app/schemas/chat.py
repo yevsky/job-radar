@@ -5,7 +5,7 @@ from pydantic import BaseModel, ConfigDict, StringConstraints
 
 from app.schemas.analysis import AnalysisResult
 
-MAX_MESSAGE_CHARS = 2_000
+MAX_MESSAGE_CHARS = 12_000  # room for a pasted job posting (MAX_POSTING_CHARS)
 TITLE_CHARS = 80  # chat_conversations.title is String(80)
 
 MessageText = Annotated[

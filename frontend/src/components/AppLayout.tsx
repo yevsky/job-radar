@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, NavLink, Outlet } from 'react-router-dom'
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 
 import { navSections } from '@/app/nav'
 import { useAuth } from '@/features/auth/AuthContext'
@@ -24,6 +24,7 @@ export function AppLayout() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const demo = useDemoFeatures()
   const isAdmin = useIsAdmin()
+  const { pathname } = useLocation()
 
   function toggleCollapsed() {
     setCollapsed((c) => {
@@ -85,7 +86,12 @@ export function AppLayout() {
                     key={item.to}
                     to={item.to}
                     end={item.to === '/'}
-                    className="nav-link"
+                    // NavLink marks every page under `to` as active, but /offers/new is the
+                    // "Add an offer" button's page, not "Job offers"
+                    className={({ isActive }) =>
+                      isActive && !item.except?.includes(pathname) ? 'nav-link active' : 'nav-link'
+                    }
+                    aria-current={item.except?.includes(pathname) ? 'false' : 'page'}
                     onClick={() => setMobileOpen(false)}
                     title={item.label}
                   >

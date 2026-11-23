@@ -25,7 +25,7 @@ from app.schemas.profile import ProfileRead
 OFFER_PARSE_VERSION = 'offer-parse-v2'
 RESUME_EXTRACT_VERSION = 'resume-extract-v3'
 OFFER_ANALYSIS_VERSION = 'offer-analysis-v4'  # both steps of the analysis
-ASSISTANT_VERSION = 'assistant-v5'
+ASSISTANT_VERSION = 'assistant-v6'
 
 # Sizes that fit an 8k-token context together with the instructions and the schema
 # (about 4 characters per token).
@@ -240,11 +240,15 @@ def assistant_system_message(today: date) -> ChatMessage:
             f'Today is {today.isoformat()}.',
             'Use the tools to look things up instead of guessing; never invent offers, ids, '
             'dates or statuses. If a tool returns an error, tell the user in plain words.',
-            'Saving an offer or changing a status needs the user to confirm it in the app. '
-            'A change exists only if you call its tool: never say a change is waiting for '
+            'Saving or adding an offer, or changing a status, needs the user to confirm it in '
+            'the app. A change exists only if you call its tool: never say a change is waiting for '
             'confirmation unless you called the tool in this answer. To change several '
             'applications, call the tool once for each of them in the same answer. '
             'You cannot delete anything.',
+            # v6: adding a pasted posting, like the Add an offer page
+            'When the user pastes a job posting to add it, call add_offer_from_text; the app '
+            'reads the posting from their message. If it answers that a link or the company '
+            'is missing, ask the user for it.',
             'Search results are numbered; to read, analyse or save one, pass its number as '
             'search_result.',
             'After showing offers or one offer, offer the next steps: analyse the match or save '

@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 
 from app.ai.base import ChatMessage, ToolCall, ToolResult, ToolTurn
 from app.ai.fake import FakeAIProvider
+from app.schemas.chat import MAX_MESSAGE_CHARS
 from app.services.chat import MAX_STEPS, STEP_LIMIT_TEXT
 from tests.chat.conftest import Headers, Script, call, say, send
 from tests.conftest import UseProvider
@@ -33,8 +34,10 @@ def test_every_tool_is_offered(
     send(api, headers, chat_id, 'Hi')
     names = {spec.name for spec in fake.tool_specs[0]}
     assert {'get_profile', 'search_jobs', 'save_offer', 'set_application_status'} <= names
+    assert 'add_offer_from_text' in names
     for spec in fake.tool_specs[0]:
         assert '$defs' not in str(spec.parameters)  # flat schemas for small models
+        assert 'draft' not in str(spec.parameters)  # filled by the app, never by the model
 
 
 def test_a_read_tool_runs_and_its_result_goes_back(
@@ -136,6 +139,6 @@ def test_a_provider_error_is_502_and_the_message_is_kept(
 
 
 def test_message_length_is_checked(api: TestClient, headers: Headers, chat_id: int) -> None:
-    for content in ['', '   ', 'x' * 2001]:
+    for content in ['', '   ', 'x' * (MAX_MESSAGE_CHARS + 1)]:
         response = api.post(f'/chat/{chat_id}/messages', json={'content': content}, headers=headers)
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT

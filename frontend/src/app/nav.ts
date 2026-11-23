@@ -4,6 +4,8 @@ export interface NavItem {
   to: string
   label: string
   icon: IconName
+  /** Pages under `to` that aren't this item (they have their own button), e.g. /offers/new */
+  except?: string[]
 }
 
 export interface NavSection {
@@ -32,7 +34,7 @@ export const navSections: NavSection[] = [
     title: 'Job search',
     items: [
       { to: '/search', label: 'Find jobs', icon: 'search' },
-      { to: '/offers', label: 'Job offers', icon: 'list' },
+      { to: '/offers', label: 'Job offers', icon: 'list', except: ['/offers/new'] },
       { to: '/saved', label: 'Saved offers', icon: 'bookmark' },
       { to: '/applications', label: 'Applications', icon: 'board' },
       { to: '/calendar', label: 'Calendar', icon: 'calendar' },
