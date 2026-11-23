@@ -105,7 +105,7 @@ def import_job_offers(file: UploadFile, db: DbSession) -> ImportReport:
             detail=f'The file has more than {MAX_IMPORT_ROWS} offers.',
         )
 
-    return import_offers(db, rows, SourceKind.MANUAL)
+    return import_offers(db, rows, SourceKind.POSTED)
 
 
 @router.get('/job-offers', response_model=AdminJobOfferPage)

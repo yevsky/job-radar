@@ -46,7 +46,7 @@ export const navSections: NavSection[] = [
     items: [
       { to: '/admin', label: 'Admin dashboard', icon: 'sliders' },
       { to: '/admin/users', label: 'Users', icon: 'user' },
-      { to: '/admin/offers', label: 'Imported offers', icon: 'layers' },
+      { to: '/admin/offers', label: 'Posted offers', icon: 'layers' },
       { to: '/admin/import', label: 'Import offers', icon: 'upload' },
       { to: '/admin/sources', label: 'Search sources', icon: 'globe' },
     ],

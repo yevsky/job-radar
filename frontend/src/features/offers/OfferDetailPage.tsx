@@ -5,10 +5,12 @@ import { Icon } from '@/components/Icon'
 import { ErrorBox, Loading } from '@/components/ui'
 import { MatchCard } from '@/features/match/MatchCard'
 import { formatDate, relativeDays } from '@/lib/format'
+import { hasOriginal } from '@/lib/originalLink'
 import { employmentLabel, experienceLabel, sourceLabel } from '@/lib/labels'
 import { useAsync } from '@/lib/useAsync'
 
 import { TrackPanel } from './TrackPanel'
+import { confirmAction } from '@/lib/confirm'
 
 export function OfferDetailPage() {
   const id = Number(useParams().id)
@@ -21,8 +23,13 @@ export function OfferDetailPage() {
   if (!o) return null
 
   async function remove() {
-    if (!window.confirm('Delete this offer? Only you can see it, so this removes it for good.'))
-      return
+    const yes = await confirmAction({
+      title: 'Delete this offer?',
+      message: 'Only you can see it, so this removes it for good.',
+      confirmLabel: 'Delete',
+      danger: true,
+    })
+    if (!yes) return
     await deleteJobOffer(id)
     navigate('/my-offers')
   }
@@ -61,9 +68,11 @@ export function OfferDetailPage() {
           )}
         </div>
         <div className="row">
-          <a className="btn" href={o.url} target="_blank" rel="noreferrer noopener">
-            Open original <Icon name="external" size={16} />
-          </a>
+          {hasOriginal(o.url) && (
+            <a className="btn" href={o.url} target="_blank" rel="noreferrer noopener">
+              Open original <Icon name="external" size={16} />
+            </a>
+          )}
           {o.is_private && (
             <button className="btn btn-danger" onClick={remove}>
               <Icon name="trash" size={16} /> Delete

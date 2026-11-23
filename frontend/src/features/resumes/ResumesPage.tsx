@@ -14,6 +14,7 @@ import { DemoBadge, Empty, ErrorBox, Loading, PageHeader } from '@/components/ui
 import { formatDate } from '@/lib/format'
 import { employmentLabel, experienceLabel } from '@/lib/labels'
 import { useAsync } from '@/lib/useAsync'
+import { confirmAction } from '@/lib/confirm'
 
 export function ResumesPage() {
   const resumes = useAsync(() => listResumes(), [])
@@ -247,21 +248,26 @@ function ReviewCard({
   const applyPicked = () => send(body(picked), 'Profile updated.')
   const applyAll = () => send(body(filled), 'Everything from the CV is in your profile.')
 
-  function replaceSkills() {
-    const removed = lostSkills.length
-      ? `\n\nRemoved from your profile: ${lostSkills.join(', ')}.`
-      : ''
-    if (!window.confirm(`Use only the ${x.skills.length} skills from this CV?${removed}`)) return
+  async function replaceSkills() {
+    const yes = await confirmAction({
+      title: `Use only the ${x.skills.length} skills from this CV?`,
+      message: lostSkills.length
+        ? `Removed from your profile: ${lostSkills.join(', ')}.`
+        : 'Your profile keeps no other skills.',
+      confirmLabel: 'Replace skills',
+    })
+    if (!yes) return
     void send({ skills: x.skills.slice(0, 50), skills_mode: 'replace' }, 'Skills replaced.')
   }
 
   async function remove() {
-    if (
-      !window.confirm(
-        `Delete "${resume.label}"? Applications that used it will show "Not recorded".`,
-      )
-    )
-      return
+    const yes = await confirmAction({
+      title: `Delete "${resume.label}"?`,
+      message: 'Applications that used this CV will show "Not recorded".',
+      confirmLabel: 'Delete CV',
+      danger: true,
+    })
+    if (!yes) return
     await deleteResume(resume.id)
     onDeleted()
   }
@@ -348,7 +354,7 @@ function ReviewCard({
         </button>
         <button
           className="btn btn-ghost"
-          onClick={replaceSkills}
+          onClick={() => void replaceSkills()}
           disabled={busy || x.skills.length === 0}
           title="Your profile keeps only the skills from this CV."
         >

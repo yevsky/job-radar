@@ -53,7 +53,7 @@ const offer = (
   experience_level: 'junior',
   deadline: null,
   technologies: ['Python'],
-  source: 'manual',
+  source: 'posted',
   found_via: null,
   url: `https://jobs.example.com/${title.toLowerCase().replace(/\W+/g, '-')}`,
   is_active: true,

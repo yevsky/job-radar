@@ -1545,6 +1545,29 @@ table.data td {
   min-height: 420px;
   padding: 20px;
 }
+/* On a wide screen the assistant fills exactly the rest of the page under its header, so
+   only the messages scroll, never the page (the header's height depends on the font). */
+@media (min-width: 901px) {
+  .page:has(> .assistant) {
+    height: calc(100vh - 24px);
+    display: flex;
+    flex-direction: column;
+  }
+  .page:has(> .assistant) > .assistant {
+    flex: 1;
+    min-height: 0;
+    align-items: stretch;
+  }
+  .assistant-chat {
+    height: auto;
+    min-height: 0;
+  }
+  .assistant-list {
+    position: static;
+    min-height: 0;
+    overflow-y: auto; /* many chats scroll inside the list */
+  }
+}
 .assistant-messages {
   flex: 1;
   overflow-y: auto;
@@ -1703,5 +1726,72 @@ table.data td {
   .my-offers-bar .input {
     max-width: none !important;
     width: 100%;
+  }
+}
+
+/* The site's own confirm dialog (components/ConfirmDialog.tsx), instead of window.confirm */
+.confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgb(20 16 40 / 55%);
+  backdrop-filter: blur(2px);
+  animation: confirm-fade 120ms ease-out;
+}
+.confirm-dialog {
+  width: min(440px, 100%);
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 20px 50px rgb(0 0 0 / 25%);
+  padding: 24px;
+  animation: confirm-rise 140ms ease-out;
+}
+.confirm-dialog h3 {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-weight: var(--heading-weight);
+  font-size: 1.15rem;
+  overflow-wrap: anywhere;
+}
+.confirm-message {
+  margin-top: 8px;
+  color: var(--text-muted);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+.confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 22px;
+}
+.btn-danger-solid {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+}
+.btn-danger-solid:hover {
+  background: color-mix(in srgb, var(--danger) 85%, black);
+}
+@keyframes confirm-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes confirm-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .confirm-backdrop,
+  .confirm-dialog {
+    animation: none;
   }
 }
