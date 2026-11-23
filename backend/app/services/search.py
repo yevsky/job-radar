@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.levels import fits_level, levels_in
 from app.core.locations import location_fits
-from app.models import SearchRun, User
+from app.models import SearchRun, SearchSourceSwitch, User
 from app.models.enums import ExperienceLevel
 from app.schemas.job_offer import JobOfferImport
 from app.schemas.search import (
@@ -21,6 +21,7 @@ from app.schemas.search import (
     SearchSourcesRead,
     SearchUsage,
     SourceError,
+    SourceStatus,
 )
 from app.search_sources.base import SearchSource, SearchSourceError
 from app.services.job_offer_import import normalize_url
@@ -39,11 +40,64 @@ class UserNotFoundError(Exception):
 
 
 class UnknownSourceError(Exception):
-    """The user chose a source the app doesn't have turned on."""
+    """A source name the app doesn't have, or one an admin switched off."""
 
     def __init__(self, names: list[str]) -> None:
         super().__init__(names)
         self.names = names
+
+
+class NoSourcesError(Exception):
+    """An admin switched off every search source, so there is nothing to ask."""
+
+
+def switched_off(db: Session) -> set[str]:
+    """Names of the sources an admin switched off for everyone."""
+    return set(
+        db.scalars(select(SearchSourceSwitch.name).where(SearchSourceSwitch.is_enabled.is_(False)))
+    )
+
+
+def enabled_sources(db: Session, sources: list[SearchSource]) -> list[SearchSource]:
+    """The server's sources (SEARCH_SOURCES) minus the ones an admin switched off."""
+    off = switched_off(db)
+    return [source for source in sources if source.name not in off]
+
+
+def list_source_switches(
+    db: Session, sources: list[SearchSource], check: bool = False
+) -> list[SourceStatus]:
+    """Every source the server has, with its switch; `check` also calls each one's API."""
+    switches = {row.name: row for row in db.scalars(select(SearchSourceSwitch))}
+    result = []
+    for source in sources:
+        switch = switches.get(source.name)
+        result.append(
+            SourceStatus(
+                name=source.name,
+                enabled=switch.is_enabled if switch else True,
+                ok=source.test() if check else None,
+                features=sorted(source.features),
+                updated_at=switch.updated_at if switch else None,
+            )
+        )
+    return result
+
+
+def set_source_enabled(
+    db: Session, name: str, enabled: bool, admin: User, sources: list[SearchSource]
+) -> SourceStatus:
+    """Switch a source on or off for every user. Users' own choices are kept as they are."""
+    if name not in {source.name for source in sources}:
+        raise UnknownSourceError([name])
+    switch = db.get(SearchSourceSwitch, name)
+    if switch is None:
+        switch = SearchSourceSwitch(name=name, is_enabled=enabled)
+        db.add(switch)
+    switch.is_enabled = enabled
+    switch.updated_by_id = admin.id
+    db.commit()
+    return next(s for s in list_source_switches(db, sources) if s.name == name)
 
 
 def chosen_sources(user: User, sources: list[SearchSource]) -> list[SearchSource]:
@@ -54,18 +108,25 @@ def chosen_sources(user: User, sources: list[SearchSource]) -> list[SearchSource
     return chosen or sources  # an admin may have turned off every source the user chose
 
 
-def get_source_choice(user: User, sources: list[SearchSource]) -> SearchSourcesRead:
+def get_source_choice(
+    user: User, sources: list[SearchSource], turned_off: list[str] | None = None
+) -> SearchSourcesRead:
+    """`sources` are the ones switched on; `turned_off` the ones an admin switched off."""
     return SearchSourcesRead(
         available=[source.name for source in sources],
         chosen=user.search_sources,
         features={source.name: sorted(source.features) for source in sources},
+        turned_off=turned_off or [],
     )
 
 
 def set_source_choice(
     db: Session, user: User, names: list[str] | None, sources: list[SearchSource]
 ) -> SearchSourcesRead:
-    """Save which sources the user's searches ask; None means all of them again."""
+    """Save which sources the user's searches ask; None means all of them again.
+
+    `sources` are the ones switched on, so a switched-off source can't be chosen.
+    """
     if names is not None:
         available = {source.name for source in sources}
         unknown = [name for name in names if name not in available]
@@ -213,6 +274,9 @@ def run_search(
     """
     if query.is_empty():
         raise EmptyQueryError
+
+    if not sources:
+        raise NoSourcesError  # every source is switched off; checked before the limit
 
     usage = get_usage(db, user)
     first_page = query.page == 1

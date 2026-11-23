@@ -234,12 +234,14 @@ def test_admin_sees_each_source_and_whether_it_works(
 ) -> None:
     use_sources(FakeSearchSource(name='tavily'), FakeSearchSource(name='jsearch', fail=True))
 
-    response = api.get('/admin/search-sources', headers=auth_header(admin_token))
+    response = api.get(
+        '/admin/search-sources', params={'check': True}, headers=auth_header(admin_token)
+    )
 
     assert response.status_code == status.HTTP_200_OK
-    assert response.json() == [
-        {'name': 'tavily', 'ok': True},
-        {'name': 'jsearch', 'ok': False},
+    assert [(s['name'], s['enabled'], s['ok']) for s in response.json()] == [
+        ('tavily', True, True),
+        ('jsearch', True, False),
     ]
 
 

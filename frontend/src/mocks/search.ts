@@ -11,6 +11,7 @@ import type {
 
 import { mockOffers } from './offers'
 import { mockProfile } from './profile'
+import { switchedOff } from './sources'
 import { daysFromNow } from './util'
 
 const PAGE_SIZE = 6
@@ -228,11 +229,13 @@ const POSTED_DAYS = { day: 1, week: 7, month: 31 } as const
 
 export const mockSearch = {
   sources(): SearchSources {
-    return { available: AVAILABLE, chosen, features: FEATURES }
+    const available = AVAILABLE.filter((s) => !switchedOff.has(s))
+    const turned_off = AVAILABLE.filter((s) => switchedOff.has(s))
+    return { available, chosen, features: FEATURES, turned_off }
   },
   setSources(sources: string[] | null): SearchSources {
     chosen = sources
-    return { available: AVAILABLE, chosen, features: FEATURES }
+    return mockSearch.sources()
   },
   usage(): SearchUsage {
     return { daily_limit: DAILY_LIMIT, used_today: usedToday, left_today: DAILY_LIMIT - usedToday }

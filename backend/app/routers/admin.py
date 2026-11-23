@@ -17,12 +17,18 @@ from app.schemas.job_offer import (
     JobOfferRead,
     JobOfferStatusUpdate,
 )
-from app.schemas.search import SearchLimitRead, SearchLimitUpdate, SourceStatus
+from app.schemas.search import SearchLimitRead, SearchLimitUpdate, SourceStatus, SourceSwitchUpdate
 from app.schemas.user import AdminUserRead, RoleUpdate
 from app.services.admin_stats import get_admin_stats
 from app.services.job_offer import delete_job_offer, list_public_offers, set_job_offer_active
 from app.services.job_offer_import import ImportFileError, import_offers, parse_rows
-from app.services.search import UserNotFoundError, set_search_limit
+from app.services.search import (
+    UnknownSourceError,
+    UserNotFoundError,
+    list_source_switches,
+    set_search_limit,
+    set_source_enabled,
+)
 from app.services.user_admin import OwnAccountError, change_role, delete_user, list_users
 
 MAX_IMPORT_BYTES = 1_000_000
@@ -138,9 +144,32 @@ def remove_job_offer(offer_id: int, db: DbSession) -> None:
 
 
 @router.get('/search-sources', response_model=list[SourceStatus])
-def check_search_sources(sources: SearchSources) -> list[SourceStatus]:
-    """Show each enabled search source and whether it works (API key valid, API reachable)."""
-    return [SourceStatus(name=source.name, ok=source.test()) for source in sources]
+def read_search_sources(
+    db: DbSession, sources: SearchSources, check: bool = False
+) -> list[SourceStatus]:
+    """Every source the server has (SEARCH_SOURCES) and whether it is switched on.
+
+    `check=true` also asks each source's API whether it works (key valid, API reachable),
+    which uses one real request per source.
+    """
+    return list_source_switches(db, sources, check)
+
+
+@router.put('/search-sources/{name}', response_model=SourceStatus)
+def switch_search_source(
+    name: str, data: SourceSwitchUpdate, db: DbSession, admin: CurrentAdmin, sources: SearchSources
+) -> SourceStatus:
+    """Switch a source on or off for every user at once.
+
+    Users keep their own choice (PUT /search/sources); a switched-off source is just left
+    out of their searches until it is on again.
+    """
+    try:
+        return set_source_enabled(db, name, data.enabled, admin, sources)
+    except UnknownSourceError as err:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f'No search source named {name}'
+        ) from err
 
 
 @router.get('/ai-provider', response_model=AIProviderStatus)

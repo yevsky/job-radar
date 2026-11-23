@@ -2,16 +2,9 @@ import { useState } from 'react'
 
 import { setSearchSources, type SearchSources } from '@/api/search'
 import { ToggleChips } from '@/components/ui'
+import { searchSourceLabel as sourceLabel } from '@/lib/labels'
 
 import { activeSources } from './searchUtils'
-
-const SOURCE_LABELS: Record<string, string> = {
-  tavily: 'Tavily (job boards)',
-  jsearch: 'JSearch (Google Jobs)',
-  fake: 'Demo source',
-}
-
-const sourceLabel = (name: string) => SOURCE_LABELS[name] ?? name
 
 /**
  * Which search engines to ask: GET/PUT /search/sources. Saved on the account right away,
@@ -43,7 +36,16 @@ export function SourcePicker({
     }
   }
 
-  if (available.length === 0) return <span className="hint">No search sources are turned on.</span>
+  const off = data.turned_off ?? []
+  const offNote =
+    off.length > 0 ? `Switched off by an admin for now: ${off.map(sourceLabel).join(', ')}.` : null
+
+  if (available.length === 0)
+    return (
+      <span className="hint">
+        An admin switched off every search source for now, so search is paused.
+      </span>
+    )
 
   return (
     <>
@@ -56,6 +58,7 @@ export function SourcePicker({
       <span className="hint">
         {saving ? 'Saving…' : error ? error : 'Saved to your account. Keep at least one.'}
       </span>
+      {offNote && <span className="hint">{offNote}</span>}
     </>
   )
 }

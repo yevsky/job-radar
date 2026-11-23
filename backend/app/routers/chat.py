@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, status
 
 from app.ai.base import AIProviderError
 from app.db.dependencies import DbSession
-from app.dependencies import AI, CurrentUser, Pages, SearchSources
+from app.dependencies import AI, CurrentUser, EnabledSearchSources, Pages
 from app.schemas.chat import (
     ActionReply,
     ChatActionRead,
@@ -73,7 +73,7 @@ def post_message(
     db: DbSession,
     user: CurrentUser,
     ai: AI,
-    sources: SearchSources,
+    sources: EnabledSearchSources,
     pages: Pages,
 ) -> ChatReply:
     """Send a message. The assistant may use tools; changes it asks for come back in
@@ -113,7 +113,7 @@ def confirm(
     db: DbSession,
     user: CurrentUser,
     ai: AI,
-    sources: SearchSources,
+    sources: EnabledSearchSources,
     pages: Pages,
 ) -> ActionReply:
     """Do the change. If it can't be done any more, the action becomes `failed`."""

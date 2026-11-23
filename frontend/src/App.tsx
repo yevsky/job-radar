@@ -5,6 +5,7 @@ import { Empty } from '@/components/ui'
 import { AdminDashboardPage } from '@/features/admin/AdminDashboardPage'
 import { AdminImportPage } from '@/features/admin/AdminImportPage'
 import { AdminOffersPage } from '@/features/admin/AdminOffersPage'
+import { AdminSourcesPage } from '@/features/admin/AdminSourcesPage'
 import { AdminUsersPage } from '@/features/admin/AdminUsersPage'
 import { ApplicationsPage } from '@/features/applications/ApplicationsPage'
 import { AssistantPage } from '@/features/assistant/AssistantPage'
@@ -46,6 +47,7 @@ export function App() {
               <Route path="admin/users" element={<AdminUsersPage />} />
               <Route path="admin/offers" element={<AdminOffersPage />} />
               <Route path="admin/import" element={<AdminImportPage />} />
+              <Route path="admin/sources" element={<AdminSourcesPage />} />
               <Route path="*" element={<Empty title="Page not found" />} />
             </Route>
           </Route>

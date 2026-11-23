@@ -57,6 +57,7 @@ def test_by_default_all_sources_are_available_and_nothing_is_chosen(
         'available': ['tavily', 'jsearch'],
         'chosen': None,
         'features': {'tavily': [], 'jsearch': []},  # fakes use no filter
+        'turned_off': [],
     }
 
 
