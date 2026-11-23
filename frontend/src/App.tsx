@@ -2,6 +2,7 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom'
 
 import { AppLayout } from '@/components/AppLayout'
 import { Empty } from '@/components/ui'
+import { AdminDashboardPage } from '@/features/admin/AdminDashboardPage'
 import { AdminImportPage } from '@/features/admin/AdminImportPage'
 import { AdminOffersPage } from '@/features/admin/AdminOffersPage'
 import { AdminUsersPage } from '@/features/admin/AdminUsersPage'
@@ -41,6 +42,7 @@ export function App() {
               <Route path="applications" element={<ApplicationsPage />} />
               <Route path="calendar" element={<CalendarPage />} />
               <Route path="assistant" element={<AssistantPage />} />
+              <Route path="admin" element={<AdminDashboardPage />} />
               <Route path="admin/users" element={<AdminUsersPage />} />
               <Route path="admin/offers" element={<AdminOffersPage />} />
               <Route path="admin/import" element={<AdminImportPage />} />
