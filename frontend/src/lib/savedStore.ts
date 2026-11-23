@@ -70,3 +70,9 @@ export async function markSaved(offerId: number): Promise<void> {
   ids.add(offerId)
   emit()
 }
+
+/** Saved offers changed outside the Save buttons (the assistant saved one): load them again. */
+export function reloadSaved(): void {
+  loading = null
+  void load()
+}
