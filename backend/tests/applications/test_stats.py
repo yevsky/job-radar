@@ -83,12 +83,46 @@ def test_weekly_counts_saved_and_applied(db: Session, history: int) -> None:
     assert sum(applied for _, applied in weeks.values()) == 4
 
 
+def test_weekly_counts_first_replies(db: Session, history: int) -> None:
+    result = stats(db, history, '30d', now=NOW)
+
+    weeks = {w.week_start: w.replied for w in result.weekly}
+    assert weeks[date(2026, 11, 2)] == 2  # screening 15 and 14 days ago
+    assert weeks[date(2026, 11, 9)] == 2  # rejected 5 days ago, interview 3 days ago
+    assert weeks[date(2026, 11, 16)] == 0
+
+
+def test_replied_counts_good_and_bad_answers(db: Session, history: int) -> None:
+    assert stats(db, history, '30d', now=NOW).replied == 4  # 3 moved on, 1 rejected
+    assert stats(db, history, 'all', now=NOW).replied == 5  # plus the old offer
+
+
+def test_silence_and_own_steps_are_not_replies(db: Session, registered_user_id: int) -> None:
+    fates: list[list[tuple[S, datetime]]] = [
+        [(S.APPLIED, ago(12))],  # no answer yet
+        [(S.APPLIED, ago(10)), (S.DECLINED, ago(2))],  # the user withdrew
+        [(S.SAVED, ago(9))],  # never sent
+        [(S.APPLIED, ago(6)), (S.REJECTED, ago(4)), (S.REJECTED, ago(1))],  # counted once
+    ]
+    for i, steps in enumerate(fates):
+        offer = make_offer(f'https://example.com/quiet/{i}')
+        db.add(offer)
+        db.flush()
+        track(db, registered_user_id, offer, steps)
+
+    result = stats(db, registered_user_id, '30d', now=NOW)
+
+    assert result.replied == 1
+    assert sum(w.replied for w in result.weekly) == 1
+
+
 def test_empty_history(db: Session, registered_user_id: int) -> None:
     result = stats(db, registered_user_id, 'all', now=NOW)
 
     assert [f.reached for f in result.funnel] == [0, 0, 0, 0, 0]
     assert result.outcomes == []
     assert result.weekly == []
+    assert result.replied == 0
 
 
 def test_stats_endpoint(api: TestClient, access_token: str, offer: JobOffer) -> None:
@@ -103,6 +137,8 @@ def test_stats_endpoint(api: TestClient, access_token: str, offer: JobOffer) -> 
     assert body['range'] == '90d'
     assert body['funnel'][0] == {'stage': 'applied', 'reached': 1}
     assert body['weekly'][-1]['applied'] == 1
+    assert body['weekly'][-1]['replied'] == 0
+    assert body['replied'] == 0
 
 
 def test_stats_with_unknown_range_returns_422(api: TestClient, access_token: str) -> None:

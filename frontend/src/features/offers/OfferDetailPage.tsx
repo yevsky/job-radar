@@ -24,7 +24,7 @@ export function OfferDetailPage() {
     if (!window.confirm('Delete this offer? Only you can see it, so this removes it for good.'))
       return
     await deleteJobOffer(id)
-    navigate('/offers')
+    navigate('/my-offers')
   }
 
   const facts: [string, string | null][] = [

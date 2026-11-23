@@ -38,8 +38,9 @@ def count_offers(db: Session) -> int:
 
 
 def listed_ids(api: TestClient, token: str) -> list[int]:
-    response = api.get('/job-offers', headers=auth_header(token))
-    return [item['id'] for item in response.json()['items']]
+    """The user's own offers, as the My offers page lists them."""
+    response = api.get('/job-offers/mine', headers=auth_header(token))
+    return [item['id'] for item in response.json()]
 
 
 @pytest.fixture

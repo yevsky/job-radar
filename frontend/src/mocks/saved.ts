@@ -11,6 +11,7 @@ import { mockApplications } from './applications'
 const toSaved = (a: Application): SavedJob => ({
   id: a.id,
   job_offer: a.job_offer,
+  status: a.status,
   created_at: a.created_at,
 })
 

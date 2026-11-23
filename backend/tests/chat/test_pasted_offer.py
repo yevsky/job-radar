@@ -51,7 +51,7 @@ def test_a_pasted_posting_waits_for_the_user(
     assert action['tool'] == 'add_offer_from_text'
     assert action['summary'] == (
         'Add "Junior Python Developer" at Acme (Wrocław; junior; full_time; '
-        'Python, FastAPI, PostgreSQL) to your job offers'
+        'Python, FastAPI, PostgreSQL) to My offers'
     )
     assert db.scalar(select(JobOffer)) is None  # nothing saved before confirming
 
@@ -65,7 +65,7 @@ def test_confirming_adds_a_private_offer(
 
     body = confirm(api, headers, chat_id, action['id'])
     assert body['message']['content'] == (
-        'Done: Added "Junior Python Developer" at Acme to your job offers.'
+        'Done: Added "Junior Python Developer" at Acme to My offers.'
     )
     assert len(fake.calls) == reads  # the posting is read once, before confirming
     offer = db.scalar(select(JobOffer))
@@ -75,7 +75,7 @@ def test_confirming_adds_a_private_offer(
     assert offer.owner_id is not None
     assert offer.source == 'manual'
     assert sorted(t.name for t in offer.technologies) == ['FastAPI', 'PostgreSQL', 'Python']
-    listed = api.get('/job-offers', headers=headers).json()['items']
+    listed = api.get('/job-offers/mine', headers=headers).json()
     assert [o['title'] for o in listed] == ['Junior Python Developer']
 
 

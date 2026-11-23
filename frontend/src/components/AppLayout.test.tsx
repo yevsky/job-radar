@@ -17,19 +17,19 @@ function show(path: string) {
       <AppLayout />
     </MemoryRouter>,
   )
-  return screen.getByTitle('Job offers')
+  return screen.getByTitle('Job board')
 }
 
 afterEach(cleanup)
 
 describe('AppLayout', () => {
-  it('marks Job offers on the offers list and on one offer', () => {
+  it('marks Job board on the offers list and on one offer', () => {
     expect(show('/offers').className).toContain('active')
     cleanup()
     expect(show('/offers/12').getAttribute('aria-current')).toBe('page')
   })
 
-  it('does not mark Job offers on the Add an offer page', () => {
+  it('does not mark Job board on the Add an offer page', () => {
     const link = show('/offers/new')
     expect(link.className).not.toContain('active')
     expect(link.getAttribute('aria-current')).toBe('false')

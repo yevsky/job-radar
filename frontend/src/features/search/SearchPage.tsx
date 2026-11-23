@@ -125,7 +125,7 @@ function SearchView({ initial }: { initial: SearchQuery }) {
     setSaveError(undefined)
     try {
       const offer = await saveSearchResult(result)
-      // keeping a result also saves it, so it shows in Saved offers and as Saved on the offer
+      // keeping a result also saves it, so it shows in My offers and as Saved on the offer
       await markSaved(offer.id)
       setSaved((s) => ({ ...s, [result.url]: offer.id }))
     } catch (err) {

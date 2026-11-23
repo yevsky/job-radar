@@ -64,6 +64,8 @@ class SavedJobRead(BaseModel):
 
     id: int
     job_offer: JobOfferListItem
+    # saved, or further on when the offer was already on the board before it was "saved"
+    status: ApplicationStatus
     created_at: datetime
 
 
@@ -103,6 +105,7 @@ class WeeklyCount(BaseModel):
     week_start: date  # Monday
     saved: int
     applied: int
+    replied: int  # applications whose first reply from the company came this week
 
 
 class ApplicationStats(BaseModel):
@@ -110,3 +113,22 @@ class ApplicationStats(BaseModel):
     funnel: list[FunnelStep]
     outcomes: list[Outcome]
     weekly: list[WeeklyCount]
+    replied: int  # applications sent in the range that got any reply (good or bad)
+
+
+class StaleItem(BaseModel):
+    application_id: int
+    job_offer_id: int
+    title: str
+    company_name: str
+    since: datetime  # when it entered its current status (for interviews: the interview)
+    days: int  # whole days since then
+
+
+class StaleStage(BaseModel):
+    """Applications in one status that haven't moved for longer than that status allows."""
+
+    stage: ApplicationStatus
+    after_days: int  # the rule: stale after this many days without a change
+    total: int  # all applications in this status right now
+    items: list[StaleItem]  # the stale ones, longest wait first

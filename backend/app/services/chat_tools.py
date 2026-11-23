@@ -525,14 +525,14 @@ def describe_pasted_offer(ctx: ToolContext, args: PastedOfferArgs) -> str:
     if draft.technologies:
         details.append(', '.join(draft.technologies[:8]))
     extra = f' ({"; ".join(details)})' if details else ''
-    return f'Add "{draft.title}" at {draft.company_name}{extra} to your job offers'
+    return f'Add "{draft.title}" at {draft.company_name}{extra} to My offers'
 
 
 def add_pasted_offer(ctx: ToolContext, args: PastedOfferArgs) -> ToolOutput:
     describe_pasted_offer(ctx, args)  # again: the same link may have been added since
     assert args.draft is not None
     offer, _ = add_private_offer(ctx.db, args.draft, ctx.user.id)
-    note = f'Added "{offer.title}" at {offer.company_name} to your job offers'
+    note = f'Added "{offer.title}" at {offer.company_name} to My offers'
     return ToolOutput(as_json({'offer_id': offer.id}), note, {'offer_id': offer.id})
 
 
@@ -604,9 +604,9 @@ ALL_TOOLS: list[Tool[Any]] = [
     ),
     Tool(
         'add_offer_from_text',
-        'Add a job posting the user pasted in the chat to their job offers. The app reads '
-        'the posting from their message: never copy it into the arguments. The user must '
-        'confirm it.',
+        'Add a job posting the user pasted in the chat to their offers (the My offers '
+        'page). The app reads the posting from their message: never copy it into the '
+        'arguments. The user must confirm it.',
         PastedOfferArgs,
         add_pasted_offer,
         writes=True,

@@ -79,6 +79,19 @@ def test_level_is_not_added_twice(api: TestClient, access_token: str) -> None:
     assert body['position'] == 'Senior Python developer'  # the user's own words win
 
 
+def test_position_starts_with_a_capital(api: TestClient, access_token: str) -> None:
+    fill_profile(api, access_token)
+    api.put(
+        '/profile/me',
+        json={'desired_position': 'junior Python Developer', 'experience_level': 'junior'},
+        headers=auth_header(access_token),
+    )
+
+    body = api.get(URL, headers=auth_header(access_token)).json()
+
+    assert body['position'] == 'Junior Python Developer'
+
+
 def test_form_takes_at_most_5_locations(api: TestClient, access_token: str) -> None:
     locations = [f'City {n}' for n in range(7)]
     fill_profile(api, access_token, locations=locations)

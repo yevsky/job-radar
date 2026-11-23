@@ -1,6 +1,7 @@
 /** Backend: routers/job_offer.py (exists). */
 import { existing, request } from './client'
-import type { EmploymentType, ExperienceLevel, SourceKind } from './enums'
+import type { ApplicationStatus, EmploymentType, ExperienceLevel, SourceKind } from './enums'
+import { mockMyOffers } from '@/mocks/myOffers'
 import { mockOffers } from '@/mocks/offers'
 
 export interface JobOfferListItem {
@@ -23,12 +24,27 @@ export interface JobOfferPage {
 
 export interface JobOfferRead extends JobOfferListItem {
   source: SourceKind
+  /** Which search source found it (e.g. 'jsearch'), for offers kept from a search. */
+  found_via: string | null
   url: string
   is_active: boolean
   is_private: boolean
   description: string | null
   last_seen_at: string | null
   created_at: string
+}
+
+/** One row of GET /job-offers/mine: an offer you added, or a public one you track. */
+export interface MyOffer extends JobOfferListItem {
+  source: SourceKind
+  found_via: string | null
+  url: string
+  is_active: boolean
+  /** true: you added it (only you see it). false: a job board offer you saved or applied to. */
+  is_private: boolean
+  /** When you added it, or started tracking it. */
+  added_at: string
+  application: { id: number; status: ApplicationStatus; updated_at: string } | null
 }
 
 /** Body of POST /job-offers (JobOfferImport). */
@@ -95,6 +111,13 @@ export function listJobOffers(
     () => mockOffers.list(filters, limit, offset),
   )
 }
+
+/** Offers you added yourself or track (saved, applied…), newest first. */
+export const listMyOffers = (signal?: AbortSignal) =>
+  existing(
+    () => request<MyOffer[]>('/job-offers/mine', { signal }),
+    () => mockMyOffers.list(),
+  )
 
 export const getJobOffer = (id: number, signal?: AbortSignal) =>
   existing(

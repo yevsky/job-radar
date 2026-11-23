@@ -24,6 +24,8 @@ from app.schemas.application import (
     FunnelStep,
     Outcome,
     SavedJobRead,
+    StaleItem,
+    StaleStage,
     StatsRange,
     StatusChangeRead,
     WeeklyCount,
@@ -32,6 +34,27 @@ from app.services.job_offer import to_list_item, visible_to
 
 SAVED = ApplicationStatus.SAVED
 RANGE_DAYS = {'30d': 30, '90d': 90}
+
+# A reply is the company moving the application on, good or bad. Declining and accepting are the
+# user's own steps, but reaching `accepted` means an offer came first, so it counts too.
+REPLY_STATUSES = frozenset(
+    {
+        ApplicationStatus.SCREENING,
+        ApplicationStatus.INTERVIEW,
+        ApplicationStatus.OFFER,
+        ApplicationStatus.ACCEPTED,
+        ApplicationStatus.REJECTED,
+    }
+)
+
+# Stale after this many days in the same status (interviews: days after the interview itself).
+STALE_AFTER_DAYS: dict[ApplicationStatus, int] = {
+    ApplicationStatus.SAVED: 7,
+    ApplicationStatus.APPLIED: 10,
+    ApplicationStatus.SCREENING: 10,
+    ApplicationStatus.INTERVIEW: 7,
+    ApplicationStatus.OFFER: 3,
+}
 
 
 class ApplicationNotFoundError(Exception):
@@ -67,6 +90,7 @@ def to_saved(application: Application) -> SavedJobRead:
     return SavedJobRead(
         id=application.id,
         job_offer=to_list_item(application.job_offer),
+        status=application.status,
         created_at=application.created_at,
     )
 
@@ -285,6 +309,17 @@ def _applied_at(application: Application) -> datetime | None:
     return None
 
 
+def first_reply_at(application: Application) -> datetime | None:
+    """When the company first answered: the first reply status after the user applied."""
+    applied = _applied_at(application)
+    if applied is None:
+        return None
+    for change in application.status_changes:
+        if change.status in REPLY_STATUSES and change.changed_at >= applied:
+            return change.changed_at
+    return None
+
+
 def _furthest_stage(application: Application) -> int:
     """Index in FUNNEL_STAGES of the furthest stage the history reached (0 = applied)."""
     reached = [
@@ -336,6 +371,7 @@ def stats(
         c.changed_at for a in applications for c in a.status_changes if c.status == SAVED
     ]
     applied_times = [at for a in applications if (at := _applied_at(a)) is not None]
+    reply_times = [at for a in applications if (at := first_reply_at(a)) is not None]
     moments = [*saved_times, *applied_times]
 
     weekly: list[WeeklyCount] = []
@@ -351,8 +387,60 @@ def stats(
                     week_start=week,
                     saved=sum(1 for t in saved_times if start <= t < end),
                     applied=sum(1 for t in applied_times if start <= t < end),
+                    replied=sum(1 for t in reply_times if start <= t < end),
                 )
             )
             week += timedelta(days=7)
 
-    return ApplicationStats(range=range_, funnel=funnel, outcomes=outcomes, weekly=weekly)
+    replied = sum(1 for a, _ in sent if first_reply_at(a) is not None)
+    return ApplicationStats(
+        range=range_, funnel=funnel, outcomes=outcomes, weekly=weekly, replied=replied
+    )
+
+
+# ---- stale ---------------------------------------------------------------------------------
+
+
+def _in_status_since(application: Application) -> datetime:
+    """When the application got its current status (the last change to it)."""
+    for change in reversed(application.status_changes):
+        if change.status == application.status:
+            return change.changed_at
+    return application.updated_at
+
+
+def stale(db: Session, user_id: int, now: datetime | None = None) -> list[StaleStage]:
+    """For each open status, how many applications sit in it and which have waited too long.
+
+    An interview still ahead isn't stale; one that happened counts from the interview day.
+    """
+    now = now or datetime.now(UTC)
+    applications = list_applications(db, user_id)
+    stages: list[StaleStage] = []
+    for stage, after_days in STALE_AFTER_DAYS.items():
+        in_stage = [a for a in applications if a.status == stage]
+        items: list[StaleItem] = []
+        for application in in_stage:
+            since = _in_status_since(application)
+            if stage == ApplicationStatus.INTERVIEW and application.interview_at is not None:
+                if application.interview_at > now:
+                    continue
+                since = max(since, application.interview_at)
+            days = (now - since).days
+            if days >= after_days:
+                offer = application.job_offer
+                items.append(
+                    StaleItem(
+                        application_id=application.id,
+                        job_offer_id=offer.id,
+                        title=offer.title,
+                        company_name=offer.company_name,
+                        since=since,
+                        days=days,
+                    )
+                )
+        items.sort(key=lambda item: (-item.days, item.application_id))
+        stages.append(
+            StaleStage(stage=stage, after_days=after_days, total=len(in_stage), items=items)
+        )
+    return stages
