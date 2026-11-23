@@ -1,8 +1,16 @@
 from sqlalchemy import ColumnElement, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
-from app.models import JobOffer, Technology
-from app.schemas.job_offer import JobOfferFilters, JobOfferListItem, JobOfferPage, JobOfferRead
+from app.models import Application, JobOffer, Technology
+from app.schemas.job_offer import (
+    AdminJobOfferFilters,
+    AdminJobOfferItem,
+    AdminJobOfferPage,
+    JobOfferFilters,
+    JobOfferListItem,
+    JobOfferPage,
+    JobOfferRead,
+)
 
 
 class OfferNotFoundError(Exception):
@@ -124,3 +132,57 @@ def delete_job_offer(db: Session, offer_id: int) -> bool:
     db.delete(offer)
     db.commit()
     return True
+
+
+def list_public_offers(
+    db: Session, limit: int, offset: int, filters: AdminJobOfferFilters
+) -> AdminJobOfferPage:
+    """Public offers for the admin overview, newest first, hidden ones too.
+
+    Private offers (saved from a search or added by a user) are never listed: they belong to
+    one user. `saved_by` counts the users who track the offer on their board.
+    """
+    query = select(JobOffer).where(JobOffer.owner_id.is_(None))
+    if filters.q and filters.q.strip():
+        text = filters.q.strip()
+        query = query.where(
+            or_(
+                JobOffer.title.icontains(text, autoescape=True),
+                JobOffer.company_name.icontains(text, autoescape=True),
+            )
+        )
+    if filters.source is not None:
+        query = query.where(JobOffer.source == filters.source)
+    if filters.is_active is not None:
+        query = query.where(JobOffer.is_active.is_(filters.is_active))
+
+    total = db.scalar(select(func.count()).select_from(query.subquery())) or 0
+
+    saved_by = (
+        select(func.count())
+        .select_from(Application)
+        .where(Application.job_offer_id == JobOffer.id)
+        .scalar_subquery()
+    )
+    rows = db.execute(
+        query.add_columns(saved_by)
+        .options(selectinload(JobOffer.technologies))
+        .order_by(JobOffer.created_at.desc(), JobOffer.id.desc())
+        .limit(limit)
+        .offset(offset)
+    ).all()
+
+    items = [
+        AdminJobOfferItem(
+            **to_list_item(offer).model_dump(),
+            source=offer.source,
+            found_via=offer.found_via,
+            url=offer.url,
+            is_active=offer.is_active,
+            last_seen_at=offer.last_seen_at,
+            created_at=offer.created_at,
+            saved_by=count,
+        )
+        for offer, count in rows
+    ]
+    return AdminJobOfferPage(items=items, total=total, limit=limit, offset=offset)
