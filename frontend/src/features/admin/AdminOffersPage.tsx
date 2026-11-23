@@ -7,6 +7,7 @@ import { Empty, ErrorBox, Loading, PageHeader, Segmented } from '@/components/ui
 import { formatDate } from '@/lib/format'
 import { hasOriginal } from '@/lib/originalLink'
 import { useAsync } from '@/lib/useAsync'
+import { confirmAction } from '@/lib/confirm'
 
 const PAGE_SIZE = 50
 
@@ -187,13 +188,17 @@ function OfferRow({
       () => onChange({ ...offer, is_active: !offer.is_active }),
     )
 
-  const remove = () => {
-    const warning =
-      offer.saved_by > 0
-        ? ` ${offer.saved_by} user(s) track it; their applications for it are deleted too.`
-        : ''
-    if (!window.confirm(`Delete "${offer.title}" for good?${warning}`)) return
-    void run(() => deleteOffer(offer.id), onDeleted)
+  const remove = async () => {
+    const yes = await confirmAction({
+      title: `Delete "${offer.title}"?`,
+      message:
+        offer.saved_by > 0
+          ? `${offer.saved_by} ${offer.saved_by === 1 ? 'user tracks' : 'users track'} it; their applications for it are deleted too. To only take it off the board, hide it instead.`
+          : 'It is deleted for good. To only take it off the board, hide it instead.',
+      confirmLabel: 'Delete',
+      danger: true,
+    })
+    if (yes) void run(() => deleteOffer(offer.id), onDeleted)
   }
 
   return (

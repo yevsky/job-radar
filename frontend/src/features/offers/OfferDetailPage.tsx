@@ -10,6 +10,7 @@ import { employmentLabel, experienceLabel, sourceLabel } from '@/lib/labels'
 import { useAsync } from '@/lib/useAsync'
 
 import { TrackPanel } from './TrackPanel'
+import { confirmAction } from '@/lib/confirm'
 
 export function OfferDetailPage() {
   const id = Number(useParams().id)
@@ -22,8 +23,13 @@ export function OfferDetailPage() {
   if (!o) return null
 
   async function remove() {
-    if (!window.confirm('Delete this offer? Only you can see it, so this removes it for good.'))
-      return
+    const yes = await confirmAction({
+      title: 'Delete this offer?',
+      message: 'Only you can see it, so this removes it for good.',
+      confirmLabel: 'Delete',
+      danger: true,
+    })
+    if (!yes) return
     await deleteJobOffer(id)
     navigate('/my-offers')
   }

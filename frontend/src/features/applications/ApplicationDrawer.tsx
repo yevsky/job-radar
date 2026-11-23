@@ -14,6 +14,7 @@ import { Icon } from '@/components/Icon'
 import { formatDate, formatTime } from '@/lib/format'
 import { statusColor, statusLabel } from '@/lib/labels'
 import { useAsync } from '@/lib/useAsync'
+import { confirmAction } from '@/lib/confirm'
 
 /** `<input type="datetime-local">` wants local "YYYY-MM-DDTHH:mm". */
 function toLocalInput(iso: string | null): string {
@@ -54,7 +55,13 @@ export function ApplicationDrawer({
   }
 
   async function remove() {
-    if (!window.confirm('Delete this application and its history?')) return
+    const yes = await confirmAction({
+      title: 'Delete this application?',
+      message: 'Its status history goes too. The offer stays.',
+      confirmLabel: 'Delete',
+      danger: true,
+    })
+    if (!yes) return
     await deleteApplication(app.id)
     onDelete()
   }

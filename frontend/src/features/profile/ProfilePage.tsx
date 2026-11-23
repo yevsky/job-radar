@@ -12,6 +12,7 @@ import { employmentLabel, experienceLabel } from '@/lib/labels'
 import { useAsync } from '@/lib/useAsync'
 
 import { searchPosition } from './searchPosition'
+import { confirmAction } from '@/lib/confirm'
 
 export function ProfilePage() {
   const profile = useAsync(() => profileApi.getProfile(), [])
@@ -157,8 +158,14 @@ function ProfileForm({
   }
 
   async function remove() {
-    if (!window.confirm('Delete your profile details, locations, employment types and skills?'))
-      return
+    const yes = await confirmAction({
+      title: 'Clear your profile?',
+      message:
+        'Your details, locations, employment types and skills are removed. Your account, CVs and applications stay.',
+      confirmLabel: 'Clear profile',
+      danger: true,
+    })
+    if (!yes) return
     await profileApi.deleteProfile()
     const fresh = await profileApi.getProfile()
     onSaved(fresh)

@@ -7,6 +7,7 @@ import { Empty, ErrorBox, Loading, PageHeader } from '@/components/ui'
 import { useAuth } from '@/features/auth/AuthContext'
 import { formatDate } from '@/lib/format'
 import { useAsync } from '@/lib/useAsync'
+import { confirmAction } from '@/lib/confirm'
 
 /** Admin: every account, its role, its daily search limit, and a delete button. */
 export function AdminUsersPage() {
@@ -84,7 +85,13 @@ function UserRow({ user, onDeleted }: { user: AdminUser; onDeleted: () => void }
   }
 
   async function remove() {
-    if (!window.confirm(`Delete ${user.email} and all their data? This can't be undone.`)) return
+    const yes = await confirmAction({
+      title: `Delete ${user.email}?`,
+      message: "Their profile, CVs, applications and chats are deleted too. This can't be undone.",
+      confirmLabel: 'Delete user',
+      danger: true,
+    })
+    if (!yes) return
     setDeleting(true)
     try {
       await deleteUser(user.id)

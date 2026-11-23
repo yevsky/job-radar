@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 
 import { AppLayout } from '@/components/AppLayout'
+import { ConfirmHost } from '@/components/ConfirmDialog'
 import { Empty } from '@/components/ui'
 import { AdminDashboardPage } from '@/features/admin/AdminDashboardPage'
 import { AdminImportPage } from '@/features/admin/AdminImportPage'
@@ -54,6 +55,7 @@ export function App() {
             </Route>
           </Route>
         </Routes>
+        <ConfirmHost />
       </AuthProvider>
     </BrowserRouter>
   )
