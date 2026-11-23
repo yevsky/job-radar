@@ -64,7 +64,7 @@ export interface ActionReply {
   message: ChatMessage
 }
 
-export const MAX_MESSAGE_CHARS = 2000
+export const MAX_MESSAGE_CHARS = 12000 // room for a pasted job posting
 export const MAX_TITLE_CHARS = 80
 
 const FEATURE = 'assistant'

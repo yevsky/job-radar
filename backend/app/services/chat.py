@@ -20,11 +20,21 @@ from app.models.chat import ActionStatus, ChatRole
 from app.schemas.search import SearchResult
 from app.search_sources.base import SearchSource
 from app.search_sources.page_reader import PageReader
-from app.services.chat_tools import ToolContext, ToolError, as_json, get_tool, tool_specs
+from app.services.chat_tools import (
+    POSTING_MIN_CHARS,
+    ToolContext,
+    ToolError,
+    as_json,
+    get_tool,
+    tool_specs,
+)
 
 MAX_STEPS = 6  # model calls per user message
 MAX_HISTORY = 30  # stored rows sent back to the model (tool rows count too)
 MAX_RESULT_CHARS = 6_000  # one tool result, as the model reads it
+# Older user messages as the model reads them: a posting pasted earlier is cut, so it
+# doesn't fill the context of every later answer (its tool reads it from the database)
+OLD_MESSAGE_CHARS = 2_000
 TITLE_CHARS = 80
 
 STEP_LIMIT_TEXT = (
@@ -129,7 +139,8 @@ def replay(rows: list[ConversationMessage]) -> list[ToolMessage]:
     history: list[ToolMessage] = []
     calls: list[ToolCall] = []
     results: list[ToolResult] = []
-    for row in [*rows, None]:
+    newest_user = max((i for i, r in enumerate(rows) if r.role == ChatRole.USER), default=-1)
+    for index, row in enumerate([*rows, None]):
         if row is not None and row.role == ChatRole.TOOL and row.data is not None:
             call_id = str(row.data['call_id'])
             calls.append(
@@ -151,8 +162,23 @@ def replay(rows: list[ConversationMessage]) -> list[ToolMessage]:
             history.extend(results)
             calls, results = [], []
         if row is not None and row.role in (ChatRole.USER, ChatRole.ASSISTANT):
-            history.append(ChatMessage(role=row.role, content=row.content))  # type: ignore[arg-type]
+            content = row.content
+            if row.role == ChatRole.USER and index != newest_user:
+                content = cut(content, OLD_MESSAGE_CHARS)
+            history.append(ChatMessage(role=row.role, content=content))  # type: ignore[arg-type]
     return history
+
+
+def cut(text: str, limit: int) -> str:
+    return text if len(text) <= limit else text[:limit] + ' […]'
+
+
+def pasted_text(conversation: Conversation) -> str | None:
+    """The newest user message long enough to be a pasted job posting."""
+    for row in reversed(conversation.messages):
+        if row.role == ChatRole.USER and len(row.content) >= POSTING_MIN_CHARS:
+            return row.content
+    return None
 
 
 def last_search(conversation: Conversation) -> list[SearchResult]:
@@ -176,7 +202,16 @@ def tool_context(
         for row in conversation.messages
         if row.tool_name == 'analyse_offer' and row.data and 'search_url' in row.data
     }
-    return ToolContext(db, user, provider, sources, pages, last_search(conversation), analyses)
+    return ToolContext(
+        db,
+        user,
+        provider,
+        sources,
+        pages,
+        last_search(conversation),
+        analyses,
+        pasted_text(conversation),
+    )
 
 
 # ---- the loop ------------------------------------------------------------------------------
@@ -197,6 +232,8 @@ def run_call(
         if tool.writes:
             if len(pending) >= MAX_PENDING:
                 raise ToolError(TOO_MANY_CHANGES)
+            if tool.prepare is not None:
+                args = tool.prepare(ctx, args)
             arguments = args.model_dump(mode='json')
             if any(a.tool == tool.name and a.arguments == arguments for a in pending):
                 raise ToolError(ALREADY_ASKED)

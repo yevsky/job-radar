@@ -15,6 +15,7 @@ import {
   type ChatMessage,
   type ConversationDetail,
 } from '@/api/chat'
+import { getProfile } from '@/api/profile'
 import { Icon } from '@/components/Icon'
 import { MatchDetails } from '@/features/match/MatchDetails'
 import { DemoBadge, ErrorBox, Loading, PageHeader } from '@/components/ui'
@@ -24,15 +25,9 @@ import { useAsync } from '@/lib/useAsync'
 
 import { ActionCard } from './ActionCard'
 import { Markdown } from './markdown'
+import { PASTE_OFFER, suggestionsFor, type Suggestion } from './suggestions'
 
 const LAST_KEY = 'jobradar.chat'
-
-const SUGGESTIONS = [
-  'What interviews do I have in the next two weeks?',
-  'Find junior Python jobs in Wrocław',
-  'How are my applications going?',
-  'Which skills from my CV fit backend jobs best?',
-]
 
 function readLast(): number | null {
   try {
@@ -66,6 +61,9 @@ export function AssistantPage() {
   const [error, setError] = useState<Error | null>(null)
   const [renaming, setRenaming] = useState<{ id: number; title: string } | null>(null)
   const bottom = useRef<HTMLDivElement>(null)
+  const input = useRef<HTMLTextAreaElement>(null)
+  // Suggestions written from the profile; without one (or if it fails) general ones
+  const profile = useAsync(() => getProfile().catch(() => null), [])
 
   // A remembered conversation that is gone (deleted elsewhere): start fresh.
   useEffect(() => {
@@ -177,6 +175,15 @@ export function AssistantPage() {
     }
   }
 
+  function suggest(suggestion: Suggestion) {
+    if (!suggestion.prefill) {
+      void send(suggestion.text)
+      return
+    }
+    setDraft(PASTE_OFFER)
+    input.current?.focus()
+  }
+
   function onSubmit(e: FormEvent) {
     e.preventDefault()
     void send(draft)
@@ -255,11 +262,16 @@ export function AssistantPage() {
               <div className="assistant-welcome">
                 <h2>What can I help with?</h2>
                 <div className="assistant-suggestions">
-                  {SUGGESTIONS.map((text) => (
-                    <button key={text} className="pill" onClick={() => void send(text)}>
-                      {text}
-                    </button>
-                  ))}
+                  {!profile.loading &&
+                    suggestionsFor(profile.data ?? null).map((suggestion) => (
+                      <button
+                        key={suggestion.text}
+                        className="pill"
+                        onClick={() => suggest(suggestion)}
+                      >
+                        {suggestion.text}
+                      </button>
+                    ))}
                 </div>
               </div>
             )}
@@ -299,6 +311,7 @@ export function AssistantPage() {
 
           <form className="assistant-input" onSubmit={onSubmit}>
             <textarea
+              ref={input}
               className="textarea"
               rows={2}
               value={draft}

@@ -19,6 +19,9 @@ vi.mock('@/api/chat', async (importOriginal) => ({
   ...api,
 }))
 
+const profileApi = vi.hoisted(() => ({ getProfile: vi.fn() }))
+vi.mock('@/api/profile', () => profileApi)
+
 import { AssistantPage } from './AssistantPage'
 
 const empty: ConversationDetail = {
@@ -36,6 +39,16 @@ beforeEach(() => {
   api.createConversation.mockResolvedValue({ ...empty })
   // The page reloads the new chat while the model is still answering: nothing stored yet
   api.getConversation.mockResolvedValue({ ...empty })
+  profileApi.getProfile.mockResolvedValue({
+    first_name: null,
+    last_name: null,
+    bio: null,
+    experience_level: 'senior',
+    desired_position: 'Data engineer',
+    preferred_locations: ['Gdańsk'],
+    preferred_employment_types: [],
+    skills: [],
+  })
 })
 
 afterEach(() => {
@@ -99,5 +112,27 @@ describe('AssistantPage', () => {
 
     await screen.findByText('Python jobs')
     expect(api.renameConversation).toHaveBeenCalledWith(7, 'Python jobs')
+  })
+
+  it('writes the suggestions from the profile', async () => {
+    render(
+      <MemoryRouter>
+        <AssistantPage />
+      </MemoryRouter>,
+    )
+    expect(await screen.findByText('Find senior Data engineer jobs in Gdańsk')).toBeTruthy()
+    expect(screen.queryByText(/junior Python/i)).toBeNull()
+  })
+
+  it('puts the start of a pasted offer in the box instead of sending it', async () => {
+    render(
+      <MemoryRouter>
+        <AssistantPage />
+      </MemoryRouter>,
+    )
+    fireEvent.click(await screen.findByText('Add a job offer from a posting'))
+    const box = screen.getByLabelText('Message') as HTMLTextAreaElement
+    expect(box.value).toBe('Add this job offer to my offers:\n')
+    expect(api.sendMessage).not.toHaveBeenCalled()
   })
 })

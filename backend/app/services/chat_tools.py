@@ -10,10 +10,12 @@ service stores that as a pending action, and they run after the user confirms it
 import json
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import UTC, date, datetime, timedelta
-from typing import Any
+from datetime import UTC, date, datetime, time, timedelta
+from typing import Annotated, Any
 
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field, HttpUrl, UrlConstraints, ValidationError
+from pydantic.json_schema import SkipJsonSchema
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.ai.base import AIProvider, AIProviderError, ToolSpec
@@ -21,11 +23,12 @@ from app.ai.prompts import MAX_POSTING_CHARS, untrusted
 from app.ai.structured import AIOutputError
 from app.core.config import settings
 from app.core.validation import format_errors
-from app.models import User
+from app.models import JobOffer, User
 from app.models.enums import ApplicationStatus, SourceKind
+from app.schemas.ai import MAX_POSTING_TEXT
 from app.schemas.analysis import AnalysisResult
 from app.schemas.application import ApplicationUpdate, StatsRange
-from app.schemas.job_offer import JobOfferFilters
+from app.schemas.job_offer import JobOfferFilters, JobOfferImport
 from app.schemas.search import MAX_LOCATIONS, PostedWithin, SearchQuery, SearchResult
 from app.search_sources.base import SearchSource
 from app.search_sources.page_reader import PageReader
@@ -38,8 +41,8 @@ from app.services.ai_analysis import (
     latest_analysis,
     store_analysis,
 )
-from app.services.job_offer_import import add_private_offer
-from app.services.offer_parsing import enrich_saved_offer
+from app.services.job_offer_import import add_private_offer, normalize_url
+from app.services.offer_parsing import enrich_saved_offer, find_link, parse_offer
 from app.services.profile import to_profile_read
 from app.services.resume import ResumeNotFoundError, list_resumes
 from app.services.search import EmptyQueryError, SearchLimitError, run_search
@@ -47,6 +50,8 @@ from app.services.search import EmptyQueryError, SearchLimitError, run_search
 MAX_ROWS = 20  # rows in one list result: enough to answer, small enough for an 8k context
 MAX_DESCRIPTION_CHARS = 3_000
 MAX_CALENDAR_DAYS = 92
+# A shorter user message is a question or a link, not a pasted job posting
+POSTING_MIN_CHARS = 200
 
 
 class ToolError(Exception):
@@ -67,6 +72,8 @@ class ToolContext:
     last_search: list[SearchResult] = field(default_factory=list)
     # analyses of search results in this conversation, by url: kept when the result is saved
     search_analyses: dict[str, dict[str, Any]] = field(default_factory=dict)
+    # the newest user message long enough to be a pasted posting, for add_offer_from_text
+    pasted_text: str | None = None
 
 
 @dataclass(frozen=True)
@@ -85,6 +92,9 @@ class Tool[A: BaseModel]:
     writes: bool = False
     # write tools only: one sentence for the confirm card; raises ToolError if it can't be done
     describe: Callable[[ToolContext, A], str] | None = None
+    # write tools only, optional: fills in the arguments before they are stored with the
+    # pending action (add_offer_from_text reads the posting once, here, not again on confirm)
+    prepare: Callable[[ToolContext, A], A] | None = None
 
     def parse(self, arguments: dict[str, Any]) -> A:
         """The model's arguments as the tool's args model, or ToolError saying what's wrong."""
@@ -180,6 +190,22 @@ class AnalyseArgs(TargetArgs):
 class StatusArgs(BaseModel):
     application_id: int
     status: ApplicationStatus
+
+
+class PastedOfferArgs(BaseModel):
+    """The posting itself is never an argument: the app reads it from the user's message."""
+
+    url: Annotated[HttpUrl, UrlConstraints(max_length=2048)] | None = Field(
+        default=None,
+        description="The offer's link, only if the user gave it apart from the posting",
+    )
+    company_name: str | None = Field(
+        default=None,
+        max_length=200,
+        description='Only if the user named the company and the posting does not',
+    )
+    # filled by the app (prepare_pasted_offer), hidden from the model
+    draft: SkipJsonSchema[JobOfferImport | None] = None
 
 
 # ---- read tools ----------------------------------------------------------------------------
@@ -434,6 +460,80 @@ def set_status(ctx: ToolContext, args: StatusArgs) -> ToolOutput:
     return ToolOutput(as_json({'application_id': args.application_id, 'status': args.status}), note)
 
 
+def prepare_pasted_offer(ctx: ToolContext, args: PastedOfferArgs) -> PastedOfferArgs:
+    """Read the pasted posting with the AI, like the Add an offer page, into a draft offer.
+
+    Whatever the model put in `draft` is replaced: the fields come from the posting only.
+    """
+    text = ctx.pasted_text
+    if text is None:
+        raise ToolError('There is no pasted job posting. Ask the user to paste the whole posting.')
+    text = text[:MAX_POSTING_TEXT]
+    try:
+        parsed = parse_offer(ctx.provider, text)
+    except (AIProviderError, AIOutputError) as err:
+        raise ToolError(f"Couldn't read the posting: {err}") from err
+    url = str(args.url) if args.url else find_link(text)
+    if url is None:
+        raise ToolError(
+            "The posting has no link. Ask the user for the offer's link, then call "
+            'add_offer_from_text again with url.'
+        )
+    company = args.company_name or parsed.company_name
+    if not company:
+        raise ToolError(
+            "The posting doesn't name the company. Ask the user for it, then call "
+            'add_offer_from_text again with company_name.'
+        )
+    deadline = datetime.combine(parsed.deadline, time(), tzinfo=UTC) if parsed.deadline else None
+    try:
+        draft = JobOfferImport(
+            title=parsed.title,
+            company_name=company,
+            url=url,  # type: ignore[arg-type]  # validated here
+            location=parsed.location,
+            experience_level=parsed.experience_level,
+            employment_type=parsed.employment_type,
+            deadline=deadline,
+            technologies=parsed.technologies,
+            description=text,
+        )
+    except ValidationError as err:
+        raise ToolError(f'Wrong offer fields: {format_errors(err, root="offer")}') from err
+    return args.model_copy(update={'draft': draft})
+
+
+def describe_pasted_offer(ctx: ToolContext, args: PastedOfferArgs) -> str:
+    draft = args.draft
+    if draft is None:
+        raise ToolError('The posting was not read yet')
+    existing = ctx.db.scalar(
+        select(JobOffer).where(
+            JobOffer.url == normalize_url(str(draft.url)), job_offers.visible_to(ctx.user.id)
+        )
+    )
+    if existing is not None:
+        raise ToolError(
+            f'This offer is already in the app: offer_id {existing.id}, '
+            f'"{existing.title}" at {existing.company_name}'
+        )
+    details = [
+        part for part in (draft.location, draft.experience_level, draft.employment_type) if part
+    ]
+    if draft.technologies:
+        details.append(', '.join(draft.technologies[:8]))
+    extra = f' ({"; ".join(details)})' if details else ''
+    return f'Add "{draft.title}" at {draft.company_name}{extra} to your job offers'
+
+
+def add_pasted_offer(ctx: ToolContext, args: PastedOfferArgs) -> ToolOutput:
+    describe_pasted_offer(ctx, args)  # again: the same link may have been added since
+    assert args.draft is not None
+    offer, _ = add_private_offer(ctx.db, args.draft, ctx.user.id)
+    note = f'Added "{offer.title}" at {offer.company_name} to your job offers'
+    return ToolOutput(as_json({'offer_id': offer.id}), note, {'offer_id': offer.id})
+
+
 # ---- the registry --------------------------------------------------------------------------
 
 ALL_TOOLS: list[Tool[Any]] = [
@@ -499,6 +599,17 @@ ALL_TOOLS: list[Tool[Any]] = [
         set_status,
         writes=True,
         describe=describe_status,
+    ),
+    Tool(
+        'add_offer_from_text',
+        'Add a job posting the user pasted in the chat to their job offers. The app reads '
+        'the posting from their message: never copy it into the arguments. The user must '
+        'confirm it.',
+        PastedOfferArgs,
+        add_pasted_offer,
+        writes=True,
+        describe=describe_pasted_offer,
+        prepare=prepare_pasted_offer,
     ),
 ]
 TOOLS = {tool.name: tool for tool in ALL_TOOLS}
