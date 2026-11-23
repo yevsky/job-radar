@@ -4,6 +4,7 @@ import { AppLayout } from '@/components/AppLayout'
 import { Empty } from '@/components/ui'
 import { AdminUsersPage } from '@/features/admin/AdminUsersPage'
 import { ApplicationsPage } from '@/features/applications/ApplicationsPage'
+import { AssistantPage } from '@/features/assistant/AssistantPage'
 import { AuthProvider } from '@/features/auth/AuthContext'
 import { LoginPage, RegisterPage } from '@/features/auth/AuthPages'
 import { RequireAuth } from '@/features/auth/RequireAuth'
@@ -37,6 +38,7 @@ export function App() {
               <Route path="saved" element={<SavedPage />} />
               <Route path="applications" element={<ApplicationsPage />} />
               <Route path="calendar" element={<CalendarPage />} />
+              <Route path="assistant" element={<AssistantPage />} />
               <Route path="admin/users" element={<AdminUsersPage />} />
               <Route path="*" element={<Empty title="Page not found" />} />
             </Route>
