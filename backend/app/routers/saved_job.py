@@ -40,7 +40,11 @@ def save_job(
 
 @router.delete('/{job_offer_id}', status_code=status.HTTP_204_NO_CONTENT)
 def unsave_job(job_offer_id: int, db: DbSession, user: CurrentUser) -> None:
-    """Remove a saved offer (by the offer's id). Offers you already applied to stay."""
+    """Remove a saved offer (by the offer's id). Offers you already applied to stay.
+
+    An offer only you can see (one you added or kept from a search) is deleted with its
+    analyses and summary; a job board offer stays on the board.
+    """
     try:
         unsave_offer(db, user.id, job_offer_id)
     except NotSavedError as err:

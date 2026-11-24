@@ -220,8 +220,14 @@ def save_offer(db: Session, user_id: int, job_offer_id: int) -> tuple[SavedJobRe
     return to_saved(application), created
 
 
-def unsave_offer(db: Session, user_id: int, job_offer_id: int) -> None:
-    """Remove a saved offer. An offer the user already applied to is not touched."""
+def unsave_offer(db: Session, user_id: int, job_offer_id: int) -> bool:
+    """Remove a saved offer. An offer the user already applied to is not touched.
+
+    A private offer the user added (kept from a search, sent from the browser, added by
+    hand) is deleted with it: nothing else keeps it, so its analyses and summary go too
+    (the foreign keys cascade). A public offer stays for everyone else. Returns True when
+    the offer itself was deleted.
+    """
     application = db.scalar(
         select(Application).where(
             Application.user_id == user_id,
@@ -231,8 +237,11 @@ def unsave_offer(db: Session, user_id: int, job_offer_id: int) -> None:
     )
     if application is None:
         raise NotSavedError
-    db.delete(application)
+    offer = db.get(JobOffer, job_offer_id)
+    deleted = offer is not None and offer.owner_id == user_id
+    db.delete(offer if deleted else application)
     db.commit()
+    return deleted
 
 
 # ---- calendar ------------------------------------------------------------------------------

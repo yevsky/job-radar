@@ -7,6 +7,7 @@ import type { Application } from '@/api/applications'
 import type { JobOfferListItem } from '@/api/jobOffers'
 
 import { mockApplications } from './applications'
+import { allMockOffers, mockOffers } from './offers'
 
 const toSaved = (a: Application): SavedJob => ({
   id: a.id,
@@ -29,6 +30,9 @@ export const mockSaved = {
   },
   remove(offerId: number): void {
     const row = savedRows().find((a) => a.job_offer.id === offerId)
-    if (row) mockApplications.remove(row.id)
+    if (!row) return
+    mockApplications.remove(row.id)
+    // an offer only you see goes with it, like on the server
+    if (allMockOffers().some((o) => o.id === offerId && o.is_private)) mockOffers.remove(offerId)
   },
 }

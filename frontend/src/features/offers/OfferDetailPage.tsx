@@ -104,7 +104,11 @@ export function OfferDetailPage() {
           </section>
         </div>
         <div className="stack">
-          <TrackPanel offerId={o.id} />
+          <TrackPanel
+            offerId={o.id}
+            isPrivate={o.is_private}
+            onDeleted={() => navigate('/my-offers')}
+          />
           <section className="card" style={{ padding: 22 }}>
             <dl
               style={{
