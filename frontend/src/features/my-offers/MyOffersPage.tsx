@@ -115,7 +115,8 @@ export function MyOffersPage() {
             {shown.map((o) => {
               const from = origin(o)
               // A job board offer you unsave stays (greyed) until the next visit, so a
-              // misclick is easy to undo. Offers you added stay: they are yours.
+              // misclick is easy to undo. An offer you added is deleted when you unsave it
+              // (after a question), so its row goes at once.
               const dropped = !o.is_private && tracked !== null && !tracked.has(o.id)
               return (
                 <div key={o.id} style={{ opacity: dropped ? 0.5 : 1 }}>
@@ -128,7 +129,14 @@ export function MyOffersPage() {
                           {from.text}
                           {!o.is_active && <span className="chip">hidden</span>}
                         </span>
-                        <SaveButton offerId={o.id} compact />
+                        <SaveButton
+                          offerId={o.id}
+                          compact
+                          isPrivate={o.is_private}
+                          onDeleted={() =>
+                            offers.setData((prev) => (prev ?? []).filter((x) => x.id !== o.id))
+                          }
+                        />
                       </>
                     }
                   />

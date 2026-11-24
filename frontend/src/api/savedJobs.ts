@@ -5,7 +5,7 @@
  * Planned contract:
  *   GET    /saved-jobs                 -> SavedJob[] (newest first)
  *   POST   /saved-jobs {job_offer_id}  -> SavedJob (201; 200 if already saved)
- *   DELETE /saved-jobs/{job_offer_id}  -> 204
+ *   DELETE /saved-jobs/{job_offer_id}  -> 204 (an offer only you see is deleted with it)
  */
 import { planned, request } from './client'
 import type { ApplicationStatus } from './enums'

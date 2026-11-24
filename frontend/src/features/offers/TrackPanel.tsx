@@ -10,7 +10,16 @@ import { useAsync } from '@/lib/useAsync'
 import { SaveButton } from './SaveButton'
 
 /** Save / start an application for one offer, and show where that application is now. */
-export function TrackPanel({ offerId }: { offerId: number }) {
+export function TrackPanel({
+  offerId,
+  isPrivate = false,
+  onDeleted,
+}: {
+  offerId: number
+  /** Only you see the offer: unsaving deletes it (see SaveButton). */
+  isPrivate?: boolean
+  onDeleted?: () => void
+}) {
   const apps = useAsync(() => listApplications(), [])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
@@ -38,7 +47,7 @@ export function TrackPanel({ offerId }: { offerId: number }) {
     <section className="card stack" style={{ padding: 22, gap: 14 }}>
       <h3>Track it</h3>
       <div className="row">
-        <SaveButton offerId={offerId} />
+        <SaveButton offerId={offerId} isPrivate={isPrivate} onDeleted={onDeleted} />
         {(!application || application.status === 'saved') && (
           <button className="btn btn-primary" onClick={apply} disabled={busy || apps.loading}>
             I applied

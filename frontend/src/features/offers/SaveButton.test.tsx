@@ -18,6 +18,8 @@ vi.mock('@/api/savedJobs', () => ({
   unsaveJob: (id: number) => unsaveJob(id) as unknown,
 }))
 
+import { ConfirmHost } from '@/components/ConfirmDialog'
+
 import { SaveButton } from './SaveButton'
 
 function show(offerId: number) {
@@ -65,5 +67,38 @@ describe('SaveButton', () => {
     fireEvent.click(await screen.findByRole('button', { name: /saved/i }))
     await waitFor(() => expect(unsaveJob).toHaveBeenCalledWith(3))
     expect(screen.queryByRole('alert')).toBeNull()
+  })
+})
+
+describe('SaveButton on an offer only you can see', () => {
+  function showPrivate(offerId: number, onDeleted: () => void) {
+    render(
+      <MemoryRouter>
+        <ConfirmHost />
+        <SaveButton offerId={offerId} isPrivate onDeleted={onDeleted} />
+      </MemoryRouter>,
+    )
+  }
+
+  it('asks first, then deletes it and tells the page', async () => {
+    unsaveJob.mockResolvedValue(undefined)
+    const onDeleted = vi.fn()
+    showPrivate(1, onDeleted)
+    fireEvent.click(await screen.findByRole('button', { name: /saved/i }))
+    expect(await screen.findByText('Remove this offer?')).toBeTruthy()
+    expect(unsaveJob).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Remove' }))
+    await waitFor(() => expect(onDeleted).toHaveBeenCalled())
+    expect(unsaveJob).toHaveBeenCalledWith(1)
+  })
+
+  it('keeps it when you cancel', async () => {
+    const onDeleted = vi.fn()
+    showPrivate(3, onDeleted)
+    fireEvent.click(await screen.findByRole('button', { name: /saved/i }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(screen.queryByText('Remove this offer?')).toBeNull())
+    expect(unsaveJob).not.toHaveBeenCalled()
+    expect(onDeleted).not.toHaveBeenCalled()
   })
 })
