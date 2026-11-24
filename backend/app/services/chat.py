@@ -295,7 +295,7 @@ def send_message(
 
     ctx = tool_context(db, user, provider, sources, pages, conversation)
     history: list[ToolMessage] = [
-        assistant_system_message(now().date()),
+        assistant_system_message(now().date(), content),
         *replay(window(conversation.messages)),
     ]
     specs = tool_specs()
