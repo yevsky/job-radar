@@ -10,12 +10,12 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.ai.base import AIProvider, AIProviderError
-from app.ai.prompts import resume_extract_messages
+from app.ai.prompts import resume_extract_messages, resume_insights_messages
 from app.ai.structured import AIOutputError, generate
 from app.core.validation import format_errors
 from app.models import Resume, User, UserPreferredEmploymentType, UserPreferredLocation
 from app.models.user_profile import UserProfile
-from app.schemas.ai import ResumeExtracted
+from app.schemas.ai import ResumeExtracted, ResumeInsights
 from app.schemas.profile import (
     EmploymentTypesUpdate,
     LocationsUpdate,
@@ -122,14 +122,32 @@ def extract(db: Session, provider: AIProvider, resume: Resume) -> Resume:
     return resume
 
 
+def make_insights(db: Session, provider: AIProvider, resume: Resume) -> Resume:
+    """Ask the AI for the CV's career snapshot and store it. Raises the AI errors.
+
+    A second, separate call instead of more fields in the extraction: a longer answer made
+    the small local model worse at the dates and the level, which code depends on. The level
+    and years code counted go in as facts, so the suggested roles fit them.
+    """
+    extracted = resume.extracted or {}
+    messages = resume_insights_messages(
+        resume.text, extracted.get('experience_level'), extracted.get('experience_years')
+    )
+    insights = generate(provider, messages, ResumeInsights)
+    resume.insights = insights.model_dump(mode='json')
+    resume.insights_with = provider_label(provider)
+    db.commit()
+    return resume
+
+
 def create_resume(
     db: Session, provider: AIProvider, user_id: int, label: str, file_name: str, content: bytes
 ) -> Resume:
     """Store a CV's text and what the AI read from it. The PDF bytes are not kept.
 
     Checks the cheap things first (label, count, the file), so a refused upload costs no AI
-    call. If the AI fails, the CV is still stored with extracted None; POST
-    /resumes/{id}/extract tries again.
+    call. Then two AI calls: the extraction and the career snapshot. If one fails, the CV is
+    still stored with that field None; POST /resumes/{id}/extract or /insights tries again.
     """
     taken = db.scalar(select(Resume.id).where(Resume.user_id == user_id, Resume.label == label))
     if taken is not None:
@@ -148,6 +166,10 @@ def create_resume(
         extract(db, provider, resume)
     except (AIProviderError, AIOutputError) as err:
         logger.warning('Could not read CV %s with AI: %s', resume.id, err)
+    try:
+        make_insights(db, provider, resume)
+    except (AIProviderError, AIOutputError) as err:
+        logger.warning('Could not make the snapshot of CV %s: %s', resume.id, err)
     return resume
 
 

@@ -7,7 +7,7 @@ from app.ai.structured import AIOutputError
 from app.db.dependencies import DbSession
 from app.dependencies import AI, CurrentUser, get_current_user
 from app.models.enums import EmploymentType, ExperienceLevel
-from app.schemas.ai import JobOfferParseRequest, JobOfferParseResponse
+from app.schemas.ai import JobOfferParseRequest, JobOfferParseResponse, OfferSummaryRead
 from app.schemas.analysis import AiAnalysisRead, AnalysisRequest
 from app.schemas.job_offer import (
     JobOfferFilters,
@@ -28,6 +28,11 @@ from app.services.job_offer import (
 )
 from app.services.job_offer_import import add_private_offer
 from app.services.offer_parsing import draft_offer
+from app.services.offer_summary import (
+    NoDescriptionError,
+    get_summary,
+    summarise_offer,
+)
 from app.services.resume import ResumeNotFoundError
 
 router = APIRouter(
@@ -153,3 +158,36 @@ def read_offer_analysis(offer_id: int, db: DbSession, user: CurrentUser) -> AiAn
     if row is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='No analysis yet')
     return AiAnalysisRead.model_validate(row)
+
+
+@router.post(
+    '/{offer_id}/summary', response_model=OfferSummaryRead, status_code=status.HTTP_201_CREATED
+)
+def run_offer_summary(offer_id: int, db: DbSession, user: CurrentUser, ai: AI) -> OfferSummaryRead:
+    """Summarise the posting with the AI and keep the summary on the offer.
+
+    One summary per offer, shared by everyone who can see it; running again replaces it.
+    """
+    try:
+        return summarise_offer(db, ai, user.id, offer_id)
+    except OfferNotFoundError as err:
+        raise OFFER_NOT_FOUND from err
+    except NoDescriptionError as err:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail='This offer has no description to summarise. Open the original posting.',
+        ) from err
+    except (AIProviderError, AIOutputError) as err:
+        raise AI_FAILED from err
+
+
+@router.get('/{offer_id}/summary', response_model=OfferSummaryRead)
+def read_offer_summary(offer_id: int, db: DbSession, user: CurrentUser) -> OfferSummaryRead:
+    """The offer's AI summary; 404 if nobody has summarised it yet."""
+    try:
+        summary = get_summary(db, user.id, offer_id)
+    except OfferNotFoundError as err:
+        raise OFFER_NOT_FOUND from err
+    if summary is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='No summary yet')
+    return summary

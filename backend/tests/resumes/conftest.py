@@ -1,9 +1,10 @@
 import json
-from typing import Any
+from typing import Any, override
 
 import pytest
 from fastapi.testclient import TestClient
 
+from app.ai.base import ChatMessage
 from app.ai.fake import FakeAIProvider
 from tests.conftest import UseProvider
 from tests.helpers import auth_header
@@ -25,8 +26,44 @@ EXTRACTED = {
 }
 
 
+INSIGHTS = {
+    'summary': 'I am a junior Python developer who builds APIs with FastAPI and Docker.',
+    'industries': ['Software engineering'],
+    'expertise': ['REST API development', 'Containerised deployments (Docker)'],
+    'roles': ['Junior Backend Developer', 'Python Developer'],
+    'growth': ['Cloud platforms (AWS)'],
+    'advice': 'Look for junior backend roles that use FastAPI.',
+}
+
+
 def answer(data: dict[str, Any] = EXTRACTED) -> str:
     return json.dumps(data, ensure_ascii=False)
+
+
+def is_insights_call(messages: list[ChatMessage]) -> bool:
+    return 'career snapshot' in messages[0].content
+
+
+class CvProvider(FakeAIProvider):
+    """Answers the career-snapshot prompt with `insights` and every other prompt (the
+    extraction) like FakeAIProvider, so tests can count and check each kind of call."""
+
+    def __init__(self, responses: list[str] | None = None, insights: str | None = None) -> None:
+        super().__init__(responses=responses)
+        self.insights = insights or answer(INSIGHTS)
+
+    @override
+    def chat(self, messages: list[ChatMessage], json_mode: bool = True) -> str:
+        if is_insights_call(messages):
+            self.calls.append(list(messages))
+            return self.insights
+        return super().chat(messages, json_mode)
+
+    def extract_calls(self) -> list[list[ChatMessage]]:
+        return [m for m in self.calls if not is_insights_call(m)]
+
+    def insights_calls(self) -> list[list[ChatMessage]]:
+        return [m for m in self.calls if is_insights_call(m)]
 
 
 def upload(
@@ -46,8 +83,8 @@ def upload(
 
 
 @pytest.fixture
-def provider(use_provider: UseProvider) -> FakeAIProvider:
-    """The AI reads every CV as EXTRACTED."""
-    fake = FakeAIProvider(responses=[answer()])
+def provider(use_provider: UseProvider) -> CvProvider:
+    """The AI reads every CV as EXTRACTED, and writes INSIGHTS as its snapshot."""
+    fake = CvProvider(responses=[answer()])
     use_provider(fake)
     return fake

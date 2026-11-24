@@ -1,7 +1,7 @@
 """What the AI model must answer for each task. Validated by app/ai/structured.generate."""
 
 import re
-from datetime import date
+from datetime import date, datetime
 from enum import StrEnum
 from typing import Annotated
 
@@ -330,6 +330,141 @@ class OfferJudgementOutput(AIAnswer):
 
 class OfferAnalysisOutput(OfferRequirementsOutput, OfferJudgementOutput):
     """Both steps together: what code scores. Code decides matched skills and the score."""
+
+
+def clean_points(values: object, max_chars: int, max_items: int) -> object:
+    """Short text points: blanks and repeats dropped, each cut to max_chars, at most max_items.
+
+    Cut instead of refused, like clean_names, but a long point is shortened, not dropped:
+    a summary point of 250 characters is still worth showing. null means an empty list.
+    """
+    if values is None:
+        return []
+    if not isinstance(values, list):
+        return values
+    kept = [v.strip()[:max_chars].strip() for v in values if isinstance(v, str) and v.strip()]
+    return unique_ignoring_case(kept)[:max_items]
+
+
+# Words a model writes instead of null
+NOT_GIVEN = {'', 'none', 'null', 'n/a', 'not given', 'not specified', 'not stated', 'unknown'}
+
+
+class WorkMode(StrEnum):
+    """Where the work happens, as a posting says it."""
+
+    REMOTE = 'remote'
+    HYBRID = 'hybrid'
+    ONSITE = 'onsite'
+
+
+class OfferSummary(AIAnswer):
+    """A short summary of one job posting, the same for every user (no profile in it).
+
+    Lenient like ParsedOffer: too long text is cut, an unknown work mode becomes None.
+    """
+
+    overview: str = Field(min_length=1, max_length=600)  # 2-3 sentences: what the job is
+    responsibilities: list[str] = Field(default=[], max_length=6)
+    must_have: list[str] = Field(default=[], max_length=10)
+    nice_to_have: list[str] = Field(default=[], max_length=8)
+    benefits: list[str] = Field(default=[], max_length=8)
+    salary: str | None = Field(default=None, max_length=120)  # as written: '12-16k PLN B2B'
+    work_mode: WorkMode | None = None
+    # What a candidate would want to know but the posting doesn't say (no salary, ...)
+    missing_info: list[str] = Field(default=[], max_length=5)
+
+    @field_validator('overview', mode='before')
+    @classmethod
+    def cut_overview(cls, value: object) -> object:
+        return cut_text(value, 600)
+
+    @field_validator('salary', mode='before')
+    @classmethod
+    def cut_salary(cls, value: object) -> object:
+        """'not given' and similar words mean there is no salary."""
+        text = cut_text(value, 120)
+        if isinstance(text, str) and text.lower() in NOT_GIVEN:
+            return None
+        return text
+
+    @field_validator('work_mode', mode='before')
+    @classmethod
+    def known_work_mode(cls, value: object) -> WorkMode | None:
+        """'Remote' -> remote, 'on-site' / 'office' -> onsite, anything else -> None."""
+        if isinstance(value, str) and value.strip().lower() in {'on_site', 'on-site', 'office'}:
+            return WorkMode.ONSITE
+        return known_or_none(value, WorkMode)
+
+    @field_validator('responsibilities', mode='before')
+    @classmethod
+    def clean_responsibilities(cls, values: object) -> object:
+        return clean_points(values, max_chars=200, max_items=6)
+
+    @field_validator('must_have', mode='before')
+    @classmethod
+    def clean_must_have(cls, values: object) -> object:
+        return clean_points(values, max_chars=120, max_items=10)
+
+    @field_validator('nice_to_have', 'benefits', mode='before')
+    @classmethod
+    def clean_eight(cls, values: object) -> object:
+        return clean_points(values, max_chars=120, max_items=8)
+
+    @field_validator('missing_info', mode='before')
+    @classmethod
+    def clean_missing(cls, values: object) -> object:
+        return clean_points(values, max_chars=120, max_items=5)
+
+
+class ResumeInsights(AIAnswer):
+    """A career snapshot of a CV for the profile page: a bio-like summary, the fields the
+    person works in, broader areas of expertise, job titles to search for and what to learn.
+
+    The level and years are not here: code already counts them (ResumeExtracted).
+    """
+
+    summary: str = Field(min_length=1, max_length=800)  # first person, usable as the bio
+    industries: list[str] = Field(default=[], max_length=5)  # 'AI/ML automation'
+    expertise: list[str] = Field(default=[], max_length=12)  # 'REST API development'
+    roles: list[str] = Field(default=[], max_length=6)  # 'Junior Backend Developer'
+    growth: list[str] = Field(default=[], max_length=5)  # 'Cloud platforms (AWS, GCP)'
+    advice: str | None = Field(default=None, max_length=600)  # 2-3 sentences on the search
+
+    @field_validator('summary', mode='before')
+    @classmethod
+    def cut_summary(cls, value: object) -> object:
+        return cut_text(value, 800)
+
+    @field_validator('advice', mode='before')
+    @classmethod
+    def cut_advice(cls, value: object) -> object:
+        return cut_text(value, 600)
+
+    @field_validator('industries', 'growth', mode='before')
+    @classmethod
+    def clean_five(cls, values: object) -> object:
+        return clean_points(values, max_chars=80, max_items=5)
+
+    @field_validator('expertise', mode='before')
+    @classmethod
+    def clean_expertise(cls, values: object) -> object:
+        return clean_points(values, max_chars=80, max_items=12)
+
+    @field_validator('roles', mode='before')
+    @classmethod
+    def clean_roles(cls, values: object) -> object:
+        # 120 like the profile's desired_position, so a role can become the position
+        return clean_points(values, max_chars=120, max_items=6)
+
+
+class OfferSummaryRead(OfferSummary):
+    """An offer's stored summary, with what made it and when."""
+
+    job_offer_id: int
+    summary_with: str  # 'ollama/qwen2.5:3b'
+    prompt_version: str  # 'offer-summary-v1'
+    created_at: datetime
 
 
 class AIProviderStatus(BaseModel):

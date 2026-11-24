@@ -24,6 +24,9 @@ class Resume(Base):
     # ResumeExtracted as JSON; None until the AI has read the CV (or if it failed)
     extracted: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     extracted_with: Mapped[str | None] = mapped_column(String(100))  # 'ollama/qwen2.5:3b'
+    # ResumeInsights as JSON: the career snapshot shown on the profile page; None until made
+    insights: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    insights_with: Mapped[str | None] = mapped_column(String(100))
     applied_to_profile_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC)

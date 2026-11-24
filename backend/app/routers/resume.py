@@ -22,6 +22,7 @@ from app.services.resume import (
     extract,
     get_resume,
     list_resumes,
+    make_insights,
 )
 
 router = APIRouter(prefix='/resumes', tags=['resumes'])
@@ -89,6 +90,22 @@ def extract_resume_again(resume_id: int, user: CurrentUser, db: DbSession, ai: A
         raise NOT_FOUND from err
     try:
         return ResumeRead.model_validate(extract(db, ai, resume))
+    except (AIProviderError, AIOutputError) as err:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="The AI provider didn't answer, try again later",
+        ) from err
+
+
+@router.post('/{resume_id}/insights', response_model=ResumeRead)
+def make_resume_insights(resume_id: int, user: CurrentUser, db: DbSession, ai: AI) -> ResumeRead:
+    """Let the AI write the CV's career snapshot again (summary, fields, roles, what to learn)."""
+    try:
+        resume = get_resume(db, user.id, resume_id)
+    except ResumeNotFoundError as err:
+        raise NOT_FOUND from err
+    try:
+        return ResumeRead.model_validate(make_insights(db, ai, resume))
     except (AIProviderError, AIOutputError) as err:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,

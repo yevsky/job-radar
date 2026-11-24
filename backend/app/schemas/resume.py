@@ -4,7 +4,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.enums import EmploymentType, ExperienceLevel
-from app.schemas.ai import ResumeExtracted
+from app.schemas.ai import ResumeExtracted, ResumeInsights
 from app.schemas.profile import Location, Skill
 
 
@@ -19,6 +19,9 @@ class ResumeRead(BaseModel):
     created_at: datetime
     extracted: ResumeExtracted | None
     extracted_with: str | None
+    # The career snapshot for the profile page; None if the AI couldn't make it yet
+    insights: ResumeInsights | None
+    insights_with: str | None
     applied_to_profile_at: datetime | None
 
 

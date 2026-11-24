@@ -5,7 +5,11 @@ import type {
   JobOfferListItem,
   JobOfferPage,
   JobOfferRead,
+  OfferSummary,
+  WorkMode,
 } from '@/api/jobOffers'
+import { MIN_SUMMARY_DESCRIPTION } from '@/api/jobOffers'
+import { ApiError } from '@/api/client'
 import type { SourceKind } from '@/api/enums'
 
 import { daysFromNow, newId, notFound } from './util'
@@ -211,6 +215,42 @@ export function toListItem(offer: JobOfferRead): JobOfferListItem {
 
 export const allMockOffers = () => offers
 
+const summaries = new Map<number, OfferSummary>()
+
+/** A demo summary built from the description by plain rules (the real one is the AI's). */
+function demoSummary(offer: JobOfferRead): OfferSummary {
+  const text = offer.description ?? ''
+  const lower = text.toLowerCase()
+  const firstParagraph = text.split(/\n\s*\n/)[0].trim()
+  const bullets = text
+    .split('\n')
+    .filter((line) => line.trim().startsWith('-'))
+    .map((line) => line.replace(/^\s*-\s*/, '').trim())
+  const mode: WorkMode | null = lower.includes('remote')
+    ? 'remote'
+    : lower.includes('hybrid')
+      ? 'hybrid'
+      : lower.includes('on-site') || lower.includes('office')
+        ? 'onsite'
+        : null
+  const salary = /\d[\d\s]*(k|000)?\s*(pln|eur)/i.exec(text)?.[0] ?? null
+  const missing = [!salary && 'Salary', !mode && 'Work mode'].filter((m): m is string => !!m)
+  return {
+    job_offer_id: offer.id,
+    overview: firstParagraph,
+    responsibilities: bullets.slice(0, 6),
+    must_have: offer.technologies.slice(0, 5),
+    nice_to_have: [],
+    benefits: lower.includes('training') ? ['Training budget'] : [],
+    salary,
+    work_mode: mode,
+    missing_info: missing,
+    summary_with: 'fake/demo-model',
+    prompt_version: 'offer-summary-v1',
+    created_at: new Date().toISOString(),
+  }
+}
+
 function matches(offer: JobOfferRead, f: JobOfferFilters): boolean {
   const techs = offer.technologies.map((t) => t.toLowerCase())
   if (f.technology.some((t) => !techs.includes(t.toLowerCase()))) return false
@@ -280,6 +320,21 @@ export const mockOffers = {
       description: text,
       parsed_with: 'demo',
     }
+  },
+  getSummary(id: number): OfferSummary | null {
+    mockOffers.get(id)
+    return summaries.get(id) ?? null
+  },
+  summarise(id: number): OfferSummary {
+    const offer = mockOffers.get(id)
+    if ((offer.description ?? '').trim().length < MIN_SUMMARY_DESCRIPTION)
+      throw new ApiError(
+        422,
+        'This offer has no description to summarise. Open the original posting.',
+      )
+    const summary = demoSummary(offer)
+    summaries.set(id, summary)
+    return summary
   },
   remove(id: number): void {
     const index = offers.findIndex((o) => o.id === id)

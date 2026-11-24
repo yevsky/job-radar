@@ -16,6 +16,8 @@ import { employmentLabel, experienceLabel } from '@/lib/labels'
 import { useAsync } from '@/lib/useAsync'
 import { confirmAction } from '@/lib/confirm'
 
+import { CareerSnapshot } from './CareerSnapshot'
+
 export function ResumesPage() {
   const resumes = useAsync(() => listResumes(), [])
   const profile = useAsync(() => getProfile(), [])
@@ -74,19 +76,30 @@ export function ResumesPage() {
             <Empty title="No CVs yet">Upload one to fill your profile in a few clicks.</Empty>
           )}
           {selected && profile.data && (
-            <ReviewCard
-              key={selected.id}
-              resume={selected}
-              profile={profile.data}
-              onApplied={(p) => {
-                profile.setData(p)
-                resumes.reload()
-              }}
-              onDeleted={() => {
-                resumes.setData((prev) => (prev ?? []).filter((r) => r.id !== selected.id))
-                setSelectedId(null)
-              }}
-            />
+            <div className="stack">
+              <ReviewCard
+                key={selected.id}
+                resume={selected}
+                profile={profile.data}
+                onApplied={(p) => {
+                  profile.setData(p)
+                  resumes.reload()
+                }}
+                onDeleted={() => {
+                  resumes.setData((prev) => (prev ?? []).filter((r) => r.id !== selected.id))
+                  setSelectedId(null)
+                }}
+              />
+              <CareerSnapshot
+                key={`snapshot-${selected.id}`}
+                resume={selected}
+                onRegenerated={(updated) =>
+                  resumes.setData((prev) =>
+                    (prev ?? []).map((r) => (r.id === updated.id ? updated : r)),
+                  )
+                }
+              />
+            </div>
           )}
         </div>
       </div>

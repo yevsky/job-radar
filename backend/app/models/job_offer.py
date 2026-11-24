@@ -1,5 +1,5 @@
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import (
     Column,
@@ -12,6 +12,7 @@ from sqlalchemy import (
     UniqueConstraint,
     true,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -66,6 +67,12 @@ class JobOffer(Base):
     is_active: Mapped[bool] = mapped_column(default=True, server_default=true(), index=True)
     deadline: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # The AI summary of the posting (OfferSummary as JSON). One per offer, the same for every
+    # user, so it lives here and not in a table of its own; a new summary replaces it.
+    summary: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    summary_with: Mapped[str | None] = mapped_column(String(100))  # 'ollama/qwen2.5:3b'
+    summary_prompt_version: Mapped[str | None] = mapped_column(String(50))
+    summarized_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )

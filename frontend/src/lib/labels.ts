@@ -1,4 +1,5 @@
 import type { ApplicationStatus, EmploymentType, ExperienceLevel, SourceKind } from '@/api/enums'
+import type { WorkMode } from '@/api/jobOffers'
 
 export const experienceLabel: Record<ExperienceLevel, string> = {
   trainee: 'Trainee',
@@ -45,3 +46,9 @@ const SEARCH_SOURCE_LABELS: Record<string, string> = {
 
 /** 'jsearch' -> 'JSearch (Google Jobs)'; an unknown name is shown as it is. */
 export const searchSourceLabel = (name: string) => SEARCH_SOURCE_LABELS[name] ?? name
+
+export const workModeLabel: Record<WorkMode, string> = {
+  remote: 'Remote',
+  hybrid: 'Hybrid',
+  onsite: 'On-site',
+}

@@ -16,8 +16,10 @@ from app.models.enums import EmploymentType, ExperienceLevel
 from app.schemas.ai import (
     OfferJudgementOutput,
     OfferRequirementsOutput,
+    OfferSummary,
     ParsedOffer,
     ResumeExtracted,
+    ResumeInsights,
 )
 from app.schemas.job_offer import JobOfferImport
 from app.schemas.profile import ProfileRead
@@ -26,6 +28,8 @@ OFFER_PARSE_VERSION = 'offer-parse-v2'
 RESUME_EXTRACT_VERSION = 'resume-extract-v3'
 OFFER_ANALYSIS_VERSION = 'offer-analysis-v4'  # both steps of the analysis
 ASSISTANT_VERSION = 'assistant-v6'
+OFFER_SUMMARY_VERSION = 'offer-summary-v1'
+RESUME_INSIGHTS_VERSION = 'resume-insights-v1'
 
 # Sizes that fit an 8k-token context together with the instructions and the schema
 # (about 4 characters per token).
@@ -228,6 +232,70 @@ def offer_judgement_messages(
     return [
         system_message(task, OfferJudgementOutput),
         ChatMessage(role='user', content='\n\n'.join(parts)),
+    ]
+
+
+def offer_summary_messages(offer: JobOfferImport) -> list[ChatMessage]:
+    """Summarise a posting for any reader: no profile, so one summary serves every user."""
+    task = (
+        'You summarise one job posting so a job seeker can read it in 30 seconds. '
+        'overview: two or three sentences: what the company does, what the job is and the '
+        'level. Do not start with "This posting". '
+        'responsibilities: up to 6 short points on the daily work. '
+        'must_have: up to 10 short points the posting requires; nice_to_have: up to 8 points '
+        'it calls optional ("nice to have", "a plus", "mile widziane"). Keep each point short: '
+        '"3+ years of Python", "English B2". '
+        'benefits: up to 8 short points the company offers (equipment, training budget, '
+        'medical care, flexible hours), without the salary. '
+        'salary: the pay exactly as written, with currency, period and contract if given '
+        '("15 000 - 20 000 PLN net/month, B2B"); null if the posting gives no pay. '
+        'work_mode: remote, hybrid or onsite; null if not stated. '
+        'missing_info: up to 5 things a candidate would want to know but the posting does not '
+        'say, such as the salary, the work mode or the tech stack. Empty list if nothing '
+        'important is missing. '
+        'Use only what the posting says; never invent facts. '
+        'Write everything in English, even if the posting is in another language.'
+    )
+    return [
+        system_message(task, OfferSummary),
+        ChatMessage(
+            role='user', content=untrusted('job_posting', offer_text(offer), MAX_POSTING_CHARS)
+        ),
+    ]
+
+
+def resume_insights_messages(
+    text: str, level: str | None, years: float | None
+) -> list[ChatMessage]:
+    """A career snapshot of a CV: summary, fields, roles to search for and what to learn.
+
+    The level and years were counted by code (ResumeExtracted), so the model gets them as
+    facts instead of judging them again: roles must fit that level.
+    """
+    level_text = level or 'unknown'
+    years_text = f'{years:g}' if years is not None else 'unknown'
+    task = (
+        "You read a CV and write a short career snapshot for the person's profile. "
+        'summary: 3 or 4 sentences in the first person ("I am a Python developer..."), as '
+        'the person would write a profile bio: their role, experience, main strengths and '
+        'what they are looking for. No name, email, phone or address. '
+        'industries: up to 5 fields they work in ("Software engineering", "AI/ML '
+        'automation", "FinTech"). '
+        'expertise: up to 12 broader areas of skill, not single tools ("REST API '
+        'development", "Asynchronous programming", "Test automation (pytest)"). '
+        'roles: up to 6 job titles to search for that fit the <facts> level exactly '
+        '("Junior Backend Developer" for junior; never "Senior" for a junior or trainee). '
+        'growth: up to 5 skills or areas worth learning next to get those roles. '
+        'advice: two or three sentences of advice for the job search, addressed to the '
+        'person as "you". '
+        'Use only what the CV says; never invent experience. Write in English.'
+    )
+    facts = f'<facts>\nExperience level: {level_text}\nYears of work in IT: {years_text}\n</facts>'
+    return [
+        system_message(task, ResumeInsights),
+        ChatMessage(
+            role='user', content=f'{facts}\n\n{untrusted("resume", text, MAX_RESUME_CHARS)}'
+        ),
     ]
 
 

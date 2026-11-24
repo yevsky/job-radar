@@ -156,6 +156,10 @@ Core table storing the basic facts of individual job postings. The full offer te
 | `is_active` | boolean | Not null, default `true` — marks whether the offer is still live |
 | `deadline` | timestamp | Application deadline, if known |
 | `last_seen_at` | timestamp | When an import last found this offer |
+| `summary` | jsonb | Nullable — the AI summary of the posting (overview, responsibilities, must have, nice to have, benefits, salary, work mode, missing info). One per offer and the same for every user, because no profile goes into it; a new summary replaces the old one |
+| `summary_with` | varchar(100) | Which provider and model wrote the summary, e.g. `ollama/qwen2.5:3b` |
+| `summary_prompt_version` | varchar(50) | Which prompt wrote it, e.g. `offer-summary-v1` |
+| `summarized_at` | timestamp | When the summary was written |
 | `created_at` | timestamp | |
 | `updated_at` | timestamp | |
 
@@ -221,6 +225,8 @@ One of a user's CVs ("Backend CV", "Data CV"): the text read from the uploaded P
 | `text` | text | Not null; the text of every page of the PDF |
 | `extracted` | jsonb | What the AI read: position, level, skills, locations, employment types, summary. Null if the AI failed (it can be retried) |
 | `extracted_with` | varchar(100) | Which provider and model read it, e.g. `ollama/qwen2.5:3b` |
+| `insights` | jsonb | The career snapshot shown on the profile page: a first-person summary, industries, areas of expertise, recommended roles, what to learn next and advice. Written by a second AI call after `extracted`; null if it failed (it can be retried) |
+| `insights_with` | varchar(100) | Which provider and model wrote the snapshot |
 | `applied_to_profile_at` | timestamp | When the user last copied data from it into the profile |
 | `created_at` | timestamp | |
 
