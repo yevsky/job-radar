@@ -9,7 +9,7 @@ from app.models import Resume
 from app.services.resume import MAX_RESUME_BYTES, MAX_RESUMES_PER_USER
 from tests.conftest import UseProvider, register_and_login
 from tests.helpers import auth_header
-from tests.resumes.conftest import CV_PDF, CV_TEXT, EXTRACTED, answer, upload
+from tests.resumes.conftest import CV_PDF, CV_TEXT, EXTRACTED, CvProvider, answer, upload
 from tests.resumes.pdf import make_pdf
 
 
@@ -29,7 +29,7 @@ def test_upload_without_token_returns_401(api: TestClient) -> None:
 
 
 def test_upload_stores_the_text_and_what_the_ai_read(
-    api: TestClient, access_token: str, provider: FakeAIProvider, db: Session
+    api: TestClient, access_token: str, provider: CvProvider, db: Session
 ) -> None:
     response = upload(api, access_token)
 
@@ -44,15 +44,15 @@ def test_upload_stores_the_text_and_what_the_ai_read(
     resume = db.get(Resume, body['id'])
     assert resume is not None
     assert resume.text == CV_TEXT
-    assert len(provider.calls) == 1
+    assert len(provider.extract_calls()) == 1
 
 
 def test_the_ai_gets_the_cv_inside_the_untrusted_block(
-    api: TestClient, access_token: str, provider: FakeAIProvider
+    api: TestClient, access_token: str, provider: CvProvider
 ) -> None:
     upload(api, access_token)
 
-    [messages] = provider.calls
+    [messages] = provider.extract_calls()
     assert messages[1].content == f'<resume>\n{CV_TEXT}\n</resume>'
 
 
@@ -156,14 +156,14 @@ def test_label_is_required_and_short(
 
 
 def test_same_label_twice_returns_409(
-    api: TestClient, access_token: str, provider: FakeAIProvider, db: Session
+    api: TestClient, access_token: str, provider: CvProvider, db: Session
 ) -> None:
     upload(api, access_token)
 
     response = upload(api, access_token, label=' Backend CV ')
 
     assert response.status_code == status.HTTP_409_CONFLICT
-    assert len(provider.calls) == 1
+    assert len(provider.calls) == 2  # the first upload's extraction and snapshot only
     assert count_resumes(db) == 1
 
 

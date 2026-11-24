@@ -9,6 +9,7 @@ import { hasOriginal } from '@/lib/originalLink'
 import { employmentLabel, experienceLabel, sourceLabel } from '@/lib/labels'
 import { useAsync } from '@/lib/useAsync'
 
+import { SummaryCard } from './SummaryCard'
 import { TrackPanel } from './TrackPanel'
 import { confirmAction } from '@/lib/confirm'
 
@@ -89,6 +90,7 @@ export function OfferDetailPage() {
 
       <div className="split">
         <div className="stack">
+          <SummaryCard offerId={o.id} description={o.description} />
           <MatchCard offerId={o.id} />
           <section className="card">
             <h2 style={{ marginBottom: 14 }}>Description</h2>

@@ -1795,3 +1795,51 @@ table.data td {
     animation: none;
   }
 }
+
+/* Offer summary: the lists side by side on wide cards */
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 16px 24px;
+}
+.summary-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 4px;
+}
+
+/* Career snapshot (profile page and My CVs) */
+.snapshot-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 18px 24px;
+}
+.snapshot-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.snapshot-level {
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--tag-info);
+  color: var(--tag-info-text);
+}
+.snapshot-roles {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.snapshot-roles li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.snapshot-advice {
+  padding: 14px 16px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}

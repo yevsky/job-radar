@@ -1,5 +1,5 @@
 /** Backend: routers/job_offer.py (exists). */
-import { existing, request } from './client'
+import { ApiError, existing, request } from './client'
 import type { ApplicationStatus, EmploymentType, ExperienceLevel, SourceKind } from './enums'
 import { mockMyOffers } from '@/mocks/myOffers'
 import { mockOffers } from '@/mocks/offers'
@@ -143,4 +143,55 @@ export const deleteJobOffer = (id: number) =>
   existing(
     () => request<void>(`/job-offers/${id}`, { method: 'DELETE' }),
     () => mockOffers.remove(id),
+  )
+
+/** Where the work happens, as the posting says it. */
+export type WorkMode = 'remote' | 'hybrid' | 'onsite'
+
+/**
+ * The AI summary of a posting (OfferSummaryRead). One per offer, shared by everyone who can
+ * see it; it doesn't depend on your profile.
+ */
+export interface OfferSummary {
+  job_offer_id: number
+  /** Two or three sentences: what the company does and what the job is. */
+  overview: string
+  responsibilities: string[]
+  must_have: string[]
+  nice_to_have: string[]
+  benefits: string[]
+  /** The pay as written in the posting, or null if it gives none. */
+  salary: string | null
+  work_mode: WorkMode | null
+  /** What a candidate would want to know but the posting doesn't say. */
+  missing_info: string[]
+  /** Provider and model, e.g. 'ollama/qwen2.5:3b'. */
+  summary_with: string
+  prompt_version: string
+  created_at: string
+}
+
+/** The backend refuses a shorter description (services/offer_summary.py). */
+export const MIN_SUMMARY_DESCRIPTION = 100
+
+/** The stored summary, or null if nobody has summarised the offer yet. */
+export const getOfferSummary = (offerId: number) =>
+  existing(
+    async () => {
+      try {
+        return await request<OfferSummary>(`/job-offers/${offerId}/summary`)
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 404 && err.detail === 'No summary yet')
+          return null
+        throw err
+      }
+    },
+    () => mockOffers.getSummary(offerId),
+  )
+
+/** Summarise with the AI and keep it on the offer (replaces the old one). 502 if the AI failed. */
+export const runOfferSummary = (offerId: number) =>
+  existing(
+    () => request<OfferSummary>(`/job-offers/${offerId}/summary`, { method: 'POST' }),
+    () => mockOffers.summarise(offerId),
   )
