@@ -1,7 +1,9 @@
 /*
  * Design tokens.
- * Light ("Lilac"): cool violet greys, white cards, violet accent, Plus Jakarta Sans headings.
- * Dark: near-black sidebar, charcoal cards, pastel accents, sans headings.
+ * Light ("Lilac"): cool violet greys, white cards, violet accent.
+ * Dark: near-black sidebar, charcoal cards, pastel accents.
+ * Both themes share the fonts, sizes, radii and spacing: only colours and shadows change,
+ * so a page has the same layout in either theme.
  * Funnel stage colours (applied → offer) were checked with a colour-blindness validator in
  * both themes, and every chart mark also has a text label.
  */
@@ -63,10 +65,6 @@
 }
 
 :root[data-theme='dark'] {
-  --font-sans: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
-  --font-heading: var(--font-sans);
-  --heading-weight: 500;
-
   --bg: #0c0b0f;
   --page: #16151a;
   --card: #222128;
