@@ -5,9 +5,6 @@ import type { ProfileRead } from '@/api/profile'
 import { suggestionsFor } from './suggestions'
 
 const profile: ProfileRead = {
-  first_name: null,
-  last_name: null,
-  bio: null,
   experience_level: 'senior',
   desired_position: 'Backend developer',
   preferred_locations: ['Kraków', 'Wrocław'],

@@ -35,9 +35,6 @@ OFFER = JobOfferImport.model_validate(
     }
 )
 PROFILE = ProfileRead(
-    first_name='Anna',
-    last_name='Kowalska',
-    bio='I love hiking in the Tatras.',
     experience_level=ExperienceLevel.JUNIOR,
     desired_position='Backend developer',
     preferred_locations=['Wrocław'],
@@ -177,13 +174,6 @@ def test_step_2_says_never_contradict_the_facts_and_what_a_red_flag_is() -> None
     assert 'Never contradict it' in system
     assert 'A skill the candidate lacks is not a red flag' in system
     assert '9-10 the same role and level' in system
-
-
-def test_analysis_never_contains_name_or_bio() -> None:
-    messages = [*offer_requirements_messages(OFFER, PROFILE), *judgement(resume_text='Some CV')]
-    text = all_text(messages)
-    for private in ('Anna', 'Kowalska', 'Tatras'):
-        assert private not in text
 
 
 def test_step_2_adds_the_resume_when_given() -> None:

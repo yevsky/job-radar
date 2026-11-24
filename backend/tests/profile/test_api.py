@@ -9,9 +9,6 @@ from tests.conftest import register_and_login
 from tests.helpers import PASSWORD, USER_EMAIL, auth_header
 
 FULL_PROFILE = {
-    'first_name': 'John',
-    'last_name': 'Example',
-    'bio': 'Backend developer learning FastAPI.',
     'experience_level': 'junior',
     'desired_position': 'backend developer',
 }
@@ -19,9 +16,6 @@ LOCATIONS_URL = '/profile/me/locations'
 EMPLOYMENT_TYPES_URL = '/profile/me/employment-types'
 SKILLS_URL = '/profile/me/skills'
 EMPTY_PROFILE: dict[str, None | list[str]] = {
-    'first_name': None,
-    'last_name': None,
-    'bio': None,
     'experience_level': None,
     'desired_position': None,
     'preferred_locations': [],
@@ -61,42 +55,38 @@ def test_second_put_updates_existing_profile(
     api.put('/profile/me', json=FULL_PROFILE, headers=auth_header(access_token))
     response = api.put(
         '/profile/me',
-        json={**FULL_PROFILE, 'first_name': 'Changed'},
+        json={**FULL_PROFILE, 'desired_position': 'Changed'},
         headers=auth_header(access_token),
     )
 
-    assert response.json()['first_name'] == 'Changed'
+    assert response.json()['desired_position'] == 'Changed'
     assert len(db.scalars(select(UserProfile)).all()) == 1
 
 
 def test_put_replaces_whole_profile(api: TestClient, access_token: str) -> None:
     api.put('/profile/me', json=FULL_PROFILE, headers=auth_header(access_token))
     response = api.put(
-        '/profile/me', json={'first_name': 'Yevhen'}, headers=auth_header(access_token)
+        '/profile/me', json={'desired_position': 'Data analyst'}, headers=auth_header(access_token)
     )
 
     body = response.json()
-    assert body['first_name'] == 'Yevhen'
-    assert body['bio'] is None
+    assert body['desired_position'] == 'Data analyst'
     assert body['experience_level'] is None
 
 
 def test_put_trims_whitespace(api: TestClient, access_token: str) -> None:
     response = api.put(
-        '/profile/me', json={'first_name': '  Yevhen  '}, headers=auth_header(access_token)
+        '/profile/me', json={'desired_position': '  QA  '}, headers=auth_header(access_token)
     )
 
-    assert response.json()['first_name'] == 'Yevhen'
+    assert response.json()['desired_position'] == 'QA'
 
 
 @pytest.mark.parametrize(
     'payload',
     [
         {'experience_level': 'wizard'},
-        {'first_name': 'a' * 121},
-        {'last_name': 'a' * 121},
         {'desired_position': 'a' * 121},
-        {'bio': 'a' * 2001},
     ],
 )
 def test_put_with_invalid_data_returns_422(
@@ -113,7 +103,7 @@ def test_users_only_see_their_own_profile(api: TestClient, access_token: str) ->
     api.put('/profile/me', json=FULL_PROFILE, headers=auth_header(access_token))
     response = api.get('/profile/me', headers=auth_header(other_token))
 
-    assert response.json()['first_name'] is None
+    assert response.json()['desired_position'] is None
 
 
 def test_locations_without_token_returns_401(api: TestClient) -> None:
@@ -195,7 +185,6 @@ def test_put_locations_keeps_profile_fields(api: TestClient, access_token: str) 
 
     body = response.json()
     assert body['preferred_locations'] == ['Remote']
-    assert body['first_name'] == FULL_PROFILE['first_name']
     assert body['desired_position'] == FULL_PROFILE['desired_position']
 
 
@@ -438,7 +427,22 @@ def test_delete_profile_only_deletes_own_data(api: TestClient, access_token: str
     api.delete('/profile/me', headers=auth_header(access_token))
     body = api.get('/profile/me', headers=auth_header(other_token)).json()
 
-    assert body['first_name'] == FULL_PROFILE['first_name']
+    assert body['desired_position'] == FULL_PROFILE['desired_position']
     assert body['preferred_locations'] == ['Remote']
     assert body['preferred_employment_types'] == ['b2b']
     assert body['skills'] == ['Python']
+
+
+def test_name_and_bio_are_not_kept(api: TestClient, access_token: str, db: Session) -> None:
+    """The profile has no name or bio (data minimisation): sent ones are ignored."""
+    response = api.put(
+        '/profile/me',
+        json={**FULL_PROFILE, 'first_name': 'John', 'last_name': 'Example', 'bio': 'Hi'},
+        headers=auth_header(access_token),
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    body = response.json()
+    for field in ('first_name', 'last_name', 'bio'):
+        assert field not in body
+    assert not hasattr(db.scalars(select(UserProfile)).one(), 'bio')

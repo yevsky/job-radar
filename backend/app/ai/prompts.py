@@ -135,7 +135,7 @@ def offer_text(offer: JobOfferImport) -> str:
 
 
 def profile_json(profile: ProfileRead) -> str:
-    """Only the job-related part of the profile: never the name or the bio."""
+    """The job-related fields of the profile (it holds nothing else)."""
     data = {
         'desired_position': profile.desired_position,
         'experience_level': profile.experience_level,

@@ -164,7 +164,7 @@ def position_with_level(position: str | None, level: ExperienceLevel | None) -> 
 
 
 def default_search_query(user: User) -> SearchQuery:
-    """The search form prefilled from the profile: job fields only, never name, bio or email."""
+    """The search form prefilled from the profile: job fields only, never the email."""
     profile = user.profile
     return SearchQuery(
         position=position_with_level(

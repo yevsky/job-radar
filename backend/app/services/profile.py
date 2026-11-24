@@ -19,9 +19,6 @@ from app.services.technology import get_or_create_technologies
 def to_profile_read(user: User) -> ProfileRead:
     profile = user.profile
     return ProfileRead(
-        first_name=profile.first_name if profile else None,
-        last_name=profile.last_name if profile else None,
-        bio=profile.bio if profile else None,
         experience_level=profile.experience_level if profile else None,
         desired_position=profile.desired_position if profile else None,
         preferred_employment_types=[e.employment_type for e in user.preferred_employment_types],

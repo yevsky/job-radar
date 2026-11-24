@@ -40,9 +40,6 @@ beforeEach(() => {
   // The page reloads the new chat while the model is still answering: nothing stored yet
   api.getConversation.mockResolvedValue({ ...empty })
   profileApi.getProfile.mockResolvedValue({
-    first_name: null,
-    last_name: null,
-    bio: null,
     experience_level: 'senior',
     desired_position: 'Data engineer',
     preferred_locations: ['Gdańsk'],

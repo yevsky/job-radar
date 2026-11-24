@@ -91,15 +91,12 @@ Application user accounts, including authentication data.
 | `updated_at` | timestamp | |
 
 ### `user_profiles`
-Extended profile information for a user, one-to-one with `users`.
+What the user is looking for, one-to-one with `users`: one profile per account (different CVs can still show the person differently). It holds no name or bio: the app never used them, so they are not kept (data minimisation); the CV's career snapshot (`resumes.insights`) describes the person instead.
 
 | Column | Type | Notes |
 |---|---|---|
 | `id` | integer | Primary key |
 | `user_id` | integer | FK → `users.id`, unique, not null |
-| `first_name` | varchar | |
-| `last_name` | varchar | |
-| `bio` | text | |
 | `experience_level` | experience_level | |
 | `desired_position` | varchar | The role the user is looking for (e.g. "backend developer"), used to build search queries |
 | `created_at` | timestamp | |
