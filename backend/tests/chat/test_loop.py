@@ -24,6 +24,10 @@ def test_a_text_answer(api: TestClient, headers: Headers, chat_id: int, script: 
     assert isinstance(system, ChatMessage)
     assert system.role == 'system'
     assert 'untrusted' in system.content
+    assert system.content.endswith(
+        'the tool results or your earlier answers.'
+    )  # the latest message ('Hi') is quoted so the model answers in its language
+    assert '<latest_message>\nHi\n</latest_message>' in system.content
     assert user == ChatMessage(role='user', content='Hi')
 
 
@@ -142,3 +146,20 @@ def test_message_length_is_checked(api: TestClient, headers: Headers, chat_id: i
     for content in ['', '   ', 'x' * (MAX_MESSAGE_CHARS + 1)]:
         response = api.post(f'/chat/{chat_id}/messages', json={'content': content}, headers=headers)
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+
+
+def test_every_step_quotes_the_newest_message_not_an_older_one(
+    api: TestClient, headers: Headers, chat_id: int, script: Script
+) -> None:
+    script(say('Cześć!'))
+    send(api, headers, chat_id, 'Cześć, jak się masz?')
+    fake = script(say('Hi!'))
+
+    send(api, headers, chat_id, 'Please answer in English from now on')
+
+    system = fake.tool_calls[0][0]
+    assert isinstance(system, ChatMessage)
+    assert '<latest_message>\nPlease answer in English from now on\n</latest_message>' in (
+        system.content
+    )
+    assert 'jak się masz' not in system.content

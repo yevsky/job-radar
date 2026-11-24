@@ -5,6 +5,7 @@ import pytest
 
 from app.ai.base import ChatMessage
 from app.ai.prompts import (
+    LANGUAGE_SAMPLE_CHARS,
     MAX_POSTING_CHARS,
     MAX_RESUME_CHARS,
     OFFER_ANALYSIS_VERSION,
@@ -226,3 +227,24 @@ def test_the_assistant_answers_in_the_users_language_not_the_postings() -> None:
 def test_step_2_writes_in_english_whatever_the_posting_language() -> None:
     system = offer_judgement_messages(OFFER, PROFILE, FACTS)[0].content
     assert 'in English, even if the posting is in another language' in system
+
+
+def test_the_assistant_gets_the_latest_message_to_see_its_language() -> None:
+    content = assistant_system_message(date(2026, 11, 24), '  Which skills fit best?  ').content
+
+    assert content.endswith(
+        '<latest_message>\nWhich skills fit best?\n</latest_message>\n'
+        'Write your answer in the language of that message. Do not choose the language from '
+        "the user's location, the profile, the CVs, the tool results or your earlier answers."
+    )
+
+
+def test_the_language_sample_is_cut() -> None:
+    content = assistant_system_message(date(2026, 11, 24), 'a' * 1000).content
+
+    assert 'a' * LANGUAGE_SAMPLE_CHARS + '\n</latest_message>' in content
+    assert 'a' * (LANGUAGE_SAMPLE_CHARS + 1) not in content
+
+
+def test_without_a_message_there_is_no_language_sample() -> None:
+    assert '<latest_message>' not in assistant_system_message(date(2026, 11, 24)).content
