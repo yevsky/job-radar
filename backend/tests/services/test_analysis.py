@@ -35,9 +35,6 @@ def req(text: str, skill: str | None = None, required: bool = True) -> Requireme
 
 def make_profile(**overrides: Any) -> ProfileRead:
     fields: dict[str, Any] = {
-        'first_name': 'Anna',
-        'last_name': 'Kowalska',
-        'bio': None,
         'experience_level': J,
         'desired_position': 'Python developer',
         'preferred_locations': ['Wrocław', 'Remote'],

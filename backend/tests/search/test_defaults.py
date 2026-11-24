@@ -15,7 +15,10 @@ EMPTY_FORM: dict[str, object] = {
 
 
 def fill_profile(api: TestClient, token: str, **lists: list[str]) -> None:
-    """Save a full profile, then whichever of locations / skills / employment types are given."""
+    """Save a full profile, then whichever of locations / skills / employment types are given.
+
+    The name and bio are sent too, as an old client would: the profile ignores them.
+    """
     profile = {
         'first_name': 'John',
         'last_name': 'Example',

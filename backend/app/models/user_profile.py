@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, Enum, ForeignKey, String, Text
+from sqlalchemy import DateTime, Enum, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -12,13 +12,13 @@ if TYPE_CHECKING:
 
 
 class UserProfile(Base):
+    """What the user is looking for. No name or bio: the app doesn't need them (the account
+    is an email), and the CV's career snapshot describes the person instead."""
+
     __tablename__ = 'user_profiles'
 
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey('users.id', ondelete='CASCADE'), unique=True)
-    first_name: Mapped[str | None] = mapped_column(String(120))
-    last_name: Mapped[str | None] = mapped_column(String(120))
-    bio: Mapped[str | None] = mapped_column(Text)
     experience_level: Mapped[ExperienceLevel | None] = mapped_column(
         Enum(
             ExperienceLevel, name='experience_level', values_callable=lambda e: [m.value for m in e]

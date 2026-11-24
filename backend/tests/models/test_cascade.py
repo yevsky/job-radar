@@ -30,7 +30,9 @@ def test_deleting_user_deletes_profile_and_preferences_but_keeps_technologies(
         email=USER_EMAIL,
         hashed_password='not-a-real-hash',
         role=role,
-        profile=UserProfile(bio='Backend developer', experience_level=ExperienceLevel.JUNIOR),
+        profile=UserProfile(
+            desired_position='Backend developer', experience_level=ExperienceLevel.JUNIOR
+        ),
         preferred_locations=[UserPreferredLocation(location='Remote')],
         preferred_employment_types=[
             UserPreferredEmploymentType(employment_type=EmploymentType.B2B)

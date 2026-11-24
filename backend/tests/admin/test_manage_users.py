@@ -155,7 +155,9 @@ def test_deleting_a_user_deletes_their_data_but_keeps_public_offers(
 ) -> None:
     public = make_offer('https://example.com/public')
     private = make_offer('https://example.com/private', owner_id=registered_user_id)
-    db.add_all([public, private, UserProfile(user_id=registered_user_id, first_name='Ola')])
+    db.add_all(
+        [public, private, UserProfile(user_id=registered_user_id, desired_position='Tester')]
+    )
     db.flush()
     db.add(
         Application(

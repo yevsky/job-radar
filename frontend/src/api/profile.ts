@@ -3,10 +3,8 @@ import { existing, request } from './client'
 import type { EmploymentType, ExperienceLevel } from './enums'
 import { mockProfile } from '@/mocks/profile'
 
+/** Job fields only: no name or bio (the CV's career snapshot describes the person). */
 export interface ProfileRead {
-  first_name: string | null
-  last_name: string | null
-  bio: string | null
   experience_level: ExperienceLevel | null
   desired_position: string | null
   preferred_locations: string[]
@@ -14,10 +12,7 @@ export interface ProfileRead {
   skills: string[]
 }
 
-export type ProfileUpdate = Pick<
-  ProfileRead,
-  'first_name' | 'last_name' | 'bio' | 'experience_level' | 'desired_position'
->
+export type ProfileUpdate = Pick<ProfileRead, 'experience_level' | 'desired_position'>
 
 export const getProfile = () =>
   existing(

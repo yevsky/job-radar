@@ -44,9 +44,6 @@ SAMPLE_OFFER = JobOfferImport.model_validate(
     }
 )
 SAMPLE_PROFILE = ProfileRead(
-    first_name=None,
-    last_name=None,
-    bio=None,
     experience_level=ExperienceLevel.JUNIOR,
     desired_position='Python developer',
     preferred_locations=['Wrocław'],

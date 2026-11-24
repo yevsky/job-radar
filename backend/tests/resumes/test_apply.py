@@ -23,7 +23,7 @@ def fill_profile(api: TestClient, token: str) -> None:
     headers = auth_header(token)
     api.put(
         '/profile/me',
-        json={'first_name': 'Anna', 'bio': 'Likes hiking', 'desired_position': 'Data analyst'},
+        json={'desired_position': 'Data analyst'},
         headers=headers,
     )
     api.put('/profile/me/skills', json={'skills': ['SQL', 'python']}, headers=headers)
@@ -73,8 +73,6 @@ def test_only_the_sent_fields_change(
 
     assert result['experience_level'] == 'junior'
     assert result['desired_position'] == 'Data analyst'
-    assert result['first_name'] == 'Anna'
-    assert result['bio'] == 'Likes hiking'
     assert sorted(result['skills']) == ['SQL', 'python']
     assert result['preferred_locations'] == ['Warsaw']
 
@@ -174,7 +172,8 @@ def test_summary_from_the_frontend_is_ignored(
     response = apply(api, access_token, resume_id, {'summary': 'Junior dev', 'skills': ['Go']})
 
     assert response.status_code == status.HTTP_200_OK
-    assert response.json()['bio'] is None
+    assert response.json()['skills'] == ['Go']
+    assert 'Junior dev' not in response.text
 
 
 def test_invalid_values_return_422(

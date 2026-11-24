@@ -3,10 +3,12 @@ import { Link } from 'react-router-dom'
 
 import { EMPLOYMENT_TYPES, EXPERIENCE_LEVELS, type ExperienceLevel } from '@/api/enums'
 import * as profileApi from '@/api/profile'
+import { listResumes, snapshotResume } from '@/api/resumes'
 import type { ProfileRead, ProfileUpdate } from '@/api/profile'
 import { getSearchSources, getSearchUsage } from '@/api/search'
 import { Icon } from '@/components/Icon'
 import { ErrorBox, Loading, PageHeader, TagInput, ToggleChips } from '@/components/ui'
+import { CareerSnapshot } from '@/features/resumes/CareerSnapshot'
 import { SourcePicker } from '@/features/search/SourcePicker'
 import { employmentLabel, experienceLabel } from '@/lib/labels'
 import { useAsync } from '@/lib/useAsync'
@@ -120,13 +122,7 @@ function ProfileForm({
     setForm((f) => ({ ...f, [key]: value }))
 
   const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
-  const details: (keyof ProfileUpdate)[] = [
-    'first_name',
-    'last_name',
-    'bio',
-    'experience_level',
-    'desired_position',
-  ]
+  const details: (keyof ProfileUpdate)[] = ['experience_level', 'desired_position']
   const dirty = !same(form, initial)
 
   async function save(e: FormEvent) {
@@ -137,9 +133,6 @@ function ProfileForm({
       if (details.some((k) => form[k] !== initial[k])) {
         const blank = (v: string | null) => (v?.trim() ? v.trim() : null)
         latest = await profileApi.updateProfile({
-          first_name: blank(form.first_name),
-          last_name: blank(form.last_name),
-          bio: blank(form.bio),
           experience_level: form.experience_level,
           desired_position: blank(form.desired_position),
         })
@@ -174,44 +167,7 @@ function ProfileForm({
 
   return (
     <form className="stack" onSubmit={save}>
-      <section className="card">
-        <div className="card-head">
-          <div>
-            <h2>About you</h2>
-            <p>Name and bio are never sent to search sources.</p>
-          </div>
-        </div>
-        <div className="form-grid">
-          <label className="field">
-            <span>First name</span>
-            <input
-              className="input"
-              maxLength={120}
-              value={form.first_name ?? ''}
-              onChange={(e) => set('first_name', e.target.value)}
-            />
-          </label>
-          <label className="field">
-            <span>Last name</span>
-            <input
-              className="input"
-              maxLength={120}
-              value={form.last_name ?? ''}
-              onChange={(e) => set('last_name', e.target.value)}
-            />
-          </label>
-          <label className="field full">
-            <span>Bio</span>
-            <textarea
-              className="textarea"
-              maxLength={2000}
-              value={form.bio ?? ''}
-              onChange={(e) => set('bio', e.target.value)}
-            />
-          </label>
-        </div>
-      </section>
-
+      <ProfileSnapshot onUseRole={(role) => set('desired_position', role)} />
       <section className="card">
         <div className="card-head">
           <div>
@@ -301,5 +257,58 @@ function ProfileForm({
         </button>
       </div>
     </form>
+  )
+}
+
+/**
+ * The career snapshot of one CV. One profile per account, but each CV can show the person
+ * differently, so the user picks whose snapshot to see: by default the CV last applied to the
+ * profile (or the newest with a snapshot). "Use" on a role fills the desired position below;
+ * Save keeps it.
+ */
+function ProfileSnapshot({ onUseRole }: { onUseRole: (role: string) => void }) {
+  const resumes = useAsync(() => listResumes(), [])
+  const [pickedId, setPickedId] = useState<number | null>(null)
+  if (!resumes.data) return null
+  const resume =
+    resumes.data.find((r) => r.id === pickedId) ?? snapshotResume(resumes.data) ?? resumes.data[0]
+  if (!resume) {
+    return (
+      <section className="card">
+        <div className="card-head">
+          <div>
+            <h2>Career snapshot</h2>
+            <p>Upload a CV and the AI sums up your experience, fields and roles to look for.</p>
+          </div>
+          <Link to="/cvs" className="btn btn-sm">
+            <Icon name="upload" size={14} /> Upload a CV
+          </Link>
+        </div>
+      </section>
+    )
+  }
+  const picker = resumes.data.length > 1 && (
+    <select
+      className="select"
+      style={{ width: 'auto' }}
+      aria-label="CV whose snapshot to show"
+      value={resume.id}
+      onChange={(e) => setPickedId(Number(e.target.value))}
+    >
+      {resumes.data.map((r) => (
+        <option key={r.id} value={r.id}>
+          {r.label}
+          {r.insights ? '' : ' (no snapshot yet)'}
+        </option>
+      ))}
+    </select>
+  )
+  return (
+    <CareerSnapshot
+      key={resume.id}
+      resume={resume}
+      onUseRole={onUseRole}
+      picker={picker || undefined}
+    />
   )
 }

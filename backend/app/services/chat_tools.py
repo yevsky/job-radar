@@ -212,9 +212,8 @@ class PastedOfferArgs(BaseModel):
 
 
 def get_profile(ctx: ToolContext, _args: NoArgs) -> ToolOutput:
-    # only the job-related part: the name and the bio never go to the AI provider
-    profile = to_profile_read(ctx.user)
-    data = profile.model_dump(mode='json', exclude={'first_name', 'last_name', 'bio'})
+    # the profile holds only job-related fields, so all of it can go to the AI provider
+    data = to_profile_read(ctx.user).model_dump(mode='json')
     return ToolOutput(as_json(data), 'Read your profile')
 
 
