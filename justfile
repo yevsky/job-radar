@@ -20,8 +20,14 @@ typecheck:
 test:
     uv run pytest
 
-run:
+run-backend:
     uv run fastapi dev app/main.py
+
+run-frontend:
+    npm --prefix ../frontend run dev
+
+[parallel]
+run: run-backend run-frontend
 
 seed:
     uv run python -m app.scripts.seed
