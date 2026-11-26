@@ -32,6 +32,9 @@ run: run-backend run-frontend
 seed:
     uv run python -m app.scripts.seed
 
+seed-demo:
+    uv run python -m app.scripts.seed_demo
+
 frontend-check:
     npm --prefix ../frontend run check
 
