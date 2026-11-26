@@ -1,8 +1,6 @@
-# JobRadar AI
+# JobRadar
 
-JobRadar AI is a full-stack web application for people looking for a job. It finds offers on job boards, keeps the ones you want, tracks every application from "saved" to the final answer, and uses an AI module to read postings and CVs, score how well you match an offer, and answer questions about your job search.
-
-It was developed as part of an engineering thesis project at Wrocław University of Science and Technology. The thesis document itself is not included in this repository.
+JobRadar is a full-stack web application for people looking for a job. It finds offers on job boards, keeps the ones you want, tracks every application from "saved" to the final answer, and uses an AI module to read postings and CVs, score how well you match an offer, and answer questions about your job search.
 
 ![Dashboard](docs/img/screenshots/01-dashboard.png)
 
